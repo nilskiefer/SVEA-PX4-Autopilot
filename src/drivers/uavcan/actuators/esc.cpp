@@ -113,23 +113,23 @@ void UavcanEscController::set_rotor_count(uint8_t count)
 void UavcanEscController::esc_status_sub_cb(const uavcan::ReceivedDataStructure<uavcan::equipment::esc::Status> &msg)
 {
 	if (msg.esc_index < esc_status_s::CONNECTED_ESC_MAX) {
-		esc_report_s &esc_report = _esc_status.esc[msg.esc_index];
-		esc_report.timestamp = hrt_absolute_time();
-		esc_report.esc_address = msg.getSrcNodeID().get();
-		esc_report.esc_voltage = msg.voltage;
-		esc_report.esc_current = msg.current;
-		esc_report.esc_temperature = msg.temperature + atmosphere::kAbsoluteNullCelsius; // Kelvin to Celsius
-		// esc_report.motor_temperature is filled in the extended status callback
-		esc_report.esc_rpm = msg.rpm;
-		esc_report.esc_errorcount = msg.error_count;
-		esc_report.failures = get_failures(msg.esc_index);
+		auto &ref = _esc_status.esc[msg.esc_index];
+
+		ref.timestamp       = hrt_absolute_time();
+		ref.esc_address = msg.getSrcNodeID().get();
+		ref.esc_voltage     = msg.voltage;
+		ref.esc_current     = msg.current;
+		ref.esc_temperature = msg.temperature + atmosphere::kAbsoluteNullCelsius; // Kelvin to Celsius
+		ref.esc_rpm         = msg.rpm;
+		ref.esc_errorcount  = msg.error_count;
+		ref.failures        = get_failures(msg.esc_index);
 
 		_esc_status.esc_count = _rotor_count;
 		_esc_status.counter += 1;
 		_esc_status.esc_connectiontype = esc_status_s::ESC_CONNECTION_TYPE_CAN;
 		_esc_status.esc_online_flags = check_escs_status();
 		_esc_status.esc_armed_flags = (1 << _rotor_count) - 1;
-		_esc_status.timestamp = esc_report.timestamp;
+		_esc_status.timestamp = ref.timestamp;
 		_esc_status_pub.publish(_esc_status);
 	}
 
