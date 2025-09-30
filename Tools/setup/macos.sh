@@ -58,12 +58,15 @@ else
 	else
 		echo "[macos.sh] Installing general dependencies (homebrew px4-dev)"
 
-		brew tap osx-cross/arm
-		brew tap PX4/px4
+			brew tap osx-cross/arm
+			brew tap PX4/px4
 
-		brew install px4-dev
-		brew link --overwrite --force arm-gcc-bin@13
-	fi
+			brew install px4-dev
+			brew link --overwrite --force arm-gcc-bin@13
+			brew install gcc-arm-none-eabi
+			brew install ncurses
+			brew install python-tk
+		fi
 fi
 
 # Python dependencies
