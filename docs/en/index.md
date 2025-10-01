@@ -59,7 +59,7 @@ See the [Contributing](contribute/index.md) section for code, [documentation](co
 
 There are several [translations](contribute/translation.md) of this guide. Use the language selector in the top navigation.
 
-<!--@include: _contributors.md-->
+<!--@include: _contributors.md -->
 
 ## License
 
