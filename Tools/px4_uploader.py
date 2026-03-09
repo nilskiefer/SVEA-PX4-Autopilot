@@ -48,6 +48,7 @@ Key improvements over px_uploader.py:
 - Configurable timeouts
 - Better progress reporting
 """
+from __future__ import annotations
 
 import argparse
 import base64
