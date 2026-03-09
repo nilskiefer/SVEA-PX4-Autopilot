@@ -253,6 +253,9 @@
 
 /* Alternate function pin selections (see stm32f74xx75xx_pinmap.h) ******************************/
 
+#define GPIO_USART1_RX   GPIO_USART1_RX_2   /* PB7 */
+#define GPIO_USART1_TX   GPIO_USART1_TX_2   /* PB6 */
+
 #define GPIO_USART2_RX   GPIO_USART2_RX_1   /* PA3 */
 #define GPIO_USART2_TX   GPIO_USART2_TX_1   /* PA2 */
 
@@ -290,5 +293,10 @@
  *
  *      OTG_FS_DM                           PA11
  *      OTG_FS_DP                           PA12
+ *      OTG_FS_ID                           PA10
  *      VBUS                                PA9
  */
+
+#define GPIO_OTGFS_DM   GPIO_OTGFS_DM_0
+#define GPIO_OTGFS_DP   GPIO_OTGFS_DP_0
+#define GPIO_OTGFS_ID   GPIO_OTGFS_ID_0
