@@ -1,0 +1,48 @@
+#!/bin/sh
+set +e
+set R /
+
+ver all
+
+# Load param file location from kconfig and read parameters from board storage.
+. ${R}etc/init.d/rc.filepaths
+param select $PARAM_FILE
+if ! param load
+then
+	param reset_all
+fi
+
+# Optional board architecture defaults.
+set BOARD_ARCH_RC_DEFAULTS ${R}etc/init.d/rc.board_arch_defaults
+if [ -f $BOARD_ARCH_RC_DEFAULTS ]
+then
+	echo "Board architecture defaults: ${BOARD_ARCH_RC_DEFAULTS}"
+	. $BOARD_ARCH_RC_DEFAULTS
+fi
+unset BOARD_ARCH_RC_DEFAULTS
+
+# Optional board defaults.
+set BOARD_RC_DEFAULTS ${R}etc/init.d/rc.board_defaults
+if [ -f $BOARD_RC_DEFAULTS ]
+then
+	echo "Board defaults: ${BOARD_RC_DEFAULTS}"
+	. $BOARD_RC_DEFAULTS
+fi
+unset BOARD_RC_DEFAULTS
+
+# Board-specific sensor and LED bring-up.
+set BOARD_RC_SENSORS ${R}etc/init.d/rc.board_sensors
+if [ -f $BOARD_RC_SENSORS ]
+then
+	echo "Board sensors: ${BOARD_RC_SENSORS}"
+	. $BOARD_RC_SENSORS
+fi
+unset BOARD_RC_SENSORS
+
+# Start PX4 sensor pipeline.
+sensors start
+
+# Start serial-configured services (includes uXRCE-DDS when UXRCE_DDS_CFG != 0).
+. ${R}etc/init.d/rc.serial
+
+unset R
