@@ -5,13 +5,20 @@
 #
 # The rev3 SVEA powerboard wiring from the Zephyr firmware uses peripherals
 # that are not available as PX4 drivers in this tree yet:
-# - ST ISM330DLC IMU on I2C2
 # - TI INA3221 power monitor on I2C2
 # - TI BQ769x0 battery monitor on I2C1
 #
-# Leave board startup transport-only for now. Follow-up work can either add
+# Follow-up work can either add
 # PX4 drivers for those devices or remap the hardware to already-supported
 # PX4 sensor drivers.
+
+# ST ISM330DLC IMU on I2C2 (mikroBUS click board).
+# PX4 bus selection is done with -b:
+#   -b 1 -> board I2C1
+#   -b 2 -> board I2C2
+# You can override manually from NSH, e.g.:
+#   ism330dlc_i2c start -I -b 2 -a 0x6b
+ism330dlc_i2c start -I -b 2 -a 0x6b
 
 # Single LED hardware writer (arbitrates multiple LED producers).
 led_bus_worker start -t 5

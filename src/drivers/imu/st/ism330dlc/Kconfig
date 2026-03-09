@@ -1,0 +1,5 @@
+menuconfig DRIVERS_IMU_ST_ISM330DLC
+	bool "ism330dlc_i2c"
+	default n
+	---help---
+		Enable support for ST ISM330DLC 6-axis IMU over I2C
