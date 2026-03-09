@@ -2,13 +2,53 @@
 // https://github.com/microsoft/vscode-dev-containers/tree/v0.134.0/containers/cpp
 {
 	"name": "px4-dev-nuttx",
-	"image": "px4io/px4-dev-nuttx-focal:2022-08-12",
+	"build": {
+		"dockerfile": "Dockerfile",
+		"context": "."
+	},
 
-	"runArgs": [ "--cap-add=SYS_PTRACE", "--security-opt", "seccomp=unconfined" ],
+	"runArgs": [
+		"--cap-add=SYS_PTRACE",
+		"--security-opt", "seccomp=unconfined",
+
+		"--device=/dev/bus/usb:/dev/bus/usb",
+		"--device=/dev/hidraw:/dev/hidraw",
+		"--volume=/dev:/dev",
+		"--device-cgroup-rule=c 166:* rmw", // ttyACM*
+		"--device-cgroup-rule=c 188:* rmw", // ttyUSB*
+		"--device-cgroup-rule=c 241:* rmw", // hidraw* (CMSIS-DAP / CODEGRIP)
+
+		"--tmpfs=/workspaces/SVEA-PX4-Autopilot/build:exec,mode=1777,size=8g",
+		"--tmpfs=/workspaces/SVEA-PX4-Autopilot/platforms/nuttx/NuttX/nuttx:exec,mode=1777,size=2g",
+		"--tmpfs=/workspaces/SVEA-PX4-Autopilot/platforms/nuttx/NuttX/apps:exec,mode=1777,size=1g"
+	],
 
 	// Set *default* container specific settings.json values on container create.
-	"settings": {
-		"terminal.integrated.shell.linux": "/bin/bash"
+	"customizations": {
+		"vscode": {
+			"settings": {
+				"terminal.integrated.defaultProfile.linux": "zsh",
+				"terminal.integrated.profiles.linux": {
+					"zsh": {
+						"path": "/usr/bin/zsh",
+						"args": [
+							"-l"
+						]
+					},
+					"bash": {
+						"path": "/bin/bash",
+						"args": [
+							"-l"
+						]
+					}
+				}
+			}
+		},
+		"codespaces": {
+			"openFiles": [
+				"README.md"
+			]
+		}
 	},
 
 	// Add the IDs of extensions you want installed when the container is created.
@@ -34,11 +74,14 @@
 		"ms-vscode.makefile-tools"
 	],
 
-	"containerUser": "user",
+	"containerUser": "root",
+	"postCreateCommand": "python3 -m pip install --user pyserial",
+	"postStartCommand": "/bin/bash -lc \"grep -q 'PX4_DEVCONTAINER_SHELL' /root/.bashrc || cat /workspaces/SVEA-PX4-Autopilot/.devcontainer/root-shell.sh >> /root/.bashrc; grep -q 'source /workspaces/SVEA-PX4-Autopilot/.devcontainer/root-zshrc.zsh' /root/.zshrc || printf '\n# PX4_DEVCONTAINER_ZSH\nsource /workspaces/SVEA-PX4-Autopilot/.devcontainer/root-zshrc.zsh\n' >> /root/.zshrc\"",
 	"containerEnv": {
 		"LOCAL_USER_ID": "${localEnv:UID}"
 	},
 
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
 	"forwardPorts": [14556],
+	"privileged": true
 }
