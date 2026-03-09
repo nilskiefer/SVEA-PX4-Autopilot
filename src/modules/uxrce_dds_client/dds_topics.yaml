@@ -5,8 +5,8 @@
 #####
 publications:
   # Minimal ROS bridge profile for Clicker4 IMU streaming.
-  - topic: /fmu/out/sensor_combined
-    type: px4_msgs::msg::SensorCombined
+  - topic: /fmu/out/vehicle_imu
+    type: px4_msgs::msg::VehicleImu
 
   - topic: /fmu/out/timesync_status
     type: px4_msgs::msg::TimesyncStatus
