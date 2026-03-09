@@ -2,6 +2,7 @@
 *.o
 *.gch
 *.pyc
+__pycache__/
 *~
 .*.swp
 .context
@@ -109,3 +110,26 @@ src/systemcmds/topic_listener/listener_generated.cpp
 # colcon
 log/
 keys/
+
+# metadata
+_emscripten_sdk/
+.ccache/
+
+# local developer environment
+.history/
+.cache/
+.venv/
+venv/
+*.code-workspace
+
+# local devcontainer shell customizations
+.devcontainer/root-shell.sh
+.devcontainer/root-zshrc.zsh
+
+# Digilent WaveForms local session/capture files
+*.dwf3work
+*.dwf3scope
+*.dwf3logic
+
+# board bringup helper binaries (generated artifacts)
+boards/mikroe/clicker4-stm32f7/extras/*.bin
