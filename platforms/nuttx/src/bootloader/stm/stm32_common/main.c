@@ -53,6 +53,7 @@ typedef struct mcu_des_t {
 mcu_des_t mcu_descriptions[] = {
 	{ STM32_UNKNOWN,	"STM32???????",		'?'},
 	{ STM32H74xx_75xx, 	"STM32H7[4|5]x",	'?'},
+	{ STM32F74xxx_75xxx,	"STM32F7[4|5]x",	'?'},
 };
 
 typedef struct mcu_rev_t {
@@ -319,7 +320,11 @@ board_deinit(void)
 
 #if INTERFACE_USB
 	px4_arch_configgpio(MK_GPIO_INPUT(GPIO_OTGFS_VBUS));
+#if defined(RCC_AHB1RSTR_OTGFSRST) && defined(STM32_RCC_AHB1RSTR)
 	putreg32(RCC_AHB1RSTR_OTGFSRST, STM32_RCC_AHB1RSTR);
+#elif defined(RCC_AHB2RSTR_OTGFSRST) && defined(STM32_RCC_AHB2RSTR)
+	putreg32(RCC_AHB2RSTR_OTGFSRST, STM32_RCC_AHB2RSTR);
+#endif
 #endif
 
 #if defined(BOARD_FORCE_BL_PIN_IN) && defined(BOARD_FORCE_BL_PIN_OUT)
@@ -419,11 +424,21 @@ clock_deinit(void)
 
 	/* Stop the HSE, CSS, PLL, PLLI2S, PLLSAI */
 	regval  = getreg32(STM32_RCC_CR);
-	regval  &= ~(RCC_CR_HSEON | RCC_CR_PLL1ON | RCC_CR_PLL2ON | RCC_CR_PLL3ON | RCC_CR_CSSHSEON);
+	regval  &= ~(RCC_CR_HSEON
+#if defined(RCC_CR_PLL1ON)
+		     | RCC_CR_PLL1ON | RCC_CR_PLL2ON | RCC_CR_PLL3ON | RCC_CR_CSSHSEON
+#else
+		     | RCC_CR_PLLON | RCC_CR_PLLI2SON | RCC_CR_PLLSAION | RCC_CR_CSSON
+#endif
+		    );
 	putreg32(regval, STM32_RCC_CR);
 
 	/* Reset the RCC_PLLCFGR register */
+#if defined(STM32_RCC_PLLCFGR)
 	putreg32(0x01FF0000, STM32_RCC_PLLCFGR);
+#elif defined(STM32_RCC_PLLCFG)
+	putreg32(0x24003010, STM32_RCC_PLLCFG);
+#endif
 
 	/* Reset the HSEBYP bit */
 	regval  = getreg32(STM32_RCC_CR);
@@ -434,15 +449,19 @@ clock_deinit(void)
 
 void arch_flash_lock(void)
 {
+#if defined(CONFIG_ARCH_CHIP_STM32H7)
 	stm32h7_flash_lock(STM32_FLASH_BANK1);
 	stm32h7_flash_lock(STM32_FLASH_BANK2);
+#endif
 }
 
 void arch_flash_unlock(void)
 {
 	fc_reset();
+#if defined(CONFIG_ARCH_CHIP_STM32H7)
 	stm32h7_flash_unlock(STM32_FLASH_BANK1);
 	stm32h7_flash_unlock(STM32_FLASH_BANK2);
+#endif
 }
 
 ssize_t arch_flash_write(uintptr_t address, const void *buffer, size_t buflen)
@@ -459,7 +478,11 @@ uint32_t
 flash_func_sector_size(unsigned sector)
 {
 	if (sector <= BOARD_FLASH_SECTORS) {
+#if defined(CONFIG_ARCH_CHIP_STM32F7)
+		return up_progmem_pagesize(sector);
+#else
 		return 128 * 1024;
+#endif
 	}
 
 	return 0;
