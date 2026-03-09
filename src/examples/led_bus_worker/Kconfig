@@ -1,0 +1,6 @@
+menuconfig EXAMPLES_LED_BUS_WORKER
+	bool "led_bus_worker"
+	default n
+	---help---
+		Enable support for led_bus_worker
+
