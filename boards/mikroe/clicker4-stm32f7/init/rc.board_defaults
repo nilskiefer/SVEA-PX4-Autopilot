@@ -11,4 +11,4 @@ param set-default SYS_HAS_MAG 0
 
 # uXRCE-DDS on RC UART (/dev/ttyS1).
 param set-default UXRCE_DDS_CFG 300
-param set-default SER_RC_BAUD 921600
+param set-default SER_RC_BAUD 1500000
