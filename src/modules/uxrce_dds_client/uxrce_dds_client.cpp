@@ -334,8 +334,7 @@ bool UxrceddsClient::setupSession(uxrSession *session)
 	uxr_set_request_callback(session, on_request, this);
 	uint8_t sync_timeouts = 0;
 
-	// Try to synchronize with the Agent before creating entities, but don't block startup.
-	// If not converged yet, the main loop continues syncing in the background.
+	// Spin until in sync with the Agent or the session time sync has multiple timeouts
 	while (_synchronize_timestamps) {
 		if (uxr_sync_session(session, 1000)) {
 			if (_timesync.sync_converged()) {
@@ -355,8 +354,8 @@ bool UxrceddsClient::setupSession(uxrSession *session)
 		}
 
 		if (sync_timeouts > TIMESYNC_MAX_TIMEOUTS) {
-			PX4_WARN("time sync not converged at startup, continuing");
-			break;
+			PX4_ERR("timeout during time synchronization");
+			return false;
 		}
 
 		px4_usleep(10'000);
