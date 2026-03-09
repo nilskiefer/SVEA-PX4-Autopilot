@@ -1,0 +1,5 @@
+menuconfig EXAMPLES_BUTTON_LED_MIRROR
+	bool "button_led_mirror"
+	default n
+	---help---
+		Enable support for button_led_mirror
