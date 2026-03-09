@@ -32,7 +32,7 @@ openocd \
   -c "init; reset halt; program build/mikroe_clicker4-stm32f7_bootloader/mikroe_clicker4-stm32f7_bootloader.bin 0x08000000 verify; reset run; shutdown"
 ```
 
-This is via the usb c port marked CN2
+This is via the usb c port marked CN2, you may need to replug it.
 
 ## 3) Build and flash PX4 app
 
@@ -48,7 +48,7 @@ Preferred flash path (through PX4 bootloader over USB CDC):
 make mikroe_clicker4-stm32f7_default upload
 ```
 
-This is via the usb c port marked CN1
+This is via the usb c port marked CN1, you may need to replug it.
 Expected success line:
 
 ```text
