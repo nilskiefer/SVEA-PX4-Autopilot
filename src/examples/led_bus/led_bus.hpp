@@ -39,32 +39,41 @@
 namespace led_bus
 {
 // Bit i corresponds to physical LED Li+1 (i=0 -> L1, ..., i=5 -> L6).
-inline px4::atomic<uint8_t> g_pattern_mask{0};
-inline px4::atomic<uint8_t> g_button_mask{0};
+inline px4::atomic<uint8_t> &pattern_mask()
+{
+	static px4::atomic<uint8_t> s_pattern_mask{0};
+	return s_pattern_mask;
+}
+
+inline px4::atomic<uint8_t> &button_mask()
+{
+	static px4::atomic<uint8_t> s_button_mask{0};
+	return s_button_mask;
+}
 
 inline void set_pattern_mask(uint8_t mask)
 {
-	g_pattern_mask.store(mask & 0x3fu);
+	pattern_mask().store(mask & 0x3fu);
 }
 
 inline void set_button_mask(uint8_t mask)
 {
-	g_button_mask.store(mask & 0x3fu);
+	button_mask().store(mask & 0x3fu);
 }
 
 inline void clear_pattern_mask()
 {
-	g_pattern_mask.store(0);
+	pattern_mask().store(0);
 }
 
 inline void clear_button_mask()
 {
-	g_button_mask.store(0);
+	button_mask().store(0);
 }
 
 inline uint8_t get_combined_mask()
 {
 	// ON wins: button requests force LEDs on over pattern.
-	return static_cast<uint8_t>(g_pattern_mask.load() | g_button_mask.load());
+	return static_cast<uint8_t>(pattern_mask().load() | button_mask().load());
 }
 } // namespace led_bus

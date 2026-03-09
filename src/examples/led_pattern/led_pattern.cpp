@@ -44,11 +44,9 @@
 
 extern "C" __EXPORT int led_pattern_main(int argc, char *argv[]);
 
-class LedPattern : public ModuleBase
+class LedPattern : public ModuleBase<LedPattern>
 {
 public:
-	static Descriptor desc;
-
 	LedPattern(uint32_t interval_ms, uint8_t led_count) :
 		_interval_us(interval_ms * 1000U),
 		_led_count(led_count)
@@ -59,7 +57,6 @@ public:
 
 	static int task_spawn(int argc, char *argv[]);
 	static LedPattern *instantiate(int argc, char *argv[]);
-	static int run_trampoline(int argc, char *argv[]);
 	static int custom_command(int argc, char *argv[]);
 	static int print_usage(const char *reason = nullptr);
 
@@ -87,7 +84,7 @@ private:
 	uint32_t _step_count{0};
 };
 
-ModuleBase::Descriptor LedPattern::desc{task_spawn, custom_command, print_usage};
+constexpr uint8_t LedPattern::kFrames[10];
 
 int LedPattern::print_status()
 {
@@ -103,27 +100,20 @@ int LedPattern::custom_command(int argc, char *argv[])
 	return print_usage("unknown command");
 }
 
-int LedPattern::run_trampoline(int argc, char *argv[])
-{
-	return ModuleBase::run_trampoline_impl(desc, [](int ac, char *av[]) -> ModuleBase * {
-		return LedPattern::instantiate(ac, av);
-	}, argc, argv);
-}
-
 int LedPattern::task_spawn(int argc, char *argv[])
 {
-	desc.task_id = px4_task_spawn_cmd("led_pattern",
-					  SCHED_DEFAULT,
-					  SCHED_PRIORITY_DEFAULT,
-					  1300,
-					  (px4_main_t)&run_trampoline,
-					  (char *const *)argv);
+	int task_id = px4_task_spawn_cmd("led_pattern",
+					 SCHED_DEFAULT,
+					 SCHED_PRIORITY_DEFAULT,
+					 1300,
+					 run_trampoline,
+					 (char *const *)argv);
 
-	if (desc.task_id < 0) {
-		desc.task_id = -1;
+	if (task_id < 0) {
 		return -errno;
 	}
 
+	_task_id = task_id;
 	return 0;
 }
 
@@ -230,5 +220,5 @@ still map to separate LED indices in the bus worker.
 
 int led_pattern_main(int argc, char *argv[])
 {
-	return ModuleBase::main(LedPattern::desc, argc, argv);
+	return LedPattern::main(argc, argv);
 }

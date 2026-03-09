@@ -44,11 +44,9 @@
 
 extern "C" __EXPORT int button_led_mirror_main(int argc, char *argv[]);
 
-class ButtonLedMirror : public ModuleBase
+class ButtonLedMirror : public ModuleBase<ButtonLedMirror>
 {
 public:
-	static Descriptor desc;
-
 	explicit ButtonLedMirror(uint32_t interval_ms) :
 		_interval_us(interval_ms * 1000U)
 	{
@@ -58,7 +56,6 @@ public:
 
 	static int task_spawn(int argc, char *argv[]);
 	static ButtonLedMirror *instantiate(int argc, char *argv[]);
-	static int run_trampoline(int argc, char *argv[]);
 	static int custom_command(int argc, char *argv[]);
 	static int print_usage(const char *reason = nullptr);
 
@@ -74,7 +71,7 @@ private:
 	uint32_t _interval_us{20000};
 };
 
-ModuleBase::Descriptor ButtonLedMirror::desc{task_spawn, custom_command, print_usage};
+constexpr uint32_t ButtonLedMirror::kButtonPins[ButtonLedMirror::kButtonCount];
 
 int ButtonLedMirror::print_status()
 {
@@ -89,27 +86,20 @@ int ButtonLedMirror::custom_command(int argc, char *argv[])
 	return print_usage("unknown command");
 }
 
-int ButtonLedMirror::run_trampoline(int argc, char *argv[])
-{
-	return ModuleBase::run_trampoline_impl(desc, [](int ac, char *av[]) -> ModuleBase * {
-		return ButtonLedMirror::instantiate(ac, av);
-	}, argc, argv);
-}
-
 int ButtonLedMirror::task_spawn(int argc, char *argv[])
 {
-	desc.task_id = px4_task_spawn_cmd("button_led_mirror",
-					  SCHED_DEFAULT,
-					  SCHED_PRIORITY_DEFAULT,
-					  1300,
-					  (px4_main_t)&run_trampoline,
-					  (char *const *)argv);
+	int task_id = px4_task_spawn_cmd("button_led_mirror",
+					 SCHED_DEFAULT,
+					 SCHED_PRIORITY_DEFAULT,
+					 1300,
+					 run_trampoline,
+					 (char *const *)argv);
 
-	if (desc.task_id < 0) {
-		desc.task_id = -1;
+	if (task_id < 0) {
 		return -errno;
 	}
 
+	_task_id = task_id;
 	return 0;
 }
 
@@ -193,5 +183,5 @@ Useful for validating board button and LED wiring.
 
 int button_led_mirror_main(int argc, char *argv[])
 {
-	return ModuleBase::main(ButtonLedMirror::desc, argc, argv);
+	return ButtonLedMirror::main(argc, argv);
 }

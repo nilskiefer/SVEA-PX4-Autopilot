@@ -44,11 +44,9 @@
 
 extern "C" __EXPORT int led_bus_worker_main(int argc, char *argv[]);
 
-class LedBusWorker : public ModuleBase
+class LedBusWorker : public ModuleBase<LedBusWorker>
 {
 public:
-	static Descriptor desc;
-
 	explicit LedBusWorker(uint32_t interval_ms) :
 		_interval_us(interval_ms * 1000U)
 	{
@@ -58,7 +56,6 @@ public:
 
 	static int task_spawn(int argc, char *argv[]);
 	static LedBusWorker *instantiate(int argc, char *argv[]);
-	static int run_trampoline(int argc, char *argv[]);
 	static int custom_command(int argc, char *argv[]);
 	static int print_usage(const char *reason = nullptr);
 
@@ -74,7 +71,7 @@ private:
 	uint8_t _last_mask{0xff};
 };
 
-ModuleBase::Descriptor LedBusWorker::desc{task_spawn, custom_command, print_usage};
+constexpr uint8_t LedBusWorker::kLogicalLedForPhysical[LedBusWorker::kLedCount];
 
 int LedBusWorker::print_status()
 {
@@ -89,27 +86,20 @@ int LedBusWorker::custom_command(int argc, char *argv[])
 	return print_usage("unknown command");
 }
 
-int LedBusWorker::run_trampoline(int argc, char *argv[])
-{
-	return ModuleBase::run_trampoline_impl(desc, [](int ac, char *av[]) -> ModuleBase * {
-		return LedBusWorker::instantiate(ac, av);
-	}, argc, argv);
-}
-
 int LedBusWorker::task_spawn(int argc, char *argv[])
 {
-	desc.task_id = px4_task_spawn_cmd("led_bus_worker",
-					  SCHED_DEFAULT,
-					  SCHED_PRIORITY_DEFAULT,
-					  1300,
-					  (px4_main_t)&run_trampoline,
-					  (char *const *)argv);
+	int task_id = px4_task_spawn_cmd("led_bus_worker",
+					 SCHED_DEFAULT,
+					 SCHED_PRIORITY_DEFAULT,
+					 1300,
+					 run_trampoline,
+					 (char *const *)argv);
 
-	if (desc.task_id < 0) {
-		desc.task_id = -1;
+	if (task_id < 0) {
 		return -errno;
 	}
 
+	_task_id = task_id;
 	return 0;
 }
 
@@ -210,6 +200,6 @@ this module applies the combined state to hardware.
 
 int led_bus_worker_main(int argc, char *argv[])
 {
-	return ModuleBase::main(LedBusWorker::desc, argc, argv);
+	return LedBusWorker::main(argc, argv);
 }
 
