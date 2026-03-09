@@ -1,0 +1,18 @@
+#!/bin/sh
+#
+# board specific defaults
+#------------------------------------------------------------------------------
+
+# rev3 powerboard support in this first step does not wire system_power yet.
+param set-default CBRK_SUPPLY_CHK 894281
+
+# No onboard magnetometer is described for this target.
+param set-default SYS_HAS_MAG 0
+
+# Keep UART debug console (PA2/PA3) free from MAVLink traffic by default.
+param set-default MAV_0_CONFIG 0
+param set-default MAV_1_CONFIG 0
+param set-default MAV_2_CONFIG 0
+
+# Keep USB CDC auto-management enabled so app-side USB comes up after bootloader handoff.
+param set SYS_USB_AUTO 2
