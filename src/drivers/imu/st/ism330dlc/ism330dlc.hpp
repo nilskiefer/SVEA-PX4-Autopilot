@@ -73,8 +73,8 @@ static constexpr uint8_t CTRL2_G_FS_1000DPS = (0x2 << 2);
 static constexpr uint8_t CTRL2_G_FS_2000DPS = (0x3 << 2);
 
 // Default PX4 config for this board. Change these in one place if needed.
-static constexpr uint8_t ISM330DLC_CTRL1_XL_DEFAULT = CTRL1_XL_ODR_208HZ | CTRL1_XL_FS_16G;
-static constexpr uint8_t ISM330DLC_CTRL2_G_DEFAULT = CTRL2_G_ODR_208HZ | CTRL2_G_FS_2000DPS;
+static constexpr uint8_t ISM330DLC_CTRL1_XL_DEFAULT = CTRL1_XL_ODR_416HZ | CTRL1_XL_FS_16G;
+static constexpr uint8_t ISM330DLC_CTRL2_G_DEFAULT = CTRL2_G_ODR_416HZ | CTRL2_G_FS_2000DPS;
 
 extern device::Device *ISM330DLC_I2C_interface(const I2CSPIDriverConfig &config);
 

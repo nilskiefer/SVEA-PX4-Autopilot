@@ -77,7 +77,7 @@ int ISM330DLC::init()
 	_px4_gyro.set_scale(math::radians(70.f / 1000.f));   // 70 mdps/LSB
 	_px4_gyro.set_range(math::radians(2000.f));
 
-	ScheduleDelayed(10_ms);
+	ScheduleDelayed(2_ms);
 	return PX4_OK;
 }
 
@@ -86,7 +86,7 @@ void ISM330DLC::RunImpl()
 	const uint8_t status = read_register(ISM330DLC_ADDR_STATUS);
 
 	if ((status & (STATUS_XLDA | STATUS_GDA)) != (STATUS_XLDA | STATUS_GDA)) {
-		ScheduleDelayed(5_ms);
+		ScheduleDelayed(2_ms);
 		return;
 	}
 
@@ -94,7 +94,7 @@ void ISM330DLC::RunImpl()
 
 	if (read_measurement(&data) != PX4_OK) {
 		perf_count(_comms_error_perf);
-		ScheduleDelayed(10_ms);
+		ScheduleDelayed(5_ms);
 		return;
 	}
 
@@ -122,7 +122,7 @@ void ISM330DLC::RunImpl()
 	_px4_accel.set_error_count(error_count);
 
 	perf_count(_sample_perf);
-	ScheduleDelayed(5_ms);
+	ScheduleDelayed(2_ms);
 }
 
 uint8_t ISM330DLC::read_register(uint8_t reg)
