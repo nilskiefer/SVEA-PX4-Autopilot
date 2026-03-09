@@ -95,6 +95,9 @@ def process_message_type(msg_type):
     msg_type['dds_type'] = msg_type['type'].replace("::msg::", "::msg::dds_::") + "_"
     # topic_simple: eg vehicle_status
     msg_type['topic_simple'] = msg_type['topic'].split('/')[-1]
+    # Publication poll interval in milliseconds for orb_set_interval().
+    # Keep existing behavior by default (10 ms -> 100 Hz).
+    msg_type.setdefault('poll_rate_ms', 10)
 
 pubs_not_empty = msg_map['publications'] is not None
 if pubs_not_empty:
