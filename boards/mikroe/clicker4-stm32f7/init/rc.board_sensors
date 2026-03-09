@@ -1,0 +1,23 @@
+#!/bin/sh
+#
+# Clicker 4 STM32F7 specific board sensors init
+#------------------------------------------------------------------------------
+#
+# The rev3 SVEA powerboard wiring from the Zephyr firmware uses peripherals
+# that are not available as PX4 drivers in this tree yet:
+# - ST ISM330DLC IMU on I2C2
+# - TI INA3221 power monitor on I2C2
+# - TI BQ769x0 battery monitor on I2C1
+#
+# Leave board startup transport-only for now. Follow-up work can either add
+# PX4 drivers for those devices or remap the hardware to already-supported
+# PX4 sensor drivers.
+
+# Single LED hardware writer (arbitrates multiple LED producers).
+led_bus_worker start -t 5
+
+# Bringup LED animation module for board verification.
+led_pattern start -t 120 -n 6
+
+# Mirror BTN1..BTN6 to LED1..LED6 while held (runs in parallel).
+button_led_mirror start -t 20
