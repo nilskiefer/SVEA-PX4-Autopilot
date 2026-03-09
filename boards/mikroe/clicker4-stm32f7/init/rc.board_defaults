@@ -12,6 +12,6 @@ param set-default SYS_HAS_MAG 0
 # uXRCE-DDS on RC UART (/dev/ttyS1).
 param set-default UXRCE_DDS_CFG 300
 param set-default SER_RC_BAUD 1500000
-# Disable XRCE time sync at boot to avoid long topic-creation delays on this serial link.
-param set-default UXRCE_DDS_SYNCT 0
+# Keep XRCE time sync enabled; startup no longer blocks waiting for convergence.
+param set-default UXRCE_DDS_SYNCT 1
 param set-default UXRCE_DDS_SYNCC 0
