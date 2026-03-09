@@ -54,6 +54,14 @@ For the latest stats on contributors please see the latest stats for the Droneco
 
 For the most up to date information, please visit [PX4 User Guide > Autopilot Hardware](https://docs.px4.io/main/en/flight_controller/).
 
+## Clicker4 uXRCE-DDS Serial Agent
+
+For `mikroe_clicker4-stm32f7_default` using uXRCE-DDS over serial, run the agent on the host with:
+
+```bash
+MicroXRCEAgent serial --dev /dev/ttyUSB0 -b 921600
+```
+
 ## Project Governance
 
 The PX4 Autopilot project including all of its trademarks is hosted under [Dronecode](https://www.dronecode.org/), part of the Linux Foundation.
