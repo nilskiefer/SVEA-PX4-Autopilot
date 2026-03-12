@@ -452,6 +452,32 @@ if (TARGET parameters_xml AND TARGET airframes_xml)
 
 endif()
 
+# Copy firmware artifacts to a source-tree folder that is easy to access
+# from the host when build outputs are on a container volume.
+set(PX4_HOST_ARTIFACT_DIR ${PX4_SOURCE_DIR}/artifacts/${PX4_CONFIG})
+
+add_custom_target(host_artifacts ALL
+	COMMAND ${CMAKE_COMMAND} -E make_directory ${PX4_HOST_ARTIFACT_DIR}
+	COMMAND ${CMAKE_COMMAND} -E copy_if_different ${PX4_BINARY_DIR}/${FW_NAME} ${PX4_HOST_ARTIFACT_DIR}/
+	COMMAND ${CMAKE_COMMAND} -E copy_if_different ${PX4_BINARY_DIR}/${PX4_CONFIG}.bin ${PX4_HOST_ARTIFACT_DIR}/
+	DEPENDS px4 ${PX4_BINARY_OUTPUT}
+	COMMENT "Copying firmware artifacts to ${PX4_HOST_ARTIFACT_DIR}"
+)
+
+if (TARGET px4_package)
+	add_dependencies(host_artifacts px4_package)
+	add_custom_command(TARGET host_artifacts POST_BUILD
+		COMMAND ${CMAKE_COMMAND} -E copy_if_different ${fw_package} ${PX4_HOST_ARTIFACT_DIR}/
+	)
+endif()
+
+if (TARGET px4_hex)
+	add_dependencies(host_artifacts px4_hex)
+	add_custom_command(TARGET host_artifacts POST_BUILD
+		COMMAND ${CMAKE_COMMAND} -E copy_if_different ${hex_package} ${PX4_HOST_ARTIFACT_DIR}/
+	)
+endif()
+
 if(${CONFIG_NSH_LIBRARY} MATCHES "y")
 	if(${CONFIG_NSH_DISABLE_ECHO} MATCHES "y")
 		message(FATAL_ERROR "init scripts require NSH SET (board has CONFIG_NSH_DISABLE_ECHO=y)")
