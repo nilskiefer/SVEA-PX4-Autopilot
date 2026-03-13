@@ -212,11 +212,21 @@ __EXPORT int board_app_initialize(uintptr_t arg)
 
 
 #if defined(FLASH_BASED_PARAMS)
+
+#if defined(BOARD_NO_PX4_BOOTLOADER)
+	/* App linked at 0x08000000: keep params in top 128 KiB sector. */
+	static sector_descriptor_t params_sector_map[] = {
+		{7, 128 * 1024, 0x080E0000},
+		{0, 0, 0},
+	};
+
+#else
 	static sector_descriptor_t params_sector_map[] = {
 		{1, 32 * 1024, 0x08008000},
 		{2, 32 * 1024, 0x08010000},
 		{0, 0, 0},
 	};
+#endif
 
 	/* Initialize the flashfs layer to use heap allocated memory */
 	int result = parameter_flashfs_init(params_sector_map, NULL, 0);
