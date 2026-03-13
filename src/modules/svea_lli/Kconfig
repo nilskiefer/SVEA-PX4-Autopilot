@@ -1,0 +1,8 @@
+menuconfig MODULES_SVEA_LLI
+	bool "svea_lli"
+	default n
+	depends on PLATFORM_NUTTX
+	---help---
+		SVEA low-level interface module with PX4-native RC/failsafe handling
+		that publishes actuator_motors/actuator_servos setpoints into the
+		standard PX4 actuator pipeline.

@@ -9,10 +9,24 @@ param set-default CBRK_SUPPLY_CHK 894281
 # No onboard magnetometer is described for this target.
 param set-default SYS_HAS_MAG 0
 
-# Keep UART debug console (PA2/PA3) free from MAVLink traffic by default.
+# Keep RC/SBUS UART free from MAVLink traffic by default.
 param set-default MAV_0_CONFIG 0
 param set-default MAV_1_CONFIG 0
 param set-default MAV_2_CONFIG 0
 
-# Keep USB CDC auto-management enabled so app-side USB comes up after bootloader handoff.
-param set SYS_USB_AUTO 2
+# SVEA actuator function mapping (matches timer_config.cpp channel order).
+param set-default PWM_MAIN_FUNC1 201  # Servo1: steering
+param set-default PWM_MAIN_FUNC2 101  # Motor1: throttle
+param set-default PWM_MAIN_FUNC3 202  # Servo2: gear
+param set-default PWM_MAIN_FUNC4 203  # Servo3: front diff
+param set-default PWM_MAIN_FUNC5 204  # Servo4: rear diff
+
+# Keep all output timer groups at 100 Hz to match the Zephyr loop.
+param set-default PWM_MAIN_TIM0 100
+param set-default PWM_MAIN_TIM1 100
+param set-default PWM_MAIN_TIM2 100
+param set-default PWM_MAIN_TIM3 100
+
+# Keep USB CDC auto-management enabled (cdcacm_autostart handles MAVLink on USB).
+param set-default SYS_USB_AUTO 2
+param set-default USB_MAV_MODE 2
