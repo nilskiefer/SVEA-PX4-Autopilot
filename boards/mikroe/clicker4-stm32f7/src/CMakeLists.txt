@@ -63,4 +63,8 @@ else()
 			nuttx_drivers # sdio
 			px4_layer
 	)
+
+	if("${PX4_BOARD_LABEL}" STREQUAL "noboot")
+		target_compile_definitions(drivers_board PRIVATE BOARD_NO_PX4_BOOTLOADER=1)
+	endif()
 endif()
