@@ -79,7 +79,7 @@ static const bool g_led_active_high[] = {
 	true,   // LED_BLUE
 	true,   // LED_AMBER/LED_RED
 	true,   // LED_SAFETY
-	true,   // LED_GREEN (L4 / PB5)
+	true,   // LED_GREEN (L4 / PE2)
 	true,   // L5
 	true,   // L6
 };
