@@ -74,7 +74,7 @@
 	],
 
 	"containerUser": "root",
-	"postCreateCommand": "python3 -m pip install --user pyserial lxml && if [ ! -d /root/.oh-my-zsh ]; then export RUNZSH=no CHSH=no KEEP_ZSHRC=yes; curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh | sh; fi",
+	"postCreateCommand": "python3 -m pip install --break-system-packages pyserial lxml && if [ ! -d /root/.oh-my-zsh ]; then export RUNZSH=no CHSH=no KEEP_ZSHRC=yes; curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh | sh; fi",
 	"postStartCommand": "/bin/bash -lc \"touch /root/.zshrc; grep -q 'source ${containerWorkspaceFolder}/.devcontainer/root-zshrc.zsh' /root/.zshrc || printf '\n# PX4_DEVCONTAINER_ZSH\nsource ${containerWorkspaceFolder}/.devcontainer/root-zshrc.zsh\n' >> /root/.zshrc\"",
 	"containerEnv": {
 		"LOCAL_USER_ID": "${localEnv:UID}"
