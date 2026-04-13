@@ -11,7 +11,9 @@ There are two valid setups for this board:
 
 Use exactly one of them.
 
-## Scenario 1: No PX4 Bootloader (`noboot`)
+## Scenario 1 (typical): No PX4 Bootloader (`noboot`)
+
+Flash via CN1
 
 Use this when:
 
