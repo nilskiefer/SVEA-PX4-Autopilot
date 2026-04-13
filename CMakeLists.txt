@@ -101,6 +101,10 @@
 
 cmake_minimum_required(VERSION 3.10 FATAL_ERROR)
 
+if(POLICY CMP0148)
+	cmake_policy(SET CMP0148 OLD)
+endif()
+
 set(PX4_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}" CACHE FILEPATH "PX4 source directory" FORCE)
 set(PX4_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}" CACHE FILEPATH "PX4 binary directory" FORCE)
 
@@ -120,9 +124,21 @@ execute_process(
 	WORKING_DIRECTORY ${PX4_SOURCE_DIR}
 	)
 
-# if proper git tag unavilable default to v0.0.0
-if(NOT ${GIT_DESCRIBE_RESULT} MATCHES "0")
-	set(PX4_GIT_TAG "v0.0.0")
+# Firmware version tag policy:
+# - primary source is a real PX4 git tag from `git describe`
+# - placeholder tags like v0.0.0 are rejected
+# - downstream forks can set an explicit override
+set(PX4_FIRMWARE_GIT_TAG_OVERRIDE "" CACHE STRING "Explicit firmware semver tag override (for example: v1.16.1)")
+
+if((NOT ${GIT_DESCRIBE_RESULT} MATCHES "0") OR PX4_GIT_TAG MATCHES "^v0\\.0\\.0($|-)")
+	if(NOT "${PX4_FIRMWARE_GIT_TAG_OVERRIDE}" STREQUAL "")
+		set(PX4_GIT_TAG "${PX4_FIRMWARE_GIT_TAG_OVERRIDE}")
+	else()
+		message(FATAL_ERROR
+			"Unable to determine valid PX4 firmware tag. "
+			"git describe returned '${PX4_GIT_TAG}'. "
+			"Fetch upstream tags or set -DPX4_FIRMWARE_GIT_TAG_OVERRIDE=vX.Y.Z")
+	endif()
 endif()
 
 message(STATUS "PX4_GIT_TAG: ${PX4_GIT_TAG}")
