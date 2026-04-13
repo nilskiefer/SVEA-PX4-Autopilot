@@ -15,7 +15,7 @@
  * Application starts on sector 4 boundary for erase/program safety.
  */
 #define APP_LOAD_ADDRESS               0x08020000
-#define BOOTLOADER_DELAY               100
+#define BOOTLOADER_DELAY               500
 
 #define INTERFACE_USB                  1
 #define INTERFACE_USB_CONFIG           "/dev/ttyACM0"
