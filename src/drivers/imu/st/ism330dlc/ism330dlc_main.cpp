@@ -87,4 +87,3 @@ extern "C" int ism330dlc_main(int argc, char *argv[])
 	ThisDriver::print_usage();
 	return -1;
 }
-

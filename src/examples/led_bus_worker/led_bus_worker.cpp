@@ -201,7 +201,7 @@ Single-writer LED bus worker. Other modules publish desired LED masks and
 this module applies the combined state to hardware.
 )DESCR_STR");
 
-	PRINT_MODULE_USAGE_NAME("led_bus_worker", "example");
+	PRINT_MODULE_USAGE_NAME("led_bus_worker", "template");
 	PRINT_MODULE_USAGE_COMMAND("start");
 	PRINT_MODULE_USAGE_PARAM_INT('t', 5, 1, 100, "Worker period in milliseconds", true);
 	PRINT_MODULE_USAGE_DEFAULT_COMMANDS();
@@ -212,4 +212,3 @@ int led_bus_worker_main(int argc, char *argv[])
 {
 	return ModuleBase::main(LedBusWorker::desc, argc, argv);
 }
-
