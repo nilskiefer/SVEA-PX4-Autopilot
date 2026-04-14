@@ -41,12 +41,14 @@ static constexpr int16_t combine(uint8_t msb, uint8_t lsb)
 }
 
 ICM42670P::ICM42670P(const I2CSPIDriverConfig &config):
-	SPI(config),
+	I2C(config),
 	I2CSPIDriver(config),
 	_drdy_gpio(config.drdy_gpio),
 	_px4_accel(get_device_id(), config.rotation),
 	_px4_gyro(get_device_id(), config.rotation)
 {
+	_retries = 5;
+
 	if (config.drdy_gpio != 0) {
 		_drdy_missed_perf = perf_alloc(PC_COUNT, MODULE_NAME": DRDY missed");
 	}
@@ -66,10 +68,10 @@ ICM42670P::~ICM42670P()
 
 int ICM42670P::init()
 {
-	int ret = SPI::init();
+	int ret = I2C::init();
 
 	if (ret != PX4_OK) {
-		DEVICE_DEBUG("SPI::init failed (%i)", ret);
+		DEVICE_DEBUG("I2C::init failed (%i)", ret);
 		return ret;
 	}
 
@@ -408,10 +410,14 @@ bool ICM42670P::RegisterCheck(const T &reg_cfg)
 
 uint8_t ICM42670P::RegisterRead(Register::BANK_0 reg)
 {
-	uint8_t cmd[2] {};
-	cmd[0] = static_cast<uint8_t>(reg) | DIR_READ;
-	transfer(cmd, cmd, sizeof(cmd));
-	return cmd[1];
+	uint8_t reg_addr = static_cast<uint8_t>(reg);
+	uint8_t value = 0;
+
+	if (transfer(&reg_addr, sizeof(reg_addr), &value, sizeof(value)) != PX4_OK) {
+		perf_count(_bad_transfer_perf);
+	}
+
+	return value;
 }
 
 uint8_t ICM42670P::RegisterRead(Register::MREG1 reg)
@@ -437,8 +443,11 @@ uint8_t ICM42670P::RegisterRead(Register::MREG1 reg)
 
 void ICM42670P::RegisterWrite(Register::BANK_0 reg, uint8_t value)
 {
-	uint8_t cmd[2] { (uint8_t)reg, value };
-	transfer(cmd, cmd, sizeof(cmd));
+	uint8_t cmd[2] { static_cast<uint8_t>(reg), value };
+
+	if (transfer(cmd, sizeof(cmd), nullptr, 0) != PX4_OK) {
+		perf_count(_bad_transfer_perf);
+	}
 }
 
 void ICM42670P::RegisterWrite(Register::MREG1 reg, uint8_t value)
@@ -473,23 +482,24 @@ void ICM42670P::RegisterSetAndClearBits(T reg, uint8_t setbits, uint8_t clearbit
 uint16_t ICM42670P::FIFOReadCount()
 {
 	// read FIFO count
-	uint8_t fifo_count_buf[3] {};
-	fifo_count_buf[0] = static_cast<uint8_t>(Register::BANK_0::FIFO_COUNTH) | DIR_READ;
+	uint8_t fifo_count_buf[2] {};
+	uint8_t reg_addr = static_cast<uint8_t>(Register::BANK_0::FIFO_COUNTH);
 
-	if (transfer(fifo_count_buf, fifo_count_buf, sizeof(fifo_count_buf)) != PX4_OK) {
+	if (transfer(&reg_addr, sizeof(reg_addr), fifo_count_buf, sizeof(fifo_count_buf)) != PX4_OK) {
 		perf_count(_bad_transfer_perf);
 		return 0;
 	}
 
-	return combine(fifo_count_buf[1], fifo_count_buf[2]);
+	return combine(fifo_count_buf[0], fifo_count_buf[1]);
 }
 
 bool ICM42670P::FIFORead(const hrt_abstime &timestamp_sample, uint8_t samples)
 {
 	FIFOTransferBuffer buffer{};
-	const size_t transfer_size = math::min(samples * sizeof(FIFO::DATA) + 6, FIFO::SIZE);
+	const size_t transfer_size = math::min(samples * sizeof(FIFO::DATA) + 5, FIFO::SIZE + 5);
+	uint8_t reg_addr = static_cast<uint8_t>(Register::BANK_0::INT_STATUS);
 
-	if (transfer((uint8_t *)&buffer, (uint8_t *)&buffer, transfer_size) != PX4_OK) {
+	if (transfer(&reg_addr, sizeof(reg_addr), reinterpret_cast<uint8_t *>(&buffer), transfer_size) != PX4_OK) {
 		perf_count(_bad_transfer_perf);
 		return false;
 	}
@@ -643,15 +653,15 @@ void ICM42670P::ProcessGyro(const hrt_abstime &timestamp_sample, const FIFO::DAT
 void ICM42670P::UpdateTemperature()
 {
 	// read current temperature
-	uint8_t temperature_buf[3] {};
-	temperature_buf[0] = static_cast<uint8_t>(Register::BANK_0::TEMP_DATA1) | DIR_READ;
+	uint8_t temperature_buf[2] {};
+	uint8_t reg_addr = static_cast<uint8_t>(Register::BANK_0::TEMP_DATA1);
 
-	if (transfer(temperature_buf, temperature_buf, sizeof(temperature_buf)) != PX4_OK) {
+	if (transfer(&reg_addr, sizeof(reg_addr), temperature_buf, sizeof(temperature_buf)) != PX4_OK) {
 		perf_count(_bad_transfer_perf);
 		return;
 	}
 
-	const int16_t TEMP_DATA = combine(temperature_buf[1], temperature_buf[2]);
+	const int16_t TEMP_DATA = combine(temperature_buf[0], temperature_buf[1]);
 
 	// Temperature in Degrees Centigrade
 	const float TEMP_degC = (TEMP_DATA / TEMPERATURE_SENSITIVITY) + TEMPERATURE_OFFSET;

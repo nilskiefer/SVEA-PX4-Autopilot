@@ -56,6 +56,8 @@ static constexpr uint8_t Bit6 = (1 << 6);
 static constexpr uint8_t Bit7 = (1 << 7);
 
 static constexpr uint32_t SPI_SPEED = 24 * 1000 * 1000; // 24 MHz SPI
+static constexpr uint32_t I2C_SPEED = 400 * 1000; // 400 kHz I2C
+static constexpr uint8_t I2C_ADDRESS_DEFAULT = 0x68;
 static constexpr uint8_t DIR_READ = 0x80;
 
 static constexpr uint8_t WHOAMI = 0x67;
