@@ -55,3 +55,26 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           flags: unittests
           file: coverage/lcov.info
+
+  devcontainer_build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Build Devcontainer Image
+        run: |
+          cd "$GITHUB_WORKSPACE"
+          docker build -t svea-devcontainer-ci -f .devcontainer/Dockerfile .devcontainer
+
+      - name: Build NuttX Targets Inside Devcontainer
+        run: |
+          cd "$GITHUB_WORKSPACE"
+          docker run --rm \
+            -v "$GITHUB_WORKSPACE":/workspaces/SVEA-PX4-Autopilot \
+            -w /workspaces/SVEA-PX4-Autopilot \
+            svea-devcontainer-ci \
+            /bin/bash -lc "git config --global --add safe.directory /workspaces/SVEA-PX4-Autopilot && make mikroe_clicker4-stm32f7_noboot -j\$(nproc) && make mikroe_clicker4-stm32f7_bootloader -j\$(nproc)"
