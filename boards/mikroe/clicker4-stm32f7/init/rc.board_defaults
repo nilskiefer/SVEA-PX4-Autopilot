@@ -29,6 +29,35 @@ param set-default MAV_2_CONFIG 0
 param set-default RC_PORT_CONFIG 300
 param set-default RC_INPUT_PROTO 2
 
+# RC channel mapping aligned with SVEA LLI Zephyr SBUS mapping:
+# CH1 steer, CH2 throttle, CH4 diff toggle, CH5 mode/override, CH6 gear.
+param set-default RC_MAP_ROLL 1
+param set-default RC_MAP_THROTTLE 2
+param set-default RC_MAP_AUX1 4
+param set-default RC_MAP_FLTMODE 5
+param set-default RC_MAP_GEAR_SW 6
+
+# Map the 3-position CH5 switch to rover mode handover:
+# low=Offboard (ROS/auto), mid=Manual (RC override), high=Manual + kill (mute).
+# Duplicated slots make 3-position selection robust across RC calibration spread.
+param set-default COM_FLTMODE1 7
+param set-default COM_FLTMODE2 7
+param set-default COM_FLTMODE3 0
+param set-default COM_FLTMODE4 0
+param set-default COM_FLTMODE5 0
+param set-default COM_FLTMODE6 0
+
+# CH5 high position engages kill switch. Kill drives disarmed PWM values.
+param set-default RC_MAP_KILL_SW 5
+param set-default RC_KILLSWITCH_TH 0.75
+
+# Mute behavior (kill/disarmed): force all active outputs to 0 duty.
+param set-default PWM_MAIN_DIS1 0
+param set-default PWM_MAIN_DIS2 0
+param set-default PWM_MAIN_DIS3 0
+param set-default PWM_MAIN_DIS4 0
+param set-default PWM_MAIN_DIS5 0
+
 # SVEA actuator function mapping (matches timer_config.cpp channel order).
 param set-default PWM_MAIN_FUNC1 201  # Servo1: steering
 param set-default PWM_MAIN_FUNC2 101  # Motor1: throttle
