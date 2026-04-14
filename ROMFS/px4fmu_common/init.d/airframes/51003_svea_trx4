@@ -1,0 +1,47 @@
+#!/bin/sh
+#
+# @name SVEA TRX4
+#
+# @type Rover
+# @class Rover
+#
+
+. ${R}etc/init.d/rc.rover_ackermann_defaults
+
+# SVEA target has no magnetometer in this hardware profile.
+param set-default EKF2_MAG_TYPE 5
+
+param set-default NAV_ACC_RAD 0.5
+
+# Ackermann Parameters
+param set-default RA_WHEEL_BASE 0.312
+param set-default RA_ACC_RAD_GAIN 2
+param set-default RA_ACC_RAD_MAX 3
+param set-default RA_MAX_STR_ANG 0.5236
+param set-default RA_STR_RATE_LIM 270
+
+# Rover Control Parameters
+param set-default RO_ACCEL_LIM 1.5
+param set-default RO_DECEL_LIM 10
+param set-default RO_JERK_LIM 20
+param set-default RO_MAX_THR_SPEED 2.8
+
+# Rover Rate Control Parameters
+param set-default RO_YAW_RATE_I 0.1
+param set-default RO_YAW_RATE_P 0.1
+param set-default RO_YAW_RATE_LIM 120
+param set-default RO_YAW_RATE_CORR 1
+
+# Rover Attitude Control Parameters
+param set-default RO_YAW_P 2.5
+
+# Rover Velocity Control Parameters
+param set-default RO_SPEED_LIM 2.5
+param set-default RO_SPEED_I 0.01
+param set-default RO_SPEED_P 0.1
+param set-default RO_SPEED_RED 1
+
+# Pure pursuit parameters
+param set-default PP_LOOKAHD_GAIN 1
+param set-default PP_LOOKAHD_MAX 10
+param set-default PP_LOOKAHD_MIN 1.5
