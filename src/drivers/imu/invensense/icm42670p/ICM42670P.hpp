@@ -34,7 +34,7 @@
 /**
  * @file ICM42670P.hpp
  *
- * Driver for the Invensense ICM42688P connected via SPI.
+ * Driver for the Invensense ICM42670P connected via I2C.
  *
  */
 
@@ -44,7 +44,7 @@
 
 #include <drivers/drv_hrt.h>
 #include <lib/drivers/accelerometer/PX4Accelerometer.hpp>
-#include <lib/drivers/device/spi.h>
+#include <lib/drivers/device/i2c.h>
 #include <lib/drivers/gyroscope/PX4Gyroscope.hpp>
 #include <lib/perf/perf_counter.h>
 #include <px4_platform_common/atomic.h>
@@ -52,7 +52,7 @@
 
 using namespace InvenSense_ICM42670P;
 
-class ICM42670P : public device::SPI, public I2CSPIDriver<ICM42670P>
+class ICM42670P : public device::I2C, public I2CSPIDriver<ICM42670P>
 {
 public:
 	ICM42670P(const I2CSPIDriverConfig &config);
@@ -78,7 +78,6 @@ private:
 
 	// Transfer data
 	struct FIFOTransferBuffer {
-		uint8_t cmd{static_cast<uint8_t>(Register::BANK_0::INT_STATUS) | DIR_READ};
 		uint8_t INT_STATUS{0};
 		uint8_t INT_STATUS2{0};
 		uint8_t INT_STATUS3{0};
@@ -87,7 +86,7 @@ private:
 		FIFO::DATA f[FIFO_MAX_SAMPLES] {};
 	};
 	// ensure no struct padding
-	static_assert(sizeof(FIFOTransferBuffer) == (6 + FIFO_MAX_SAMPLES *sizeof(FIFO::DATA)));
+	static_assert(sizeof(FIFOTransferBuffer) == (5 + FIFO_MAX_SAMPLES * sizeof(FIFO::DATA)));
 
 	struct register_bank0_config_t {
 		Register::BANK_0 reg;
