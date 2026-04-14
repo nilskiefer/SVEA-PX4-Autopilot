@@ -9,6 +9,17 @@ param set-default CBRK_SUPPLY_CHK 894281
 # No onboard magnetometer is described for this target.
 param set-default SYS_HAS_MAG 0
 
+# Default to the SVEA TRX4 profile on fresh parameter storage.
+param set-default SYS_AUTOSTART 51003
+
+# Force sane first boot behavior even if params exist but airframe is unset.
+if param compare SYS_AUTOSTART 0
+then
+	echo "Configuring default SVEA airframe (51003)"
+	param set SYS_AUTOSTART 51003
+	param set SYS_AUTOCONFIG 1
+fi
+
 # Keep RC/SBUS UART free from MAVLink traffic by default.
 param set-default MAV_0_CONFIG 0
 param set-default MAV_1_CONFIG 0
