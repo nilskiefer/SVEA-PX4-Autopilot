@@ -41,7 +41,8 @@ void ICM42670P::print_usage()
 	PRINT_MODULE_USAGE_NAME("icm42670p", "driver");
 	PRINT_MODULE_USAGE_SUBCATEGORY("imu");
 	PRINT_MODULE_USAGE_COMMAND("start");
-	PRINT_MODULE_USAGE_PARAMS_I2C_SPI_DRIVER(false, true);
+	PRINT_MODULE_USAGE_PARAMS_I2C_SPI_DRIVER(true, false);
+	PRINT_MODULE_USAGE_PARAMS_I2C_ADDRESS(I2C_ADDRESS_DEFAULT);
 	PRINT_MODULE_USAGE_PARAM_INT('R', 0, 0, 35, "Rotation", true);
 	PRINT_MODULE_USAGE_DEFAULT_COMMANDS();
 }
@@ -51,8 +52,9 @@ extern "C" int icm42670p_main(int argc, char *argv[])
 {
 	int ch;
 	using ThisDriver = ICM42670P;
-	BusCLIArguments cli{false, true};
-	cli.default_spi_frequency = SPI_SPEED;
+	BusCLIArguments cli{true, false};
+	cli.i2c_address = I2C_ADDRESS_DEFAULT;
+	cli.default_i2c_frequency = I2C_SPEED;
 
 	while ((ch = cli.getOpt(argc, argv, "R:")) != EOF) {
 		switch (ch) {
