@@ -2,16 +2,12 @@
 #
 # Clicker 4 STM32F7 specific board sensors init
 #------------------------------------------------------------------------------
-#
-# The rev3 SVEA powerboard wiring from the Zephyr firmware uses peripherals
-# that are not available as PX4 drivers in this tree yet:
-# - ST ISM330DLC IMU on I2C2
-# - TI INA3221 power monitor on I2C2
-# - TI BQ769x0 battery monitor on I2C1
-#
-# Leave board startup transport-only for now. Follow-up work can either add
-# PX4 drivers for those devices or remap the hardware to already-supported
-# PX4 sensor drivers.
 
-# No board-local sensor bringup yet.
-# SVEA LLI control startup is in rc.board_extras to run after serial/RC init.
+# SVEA rev2/rev3 with ISM330DLC on mikroBUS 3 (I2C2).
+if ism330dlc -I -b 2 -a 0x6b -q start
+then
+	echo "ism330dlc started on I2C bus 2 addr 0x6b"
+else
+	echo "ERROR: ism330dlc not found on I2C bus 2 addr 0x6b"
+	set STARTUP_TUNE 2
+fi
