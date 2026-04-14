@@ -25,6 +25,10 @@ param set-default MAV_0_CONFIG 0
 param set-default MAV_1_CONFIG 0
 param set-default MAV_2_CONFIG 0
 
+# RC receiver defaults: SBUS on the dedicated RC port (/dev/ttyS1).
+param set-default RC_PORT_CONFIG 300
+param set-default RC_INPUT_PROTO 2
+
 # SVEA actuator function mapping (matches timer_config.cpp channel order).
 param set-default PWM_MAIN_FUNC1 201  # Servo1: steering
 param set-default PWM_MAIN_FUNC2 101  # Motor1: throttle
