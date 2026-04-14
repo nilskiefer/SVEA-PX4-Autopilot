@@ -66,10 +66,14 @@ public:
 	int print_status() override;
 
 private:
+#if defined(GPIO_BTN_T1) && defined(GPIO_BTN_T2) && defined(GPIO_BTN_T3) && defined(GPIO_BTN_T4) && defined(GPIO_BTN_T5) && defined(GPIO_BTN_T6)
 	static constexpr uint8_t kButtonCount = 6;
 	static constexpr uint32_t kButtonPins[kButtonCount] = {
 		GPIO_BTN_T1, GPIO_BTN_T2, GPIO_BTN_T3, GPIO_BTN_T4, GPIO_BTN_T5, GPIO_BTN_T6
 	};
+#else
+	static constexpr uint8_t kButtonCount = 0;
+#endif
 
 	uint32_t _interval_us{20000};
 };
@@ -151,6 +155,17 @@ ButtonLedMirror *ButtonLedMirror::instantiate(int argc, char *argv[])
 
 void ButtonLedMirror::run()
 {
+#if !(defined(GPIO_BTN_T1) && defined(GPIO_BTN_T2) && defined(GPIO_BTN_T3) && defined(GPIO_BTN_T4) && defined(GPIO_BTN_T5) && defined(GPIO_BTN_T6)
+	PX4_WARN("button GPIO macros not available on this board, idling");
+
+	while (!should_exit()) {
+		px4_usleep(_interval_us);
+	}
+
+	led_bus::clear_button_mask();
+	return;
+#endif
+
 	while (!should_exit()) {
 		uint8_t mask = 0;
 
@@ -184,7 +199,7 @@ Mirrors BTN1..BTN6 to LED1..LED6 while each button is held.
 Useful for validating board button and LED wiring.
 )DESCR_STR");
 
-	PRINT_MODULE_USAGE_NAME("button_led_mirror", "example");
+	PRINT_MODULE_USAGE_NAME("button_led_mirror", "template");
 	PRINT_MODULE_USAGE_COMMAND("start");
 	PRINT_MODULE_USAGE_PARAM_INT('t', 20, 2, 1000, "Poll interval in milliseconds", true);
 	PRINT_MODULE_USAGE_DEFAULT_COMMANDS();
