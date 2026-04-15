@@ -100,7 +100,7 @@
 
 /* RC Serial port */
 
-#define RC_SERIAL_PORT                     "/dev/ttyS1"
+#define RC_SERIAL_PORT                     "/dev/ttyS2"
 
 
 /* This board provides a DMA pool and APIs */
