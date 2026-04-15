@@ -1,0 +1,5 @@
+menuconfig DRIVERS_SMART_BATTERY_BQ769X2
+	bool "bq769x2"
+	default n
+	---help---
+		Enable support for TI BQ769x2 smart battery monitor (BQ76942/BQ76952 family).
