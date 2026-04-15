@@ -11,3 +11,22 @@ else
 	echo "ERROR: lsm6dsox not found on I2C bus 2 addr 0x6b"
 	set STARTUP_TUNE 2
 fi
+
+# Optional BQ769x2 smart battery monitor on powerboard I2C bus.
+if param compare SENS_EN_BQ769X2 1
+then
+	if bq769x2 -I -b 2 -a 0x08 -t 1 -q start
+	then
+		echo "bq769x2 started on I2C bus 2 addr 0x08"
+	else
+		echo "WARN: bq769x2 not available on I2C bus 2 addr 0x08, retrying once after delay"
+		sleep 2
+
+		if bq769x2 -I -b 2 -a 0x08 -t 1 -q start
+		then
+			echo "bq769x2 started on I2C bus 2 addr 0x08 (delayed)"
+		else
+			echo "WARN: bq769x2 still not available after delayed retry"
+		fi
+	fi
+fi
