@@ -155,7 +155,7 @@ ButtonLedMirror *ButtonLedMirror::instantiate(int argc, char *argv[])
 
 void ButtonLedMirror::run()
 {
-#if !(defined(GPIO_BTN_T1) && defined(GPIO_BTN_T2) && defined(GPIO_BTN_T3) && defined(GPIO_BTN_T4) && defined(GPIO_BTN_T5) && defined(GPIO_BTN_T6)
+#if !(defined(GPIO_BTN_T1) && defined(GPIO_BTN_T2) && defined(GPIO_BTN_T3) && defined(GPIO_BTN_T4) && defined(GPIO_BTN_T5) && defined(GPIO_BTN_T6))
 	PX4_WARN("button GPIO macros not available on this board, idling");
 
 	while (!should_exit()) {
