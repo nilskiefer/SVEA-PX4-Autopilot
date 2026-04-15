@@ -106,3 +106,50 @@ param set-default LSM6DSOX_ACC_FS 4
 param set-default LSM6DSOX_GYR_FS 500
 param set-default LSM6DSOX_ACC_ODR 104
 param set-default LSM6DSOX_GYR_ODR 104
+
+# BQ769x2 smart battery defaults (powerboard 3S setup).
+param set-default SENS_EN_BQ769X2 1
+param set-default BAT1_CAPACITY 9000
+param set-default BAT1_N_CELLS 3
+param set-default BAT1_V_CHARGED 4.2
+param set-default BAT1_V_EMPTY 3.2
+param set-default BQ769X2_ADDR 8
+param set-default BQ769X2_CELLS 3
+param set-default BQ769X2_CRC 1
+param set-default BQ769X2_CFG 1
+param set-default BQ769X2_SHUNT 1000
+param set-default BQ769X2_COV_V 4.25
+param set-default BQ769X2_COV_RV 4.10
+param set-default BQ769X2_COV_DLY 1000
+param set-default BQ769X2_CUV_V 2.80
+param set-default BQ769X2_CUV_RV 3.00
+param set-default BQ769X2_CUV_DLY 1000
+param set-default BQ769X2_OCC_A 6
+param set-default BQ769X2_OCC_DLY 100
+param set-default BQ769X2_OCD_A 25
+param set-default BQ769X2_OCD_DLY 425
+param set-default BQ769X2_SCD_A 200
+param set-default BQ769X2_SCD_DLY 60
+param set-default BQ769X2_OTC_C 45
+param set-default BQ769X2_UTC_C 0
+param set-default BQ769X2_OTD_C 60
+param set-default BQ769X2_UTD_C -20
+param set-default BQ769X2_T_HYST_C 5
+# TS thermistors not populated on current powerboard revision.
+param set-default BQ769X2_TPROT_EN 0
+param set-default BQ769X2_PWR_CFG 10370
+param set-default BQ769X2_DIODEMA 500
+param set-default BQ769X2_FETOPT 29
+param set-default BQ769X2_FET_AUTO 1
+param set-default BQ769X2_FETMASK 5
+param set-default BQ769X2_PCHGMASK 8
+param set-default BQ769X2_PCHG_MS 0
+param set-default BQ769X2_PTO_MS 500
+param set-default BQ769X2_PDV_MV 200
+param set-default BQ769X2_POST_MS 10
+param set-default BQ769X2_ALL_OK 1
+param set-default BQ769X2_OW_CHK 1
+param set-default BQ769X2_OW_TIME 10
+param set-default BQ769X2_OWTOL 50
+# 3S with VC2-VC9 shorted: use channels VC1, VC2, VC10.
+param set-default BQ769X2_VCMODE 515
