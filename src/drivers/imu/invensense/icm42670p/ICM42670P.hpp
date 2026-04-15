@@ -163,11 +163,12 @@ private:
 	int32_t _fifo_gyro_samples{static_cast<int32_t>(_fifo_empty_interval_us / (1000000 / GYRO_RATE))};
 
 	uint8_t _checked_register_bank0{0};
-	static constexpr uint8_t size_register_bank0_cfg{10};
+	static constexpr uint8_t size_register_bank0_cfg{11};
 	register_bank0_config_t _register_bank0_cfg[size_register_bank0_cfg] {
 		// Register                              | Set bits, Clear bits
 		{ Register::BANK_0::INT_CONFIG,           INT_CONFIG_BIT::INT1_MODE | INT_CONFIG_BIT::INT1_DRIVE_CIRCUIT, INT_CONFIG_BIT::INT1_POLARITY },
 		{ Register::BANK_0::PWR_MGMT0,            PWR_MGMT0_BIT::GYRO_MODE_LOW_NOISE | PWR_MGMT0_BIT::ACCEL_MODE_LOW_NOISE, 0 },
+		{ Register::BANK_0::INTF_CONFIG1,         0, INTF_CONFIG1_BIT::I3C_SDR_EN | INTF_CONFIG1_BIT::I3C_DDR_EN }, // force pure I2C mode
 		{ Register::BANK_0::GYRO_CONFIG0,         GYRO_CONFIG0_BIT::GYRO_FS_SEL_2000_DPS_SET | GYRO_CONFIG0_BIT::GYRO_ODR_1600HZ_SET, GYRO_CONFIG0_BIT::GYRO_FS_SEL_2000_DPS_CLEAR | GYRO_CONFIG0_BIT::GYRO_ODR_1600HZ_CLEAR },
 		{ Register::BANK_0::ACCEL_CONFIG0,        ACCEL_CONFIG0_BIT::ACCEL_UI_FS_SEL_16G_SET | ACCEL_CONFIG0_BIT::ACCEL_ODR_1600HZ_SET, ACCEL_CONFIG0_BIT::ACCEL_UI_FS_SEL_16G_SET | ACCEL_CONFIG0_BIT::ACCEL_ODR_1600HZ_CLEAR },
 		{ Register::BANK_0::GYRO_CONFIG1,         0, GYRO_CONFIG1_BIT::GYRO_UI_FILT_BW_BYPASSED_CLEAR },
