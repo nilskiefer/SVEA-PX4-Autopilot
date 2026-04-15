@@ -8,6 +8,8 @@ param set-default CBRK_SUPPLY_CHK 894281
 
 # No onboard magnetometer is described for this target.
 param set-default SYS_HAS_MAG 0
+param set-default SYS_HAS_BARO 0
+param set-default COM_ARM_SDCARD 0
 
 # Default to the SVEA TRX4 profile on fresh parameter storage.
 param set-default SYS_AUTOSTART 51003
@@ -28,6 +30,8 @@ param set-default MAV_2_CONFIG 0
 # RC receiver defaults: SBUS on the dedicated RC port (/dev/ttyS1).
 param set-default RC_PORT_CONFIG 300
 param set-default RC_INPUT_PROTO 2
+param set-default RC_CHAN_CNT 7
+param set-default COM_RC_IN_MODE 0
 
 # RC channel mapping aligned with SVEA LLI Zephyr SBUS mapping:
 # CH1 steer, CH2 throttle, CH4 diff toggle, CH5 mode/override, CH6 gear.
@@ -36,6 +40,24 @@ param set-default RC_MAP_THROTTLE 2
 param set-default RC_MAP_AUX1 4
 param set-default RC_MAP_FLTMODE 5
 param set-default RC_MAP_GEAR_SW 6
+
+# Minimal RC calibration baseline for rover use without QGC full radio wizard.
+# Channels used: CH1 steer, CH2 throttle, CH5 mode/kill, CH6 gear.
+param set-default RC1_MIN 1000
+param set-default RC1_TRIM 1500
+param set-default RC1_MAX 2000
+param set-default RC2_MIN 1000
+param set-default RC2_TRIM 1500
+param set-default RC2_MAX 2000
+param set-default RC5_MIN 1000
+param set-default RC5_TRIM 1500
+param set-default RC5_MAX 2000
+param set-default RC6_MIN 1000
+param set-default RC6_TRIM 1500
+param set-default RC6_MAX 2000
+param set-default RC7_MIN 1000
+param set-default RC7_TRIM 1500
+param set-default RC7_MAX 2000
 
 # Map the 3-position CH5 switch to rover mode handover:
 # low=Offboard (ROS/auto), mid=Manual (RC override), high=Manual + kill (mute).
@@ -50,6 +72,10 @@ param set-default COM_FLTMODE6 0
 # CH5 high position engages kill switch. Kill drives disarmed PWM values.
 param set-default RC_MAP_KILL_SW 5
 param set-default RC_KILLSWITCH_TH 0.75
+
+# CH7 momentary button arms/disarms without QGroundControl interaction.
+param set-default RC_MAP_ARM_SW 7
+param set-default COM_ARM_SWISBTN 1
 
 # Mute behavior (kill/disarmed): force all active outputs to 0 duty.
 param set-default PWM_MAIN_DIS1 0
