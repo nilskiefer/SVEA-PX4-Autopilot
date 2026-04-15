@@ -164,7 +164,7 @@ void ButtonLedMirror::run()
 
 	led_bus::clear_button_mask();
 	return;
-#endif
+#else
 
 	while (!should_exit()) {
 		uint8_t mask = 0;
@@ -183,6 +183,7 @@ void ButtonLedMirror::run()
 	}
 
 	led_bus::clear_button_mask();
+#endif
 }
 
 int ButtonLedMirror::print_usage(const char *reason)
