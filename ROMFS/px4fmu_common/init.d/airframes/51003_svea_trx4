@@ -13,9 +13,6 @@ param set-default EKF2_MAG_TYPE 5
 # SVEA rover profile does not use barometer/SD card on FMU.
 param set-default SYS_HAS_BARO 0
 param set-default COM_ARM_SDCARD 0
-# ICM IMU mounting on SVEA requires board rotation correction.
-param set-default SENS_BOARD_ROT 10    # ROTATION_ROLL_180_YAW_90
-
 param set-default NAV_ACC_RAD 0.5
 
 # Ackermann Parameters
