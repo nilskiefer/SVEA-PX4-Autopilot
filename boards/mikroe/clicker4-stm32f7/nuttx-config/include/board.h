@@ -253,6 +253,9 @@
 
 /* Alternate function pin selections (see stm32f74xx75xx_pinmap.h) ******************************/
 
+#define GPIO_USART1_RX   (GPIO_USART1_RX_2 | GPIO_SPEED_100MHz)  /* PB7 */
+#define GPIO_USART1_TX   (GPIO_USART1_TX_2 | GPIO_SPEED_100MHz)  /* PB6 */
+
 #define GPIO_USART2_RX   (GPIO_USART2_RX_1 | GPIO_SPEED_100MHz)  /* PA3 */
 #define GPIO_USART2_TX   (GPIO_USART2_TX_1 | GPIO_SPEED_100MHz)  /* PA2 */
 
@@ -274,11 +277,10 @@
 /* I2C
  */
 
-#define GPIO_I2C1_SCL    (GPIO_I2C1_SCL_1 | GPIO_SPEED_50MHz)    /* PB6  */
-#define GPIO_I2C1_SDA    (GPIO_I2C1_SDA_1 | GPIO_SPEED_50MHz)    /* PB7  */
-
-#define GPIO_I2C1_SCL_GPIO                  (GPIO_OUTPUT | GPIO_OPENDRAIN | GPIO_SPEED_50MHz | GPIO_OUTPUT_SET | GPIO_PORTB | GPIO_PIN6)
-#define GPIO_I2C1_SDA_GPIO                  (GPIO_OUTPUT | GPIO_OPENDRAIN | GPIO_SPEED_50MHz | GPIO_OUTPUT_SET | GPIO_PORTB | GPIO_PIN7)
+/* NOTE:
+ * PB6/PB7 are dedicated to USART1 on this target (GPS/UART use-case),
+ * so I2C1 is intentionally not exposed.
+ */
 
 #define GPIO_I2C2_SCL    (GPIO_I2C2_SCL_1 | GPIO_SPEED_50MHz)    /* PB10 */
 #define GPIO_I2C2_SDA    (GPIO_I2C2_SDA_1 | GPIO_SPEED_50MHz)    /* PB11 */
