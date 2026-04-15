@@ -112,3 +112,15 @@ led_pattern start -t 120 -n 6
 button_led_mirror status
 led_bus_worker status
 ```
+
+## 8) GNSS on mikroBUS 2/3
+
+- You can connect a GNSS module on **mikroBUS 2** or **mikroBUS 3**.
+- Start GNSS manually from `nsh>` with:
+
+```sh
+gps stop
+gps start -d /dev/ttyS0 -b 115200
+gps status
+listener sensor_gps 1
+```
