@@ -1,0 +1,5 @@
+menuconfig DRIVERS_IMU_ST_LSM6DSOX
+	bool "lsm6dsox"
+	default n
+	---help---
+		Enable support for ST LSM6DSOX IMU
