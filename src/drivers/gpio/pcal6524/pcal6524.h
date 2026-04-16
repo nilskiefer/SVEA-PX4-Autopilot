@@ -97,7 +97,6 @@ struct pcal6524_config_t {
 	uint32_t direction{0x00FFFFFF};
 	uint32_t state{0};
 	uint32_t pullup{0};
-	pcal6524_gpio_dev_s gpio_handle[24]{};
 };
 
 class PCAL6524 : public device::I2C, public I2CSPIDriver<PCAL6524>
@@ -159,8 +158,8 @@ private:
 	int sanity_check();
 	int init_communication();
 
-	static int register_gpios(pcal6524_config_t &cfg, uint32_t dir_mask);
-	static int unregister_gpios(pcal6524_config_t &cfg);
+	static int register_gpios(const pcal6524_config_t &cfg, pcal6524_gpio_dev_s *gpio_handle, uint32_t dir_mask);
+	static int unregister_gpios(const pcal6524_config_t &cfg, pcal6524_gpio_dev_s *gpio_handle);
 
 	static constexpr uint8_t bank_output_reg(uint8_t bank)
 	{
@@ -199,6 +198,7 @@ private:
 	uint32_t _iodir{0x00FFFFFF};
 	uint32_t _pull_enable{0};
 	uint32_t _pull_select{0};
+	pcal6524_gpio_dev_s _gpio_handle[24]{};
 
 	uint16_t _check_every{10};
 	uint16_t _run_counter{0};
