@@ -452,7 +452,12 @@ int PCAL6524::register_gpios(pcal6524_config_t &cfg, uint32_t dir_mask)
 		}
 	}
 
-	const auto devid = device::Device::DeviceId{device::Device::DeviceBusType_I2C, cfg.i2c_bus, cfg.i2c_addr, cfg.device_type};
+	const auto devid = device::Device::DeviceId{
+		device::Device::DeviceBusType_I2C,
+		cfg.i2c_bus,
+		cfg.i2c_addr,
+		static_cast<uint8_t>(cfg.device_type)
+	};
 	auto *callback_handler = new PCAL6524CallbackHandler(ORB_ID(gpio_in));
 	callback_handler->dev_id = devid.devid;
 	const bool callback_registered = callback_handler->registerCallback();
