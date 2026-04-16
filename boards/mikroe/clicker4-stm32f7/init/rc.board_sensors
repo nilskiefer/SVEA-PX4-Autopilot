@@ -12,6 +12,22 @@ else
 	set STARTUP_TUNE 2
 fi
 
+# PCAL6524 I/O expanders on powerboard I2C bus.
+# Default all pins to input; consumers can switch required pins to outputs via gpio_config.
+if pcal6524 -I -b 2 -a 0x22 -M 0 -D 0x00ffffff -q start
+then
+	echo "pcal6524 primary started on I2C bus 2 addr 0x22"
+else
+	echo "WARN: pcal6524 primary not available on I2C bus 2 addr 0x22"
+fi
+
+if pcal6524 -I -b 2 -a 0x23 -M 24 -D 0x00ffffff -q start
+then
+	echo "pcal6524 secondary started on I2C bus 2 addr 0x23"
+else
+	echo "WARN: pcal6524 secondary not available on I2C bus 2 addr 0x23"
+fi
+
 # Optional BQ769x2 smart battery monitor on powerboard I2C bus.
 if param compare SENS_EN_BQ769X2 1
 then
