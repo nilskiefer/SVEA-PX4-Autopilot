@@ -87,7 +87,7 @@ enum class PCAL6524PinType : uint8_t {
 };
 
 struct pcal6524_config_t {
-	uint16_t device_type{0};
+	uint8_t device_type{0};
 	uint8_t i2c_addr{0x22};
 	uint8_t i2c_bus{0};
 	uint8_t first_minor{0};
