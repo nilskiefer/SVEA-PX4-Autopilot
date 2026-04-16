@@ -89,7 +89,7 @@ BQ769x2::BQ769x2(const I2CSPIDriverConfig &config, int battery_index) :
 	_param_precharge_ms = param_find("BQ769X2_PCHG_MS");
 	_param_postcharge_ms = param_find("BQ769X2_POST_MS");
 	_param_precharge_timeout_ms = param_find("BQ769X2_PTO_MS");
-	_param_precharge_delta_mv = param_find("BQ769X2_PDV_MV");
+	_param_precharge_delta_pct = param_find("BQ769X2_PDV_PCT");
 	_param_fets_all_ok_gate = param_find("BQ769X2_ALL_OK");
 	_param_openwire_check = param_find("BQ769X2_OW_CHK");
 	_param_openwire_check_time_s = param_find("BQ769X2_OW_TIME");
@@ -633,8 +633,8 @@ void BQ769x2::updateParamsFromStore()
 		_precharge_timeout_ms = static_cast<uint16_t>(math::constrain(val_i32, static_cast<int32_t>(1), static_cast<int32_t>(5000)));
 	}
 
-	if (_param_precharge_delta_mv != PARAM_INVALID && param_get(_param_precharge_delta_mv, &val_f) == PX4_OK) {
-		_precharge_delta_mv = math::constrain(val_f, 1.f, 5000.f);
+	if (_param_precharge_delta_pct != PARAM_INVALID && param_get(_param_precharge_delta_pct, &val_f) == PX4_OK) {
+		_precharge_delta_pct = math::constrain(val_f, 0.1f, 50.f);
 	}
 
 	if (_param_fets_all_ok_gate != PARAM_INVALID && param_get(_param_fets_all_ok_gate, &val_i32) == PX4_OK) {
@@ -962,7 +962,6 @@ int BQ769x2::applyFetPolicy(bool bq_all_ok)
 		ret = waitForPrechargeEqualization();
 
 		if (ret != PX4_OK) {
-			PX4_ERR("precharge equalization timeout");
 			return PX4_ERROR;
 		}
 
@@ -990,7 +989,9 @@ int BQ769x2::waitForPrechargeEqualization()
 	const hrt_abstime start = hrt_absolute_time();
 	const uint32_t timeout_us = static_cast<uint32_t>(_precharge_timeout_ms) * 1000u;
 	const uint32_t min_precharge_us = static_cast<uint32_t>(_precharge_ms) * 1000u;
-	const float delta_threshold_v = _precharge_delta_mv * 1e-3f;
+	float last_v_pack = NAN;
+	float last_v_stack = NAN;
+	bool have_last_sample = false;
 
 	while (hrt_elapsed_time(&start) < timeout_us) {
 		int16_t raw_pack_mv{0};
@@ -998,19 +999,57 @@ int BQ769x2::waitForPrechargeEqualization()
 
 		if (_protocol.directReadI2(BQ769X2_CMD_VOLTAGE_PACK, raw_pack_mv) != PX4_OK
 		    || _protocol.directReadI2(BQ769X2_CMD_VOLTAGE_STACK, raw_stack_mv) != PX4_OK) {
+			PX4_ERR("precharge equalization failed: voltage read error");
 			return PX4_ERROR;
 		}
 
 		const float v_pack = static_cast<float>(raw_pack_mv) * 1e-2f;
 		const float v_stack = static_cast<float>(raw_stack_mv) * 1e-2f;
+		last_v_pack = v_pack;
+		last_v_stack = v_stack;
+		have_last_sample = true;
+
+		// Percentage-based threshold: scales with actual battery voltage so the
+		// same parameter works across different SoC levels and pack sizes.
+		// Guard against divide-by-zero on a dead/missing pack.
+		const float delta_threshold_v = (fabsf(v_pack) > 0.1f)
+						? fabsf(v_pack) * (_precharge_delta_pct * 0.01f)
+						: 0.f;
 
 		const bool min_time_elapsed = hrt_elapsed_time(&start) >= min_precharge_us;
 
 		if (min_time_elapsed && fabsf(v_stack - v_pack) <= delta_threshold_v) {
+			const uint32_t elapsed_ms = static_cast<uint32_t>(hrt_elapsed_time(&start) / 1000);
+			PX4_INFO("precharge equalization complete (%ums): Vstack=%.3fV Vpack=%.3fV delta=%.3fV (thr=%.3fV / %.1f%%)",
+				 (unsigned)elapsed_ms,
+				 (double)v_stack,
+				 (double)v_pack,
+				 (double)fabsf(v_stack - v_pack),
+				 (double)delta_threshold_v,
+				 (double)_precharge_delta_pct);
 			return PX4_OK;
 		}
 
 		px4_usleep(10'000);
+	}
+
+	const uint32_t elapsed_ms = static_cast<uint32_t>(hrt_elapsed_time(&start) / 1000);
+
+	if (have_last_sample) {
+		const float delta_v = fabsf(last_v_stack - last_v_pack);
+		const float final_thr_v = (fabsf(last_v_pack) > 0.1f)
+					  ? fabsf(last_v_pack) * (_precharge_delta_pct * 0.01f)
+					  : 0.f;
+		PX4_ERR("precharge equalization timeout (%ums): Vbat(stack)=%.3fV Vpack=%.3fV delta=%.3fV (thr=%.3fV / %.1f%%)",
+			(unsigned)elapsed_ms,
+			(double)last_v_stack,
+			(double)last_v_pack,
+			(double)delta_v,
+			(double)final_thr_v,
+			(double)_precharge_delta_pct);
+
+	} else {
+		PX4_ERR("precharge equalization timeout (%ums): no voltage samples", (unsigned)elapsed_ms);
 	}
 
 	return PX4_ERROR;
@@ -1110,8 +1149,8 @@ void BQ769x2::print_status()
 	PX4_INFO("fets auto: %s, all_ok_gate: %s, on_mask: 0x%02x", _fets_auto ? "yes" : "no",
 		 _fets_all_ok_gate ? "on" : "off", requestedFetMask());
 	PX4_INFO("precharge: min %u ms + %u ms overlap, mask: 0x%02x", _precharge_ms, _postcharge_ms, _precharge_mask);
-	PX4_INFO("precharge equalization: timeout %u ms, delta %.1f mV", _precharge_timeout_ms,
-		 (double)_precharge_delta_mv);
+	PX4_INFO("precharge equalization: timeout %u ms, delta %.1f%% of Vpack", _precharge_timeout_ms,
+		 (double)_precharge_delta_pct);
 	PX4_INFO("openwire check: %s, hw_period: %u s, tolerance: %.1f mV/cell", _openwire_check ? "on" : "off",
 		 _openwire_check_time_s, (double)_openwire_tol_mv_per_cell);
 	PX4_INFO("current prot: OCC %.1fA/%.1fms, OCD %.1fA/%.1fms, SCD %.1fA/%.1fus",
