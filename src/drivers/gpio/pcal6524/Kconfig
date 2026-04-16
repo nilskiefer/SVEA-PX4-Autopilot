@@ -1,0 +1,5 @@
+menuconfig DRIVERS_GPIO_PCAL6524
+	bool "PCAL6524"
+	default n
+	---help---
+		Enable support for PCAL6524 24-bit GPIO expander
