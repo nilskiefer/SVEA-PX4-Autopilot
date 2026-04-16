@@ -37,6 +37,7 @@
 #include <drivers/drv_hrt.h>
 #include <lib/drivers/device/Device.hpp>
 #include <lib/perf/perf_counter.h>
+#include <nuttx/config.h>
 #include <nuttx/ioexpander/gpio.h>
 #include <px4_platform_common/i2c_spi_buses.h>
 #include <uORB/PublicationMulti.hpp>
@@ -44,6 +45,10 @@
 #include <uORB/topics/gpio_config.h>
 #include <uORB/topics/gpio_in.h>
 #include <uORB/topics/gpio_out.h>
+
+#ifndef CONFIG_DEV_GPIO
+#error "CONFIG_DEV_GPIO is required to use PCAL6524 GPIO expander, enable it in your NuttX config"
+#endif
 
 class PCAL6524CallbackHandler : public uORB::SubscriptionCallback
 {
