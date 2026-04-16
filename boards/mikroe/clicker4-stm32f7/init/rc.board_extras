@@ -9,6 +9,6 @@ then
 	pwm_out start
 fi
 
-# Default EKF global origin (Stockholm) for operation without GNSS.
-# Format: commander set_ekf_origin <lat> <lon> <alt_amsl_m>
-commander set_ekf_origin 59.35091170885886 18.068082193429863 0
+# WS281x/WS2815 on PC9 is available, but do not auto-start at boot.
+# Start manually when needed:
+#   neopixel start -n 1

@@ -3,6 +3,19 @@
 # board specific defaults
 #------------------------------------------------------------------------------
 
+# Board omits these modules; skip generic rcS starts to avoid hard "command not found" noise.
+set BOARD_SKIP_TONE_ALARM yes
+set BOARD_SKIP_RGBLED yes
+set BOARD_SKIP_PX4IO yes
+set BOARD_SKIP_PAYLOAD_DELIVERER yes
+set BOARD_SKIP_COMMON_RC_SENSORS yes
+
+# Ensure board root path exists for file-backed modules (params/dataman/logger).
+if [ ! -d /fs ]
+then
+	mkdir /fs
+fi
+
 # rev3 powerboard support in this first step does not wire system_power yet.
 param set-default CBRK_SUPPLY_CHK 894281
 
@@ -14,7 +27,7 @@ param set-default COM_ARM_SDCARD 0
 # Default to the SVEA TRX4 profile on fresh parameter storage.
 param set-default SYS_AUTOSTART 51003
 
-# Force sane first boot behavior even if params exist but airframe is unset.
+# If params are present but airframe is unset, recover to SVEA default.
 if param compare SYS_AUTOSTART 0
 then
 	echo "Configuring default SVEA airframe (51003)"
@@ -101,6 +114,16 @@ param set-default PWM_MAIN_TIM3 100
 param set-default SYS_USB_AUTO 2
 param set-default USB_MAV_MODE 2
 
+# Use RAM-backed dataman. This board has no flash filesystem for /fs/dataman
+# and navigator/missions are not used, so RAM is sufficient.
+param set-default SYS_DM_BACKEND 1
+
+# Disable generic external I2C probe fanout from rc.sensors (we start explicit sensors in rc.board_sensors).
+param set-default SENS_EXT_I2C_PRB 0
+
+# Battery status is provided by BQ769x2 driver topic publication.
+param set-default BAT1_SOURCE 1
+
 # SVEA LSM6DSOX defaults tuned for rover dynamics and 100 Hz-class control loops.
 param set-default LSM6DSOX_ACC_FS 4
 param set-default LSM6DSOX_GYR_FS 500
@@ -144,8 +167,8 @@ param set-default BQ769X2_FET_AUTO 1
 param set-default BQ769X2_FETMASK 5
 param set-default BQ769X2_PCHGMASK 8
 param set-default BQ769X2_PCHG_MS 0
-param set-default BQ769X2_PTO_MS 500
-param set-default BQ769X2_PDV_MV 200
+param set-default BQ769X2_PTO_MS 2000
+param set-default BQ769X2_PDV_PCT 5.0
 param set-default BQ769X2_POST_MS 10
 param set-default BQ769X2_ALL_OK 1
 param set-default BQ769X2_OW_CHK 1

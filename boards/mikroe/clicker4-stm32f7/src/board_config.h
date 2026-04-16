@@ -79,6 +79,13 @@
 #define BOARD_HAS_CONTROL_STATUS_LEDS      1
 #define BOARD_ARMED_STATE_LED  LED_BLUE
 
+/* Single-wire WS281x/WS2815 data output on PC9. */
+#define GPIO_SRGBLED_DATA          /* PC9  */ (GPIO_OUTPUT|GPIO_PUSHPULL|GPIO_SPEED_50MHz|GPIO_OUTPUT_CLEAR|GPIO_PORTC|GPIO_PIN9)
+#define BOARD_HAS_N_S_RGB_LED      1
+#define BOARD_MAX_LEDS             BOARD_HAS_N_S_RGB_LED
+#define BOARD_SRGBLED_PORT         STM32_GPIOC_ODR
+#define BOARD_SRGBLED_BIT          9
+
 #define  FLASH_BASED_PARAMS
 
 /* Clicker 4 does not expose a dedicated analog battery voltage/current interface. */
@@ -119,6 +126,7 @@
 		GPIO_LED_L4,                     \
 		GPIO_LED_L5,                     \
 		GPIO_LED_L6,                     \
+		GPIO_SRGBLED_DATA,               \
 		GPIO_BTN_T1,                     \
 		GPIO_BTN_T2,                     \
 		GPIO_BTN_T3,                     \

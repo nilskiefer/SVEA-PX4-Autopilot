@@ -6,10 +6,12 @@
 # @class Rover
 #
 
-. ${R}etc/init.d/rc.rover_ackermann_defaults
-
-# SVEA target has no magnetometer in this hardware profile.
-param set-default EKF2_MAG_TYPE 5
+# Keep SVEA airframe self-contained. Upstream ackermann defaults reference
+# params not present in this constrained build (EKF2/GF options).
+set VEHICLE_TYPE rover_ackermann
+param set-default MAV_TYPE 10           # MAV_TYPE_GROUND_ROVER
+param set-default CA_AIRFRAME 5         # Rover (Ackermann)
+param set-default CA_R_REV 1            # Motor is reversible
 # SVEA rover profile does not use barometer/SD card on FMU.
 param set-default SYS_HAS_BARO 0
 param set-default COM_ARM_SDCARD 0
