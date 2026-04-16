@@ -428,6 +428,26 @@ I2CSPIDriverBase *PCAL6524::instantiate(const I2CSPIDriverConfig &config_in, int
 
 int PCAL6524::register_gpios(pcal6524_config_t &cfg, uint32_t dir_mask)
 {
+	const auto devid = device::Device::DeviceId{
+		device::Device::DeviceBusType_I2C,
+		cfg.i2c_bus,
+		cfg.i2c_addr,
+		static_cast<uint8_t>(cfg.device_type)
+	};
+
+	auto *callback_handler = new PCAL6524CallbackHandler(ORB_ID(gpio_in));
+
+	if (callback_handler == nullptr) {
+		return PX4_ERROR;
+	}
+
+	callback_handler->dev_id = devid.devid;
+
+	if (!callback_handler->registerCallback()) {
+		delete callback_handler;
+		return PX4_ERROR;
+	}
+
 	bool all_registered = true;
 
 	for (uint8_t i = 0; i < cfg.num_pins; i++) {
@@ -441,6 +461,7 @@ int PCAL6524::register_gpios(pcal6524_config_t &cfg, uint32_t dir_mask)
 				cfg.gpio_handle[i] = {{GPIO_OUTPUT_PIN, {}, &g_gpio_ops}, mask, false, nullptr};
 			}
 
+			cfg.gpio_handle[i].callback_handler = callback_handler;
 			const int ret = gpio_pin_register(&cfg.gpio_handle[i].gpio, cfg.first_minor + i);
 
 			if (ret != OK) {
@@ -452,22 +473,14 @@ int PCAL6524::register_gpios(pcal6524_config_t &cfg, uint32_t dir_mask)
 		}
 	}
 
-	const auto devid = device::Device::DeviceId{
-		device::Device::DeviceBusType_I2C,
-		cfg.i2c_bus,
-		cfg.i2c_addr,
-		static_cast<uint8_t>(cfg.device_type)
-	};
-	auto *callback_handler = new PCAL6524CallbackHandler(ORB_ID(gpio_in));
-	callback_handler->dev_id = devid.devid;
-	const bool callback_registered = callback_handler->registerCallback();
-
-	if (!all_registered || !callback_registered) {
+	if (!all_registered) {
 		for (uint8_t i = 0; i < cfg.num_pins; i++) {
 			if (cfg.gpio_handle[i].registered) {
 				gpio_pin_unregister(&cfg.gpio_handle[i].gpio, cfg.first_minor + i);
 				cfg.gpio_handle[i].registered = false;
 			}
+
+			cfg.gpio_handle[i].callback_handler = nullptr;
 		}
 
 		callback_handler->unregisterCallback();
@@ -504,6 +517,11 @@ int PCAL6524::unregister_gpios(pcal6524_config_t &cfg)
 int PCAL6524::gpio_read(struct gpio_dev_s *dev, bool *value)
 {
 	auto *gpio = reinterpret_cast<pcal6524_gpio_dev_s *>(dev);
+
+	if (gpio == nullptr || gpio->callback_handler == nullptr || value == nullptr) {
+		return -EINVAL;
+	}
+
 	*value = (gpio->callback_handler->input & gpio->mask) != 0;
 	return OK;
 }
@@ -511,6 +529,11 @@ int PCAL6524::gpio_read(struct gpio_dev_s *dev, bool *value)
 int PCAL6524::gpio_write(struct gpio_dev_s *dev, bool value)
 {
 	auto *gpio = reinterpret_cast<pcal6524_gpio_dev_s *>(dev);
+
+	if (gpio == nullptr || gpio->callback_handler == nullptr) {
+		return -EINVAL;
+	}
+
 	gpio_out_s msg{};
 	msg.timestamp = hrt_absolute_time();
 	msg.device_id = gpio->callback_handler->dev_id;
@@ -522,6 +545,11 @@ int PCAL6524::gpio_write(struct gpio_dev_s *dev, bool value)
 int PCAL6524::gpio_setpintype(struct gpio_dev_s *dev, enum gpio_pintype_e pintype)
 {
 	auto *gpio = reinterpret_cast<pcal6524_gpio_dev_s *>(dev);
+
+	if (gpio == nullptr || gpio->callback_handler == nullptr) {
+		return -EINVAL;
+	}
+
 	gpio_config_s msg{};
 	msg.timestamp = hrt_absolute_time();
 	msg.device_id = gpio->callback_handler->dev_id;
