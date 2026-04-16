@@ -144,7 +144,7 @@ private:
 	uint16_t _precharge_ms{50};
 	uint16_t _postcharge_ms{10};
 	uint16_t _precharge_timeout_ms{500};
-	float _precharge_delta_mv{200.f};
+	float _precharge_delta_pct{5.f};    ///< |Vstack-Vpack| <= pct/100 * Vpack to pass equalization
 	bool _fets_auto{true};
 	bool _fets_all_ok_gate{true};
 	bool _openwire_check{true};
@@ -192,7 +192,7 @@ private:
 	param_t _param_precharge_ms{PARAM_INVALID};
 	param_t _param_postcharge_ms{PARAM_INVALID};
 	param_t _param_precharge_timeout_ms{PARAM_INVALID};
-	param_t _param_precharge_delta_mv{PARAM_INVALID};
+	param_t _param_precharge_delta_pct{PARAM_INVALID};
 	param_t _param_fets_all_ok_gate{PARAM_INVALID};
 	param_t _param_openwire_check{PARAM_INVALID};
 	param_t _param_openwire_check_time_s{PARAM_INVALID};
