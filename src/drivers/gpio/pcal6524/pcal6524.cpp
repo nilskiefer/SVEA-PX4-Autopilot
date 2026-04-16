@@ -259,12 +259,12 @@ void PCAL6524::cleanup_uorb()
 {
 	_gpio_config_sub.unregisterCallback();
 	_gpio_out_sub.unregisterCallback();
-	unregister_gpios(config);
+	unregister_gpios(config, _gpio_handle);
 }
 
 int PCAL6524::init_communication()
 {
-	int ret = register_gpios(config, _iodir);
+	int ret = register_gpios(config, _gpio_handle, _iodir);
 
 	if (ret != PX4_OK) {
 		return ret;
@@ -426,7 +426,7 @@ I2CSPIDriverBase *PCAL6524::instantiate(const I2CSPIDriverConfig &config_in, int
 	return instance;
 }
 
-int PCAL6524::register_gpios(pcal6524_config_t &cfg, uint32_t dir_mask)
+int PCAL6524::register_gpios(const pcal6524_config_t &cfg, pcal6524_gpio_dev_s *gpio_handle, uint32_t dir_mask)
 {
 	const auto devid = device::Device::DeviceId{
 		device::Device::DeviceBusType_I2C,
@@ -453,34 +453,34 @@ int PCAL6524::register_gpios(pcal6524_config_t &cfg, uint32_t dir_mask)
 	for (uint8_t i = 0; i < cfg.num_pins; i++) {
 		const uint32_t mask = 1u << i;
 
-		if (!cfg.gpio_handle[i].registered) {
+		if (!gpio_handle[i].registered) {
 			if (dir_mask & mask) {
-				cfg.gpio_handle[i] = {{GPIO_INPUT_PIN, {}, &g_gpio_ops}, mask, false, nullptr};
+				gpio_handle[i] = {{GPIO_INPUT_PIN, {}, &g_gpio_ops}, mask, false, nullptr};
 
 			} else {
-				cfg.gpio_handle[i] = {{GPIO_OUTPUT_PIN, {}, &g_gpio_ops}, mask, false, nullptr};
+				gpio_handle[i] = {{GPIO_OUTPUT_PIN, {}, &g_gpio_ops}, mask, false, nullptr};
 			}
 
-			cfg.gpio_handle[i].callback_handler = callback_handler;
-			const int ret = gpio_pin_register(&cfg.gpio_handle[i].gpio, cfg.first_minor + i);
+			gpio_handle[i].callback_handler = callback_handler;
+			const int ret = gpio_pin_register(&gpio_handle[i].gpio, cfg.first_minor + i);
 
 			if (ret != OK) {
 				all_registered = false;
 
 			} else {
-				cfg.gpio_handle[i].registered = true;
+				gpio_handle[i].registered = true;
 			}
 		}
 	}
 
 	if (!all_registered) {
 		for (uint8_t i = 0; i < cfg.num_pins; i++) {
-			if (cfg.gpio_handle[i].registered) {
-				gpio_pin_unregister(&cfg.gpio_handle[i].gpio, cfg.first_minor + i);
-				cfg.gpio_handle[i].registered = false;
+			if (gpio_handle[i].registered) {
+				gpio_pin_unregister(&gpio_handle[i].gpio, cfg.first_minor + i);
+				gpio_handle[i].registered = false;
 			}
 
-			cfg.gpio_handle[i].callback_handler = nullptr;
+			gpio_handle[i].callback_handler = nullptr;
 		}
 
 		callback_handler->unregisterCallback();
@@ -489,25 +489,25 @@ int PCAL6524::register_gpios(pcal6524_config_t &cfg, uint32_t dir_mask)
 	}
 
 	for (uint8_t i = 0; i < cfg.num_pins; i++) {
-		cfg.gpio_handle[i].callback_handler = callback_handler;
+		gpio_handle[i].callback_handler = callback_handler;
 	}
 
 	return PX4_OK;
 }
 
-int PCAL6524::unregister_gpios(pcal6524_config_t &cfg)
+int PCAL6524::unregister_gpios(const pcal6524_config_t &cfg, pcal6524_gpio_dev_s *gpio_handle)
 {
-	if (cfg.gpio_handle[0].callback_handler) {
-		auto *handler = cfg.gpio_handle[0].callback_handler;
+	if (gpio_handle[0].callback_handler) {
+		auto *handler = gpio_handle[0].callback_handler;
 		handler->unregisterCallback();
 		delete handler;
 	}
 
 	for (uint8_t i = 0; i < cfg.num_pins; i++) {
-		if (cfg.gpio_handle[i].registered) {
-			gpio_pin_unregister(&cfg.gpio_handle[i].gpio, cfg.first_minor + i);
-			cfg.gpio_handle[i].registered = false;
-			cfg.gpio_handle[i].callback_handler = nullptr;
+		if (gpio_handle[i].registered) {
+			gpio_pin_unregister(&gpio_handle[i].gpio, cfg.first_minor + i);
+			gpio_handle[i].registered = false;
+			gpio_handle[i].callback_handler = nullptr;
 		}
 	}
 
