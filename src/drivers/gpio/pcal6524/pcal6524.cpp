@@ -34,6 +34,7 @@
 #include "pcal6524.h"
 
 #include <errno.h>
+#include <px4_platform_common/module.h>
 #include <string.h>
 
 static uORB::PublicationMulti<gpio_out_s> g_gpio_out_pub{ORB_ID(gpio_out)};
@@ -540,4 +541,3 @@ int PCAL6524::gpio_setpintype(struct gpio_dev_s *dev, enum gpio_pintype_e pintyp
 
 	return g_gpio_config_pub.publish(msg) ? OK : -ETIMEDOUT;
 }
-
