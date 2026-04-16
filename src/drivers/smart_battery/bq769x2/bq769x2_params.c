@@ -351,7 +351,7 @@ PARAM_DEFINE_INT32(BQ769X2_PCHGMASK, 8);
  * Minimum precharge stage time in milliseconds.
  *
  * Applied only when transitioning from all FETs OFF to ON and staged mask differs from final mask.
- * Precharge completion additionally requires |Vstack - Vpack| <= BQ769X2_PDV_MV
+ * Precharge completion additionally requires |Vstack - Vpack| <= BQ769X2_PDV_PCT% of Vpack
  * before BQ769X2_PTO_MS timeout.
  *
  * @group Sensors
@@ -376,7 +376,7 @@ PARAM_DEFINE_INT32(BQ769X2_POST_MS, 10);
  * Precharge equalization timeout in milliseconds.
  *
  * During staged precharge, firmware compares stack voltage and pack voltage.
- * If |Vstack - Vpack| does not fall below BQ769X2_PDV_MV before timeout,
+ * If |Vstack - Vpack| does not fall below BQ769X2_PDV_PCT% of Vpack before timeout,
  * precharge fails and main FET closure is aborted.
  *
  * @group Sensors
@@ -386,16 +386,21 @@ PARAM_DEFINE_INT32(BQ769X2_POST_MS, 10);
 PARAM_DEFINE_INT32(BQ769X2_PTO_MS, 500);
 
 /**
- * Precharge equalization delta threshold in mV.
+ * Precharge equalization delta threshold as percentage of pack voltage.
  *
  * Staged precharge is considered complete when |Vstack - Vpack|
- * is less than or equal to this threshold.
+ * is less than or equal to (BQ769X2_PDV_PCT / 100) * Vpack.
+ * E.g. 5.0 means the stack must be within 5% of pack voltage.
+ * Scales automatically with battery voltage, so a single value
+ * works across different state-of-charge levels.
  *
  * @group Sensors
- * @min 1
- * @max 5000
+ * @min 0.1
+ * @max 50.0
+ * @decimal 1
+ * @unit %
  */
-PARAM_DEFINE_FLOAT(BQ769X2_PDV_MV, 200.f);
+PARAM_DEFINE_FLOAT(BQ769X2_PDV_PCT, 5.f);
 
 /**
  * External ALL_OK gate for automatic FET policy.
