@@ -40,6 +40,8 @@
  */
 
 #include <string.h>
+#include <stdlib.h>
+#include <unistd.h>
 #include <px4_platform_common/px4_config.h>
 
 #include <lib/led/led.h>
@@ -86,6 +88,112 @@ private:
 	neopixel::NeoLEDData *_leds;
 };
 
+static int neopixel_poke_test(unsigned int number_of_packages)
+{
+	if (number_of_packages == 0) {
+		return PX4_ERROR;
+	}
+
+	neopixel::NeoLEDData *leds = new neopixel::NeoLEDData[number_of_packages];
+
+	if (leds == nullptr) {
+		PX4_ERR("poke alloc failed");
+		return PX4_ERROR;
+	}
+
+	leds[0].R() = 255;
+	leds[0].G() = 0;
+	leds[0].B() = 0;
+
+	const int init_ret = neopixel_init(leds, number_of_packages);
+
+	if (init_ret != 0) {
+		PX4_ERR("poke neopixel_init failed (%d)", init_ret);
+		delete[] leds;
+		return PX4_ERROR;
+	}
+
+	int write_ret = 0;
+
+	/* Emit repeated frames so a scope probe can catch activity on PC9 easily. */
+	for (int i = 0; i < 200; i++) {
+		write_ret = neopixel_write(leds, number_of_packages);
+
+		if (write_ret != 0) {
+			PX4_ERR("poke neopixel_write failed (%d)", write_ret);
+			break;
+		}
+
+		usleep(2000);
+	}
+
+	neopixel_deinit();
+	delete[] leds;
+
+	if (write_ret == 0) {
+		PX4_INFO("poke done: 200 red frames");
+		return PX4_OK;
+	}
+
+	return PX4_ERROR;
+}
+
+#if defined(USE_S_RGB_LED_DMA)
+extern int neopixel_timtest(uint32_t freq_hz, uint8_t duty_pct, uint32_t duration_ms);
+extern int neopixel_gpiotest(uint32_t hz, uint32_t cycles);
+
+static int neopixel_timer_test_command(int argc, char *argv[], int cmd_index)
+{
+	uint32_t freq_hz = 1000;
+	uint32_t duty_pct = 50;
+	uint32_t duration_ms = 3000;
+
+	for (int i = cmd_index + 1; i < argc; i++) {
+		if ((strcmp(argv[i], "-f") == 0) && (i + 1 < argc)) {
+			freq_hz = (uint32_t)strtoul(argv[++i], nullptr, 0);
+
+		} else if ((strcmp(argv[i], "-d") == 0) && (i + 1 < argc)) {
+			duty_pct = (uint32_t)strtoul(argv[++i], nullptr, 0);
+
+		} else if ((strcmp(argv[i], "-t") == 0) && (i + 1 < argc)) {
+			duration_ms = (uint32_t)strtoul(argv[++i], nullptr, 0);
+
+		} else {
+			PX4_ERR("timtest usage: neopixel timtest [-f hz] [-d duty_pct] [-t duration_ms]");
+			return PX4_ERROR;
+		}
+	}
+
+	if (duty_pct > 100) {
+		PX4_ERR("timtest duty must be 0..100 (got %u)", (unsigned)duty_pct);
+		return PX4_ERROR;
+	}
+
+	return neopixel_timtest(freq_hz, (uint8_t)duty_pct, duration_ms);
+}
+
+static int neopixel_gpio_test_command(int argc, char *argv[], int cmd_index)
+{
+	uint32_t hz = 10;
+	uint32_t cycles = 100;
+
+	for (int i = cmd_index + 1; i < argc; i++) {
+		if ((strcmp(argv[i], "-f") == 0) && (i + 1 < argc)) {
+			hz = (uint32_t)strtoul(argv[++i], nullptr, 0);
+
+		} else if ((strcmp(argv[i], "-n") == 0) && (i + 1 < argc)) {
+			cycles = (uint32_t)strtoul(argv[++i], nullptr, 0);
+
+		} else {
+			PX4_ERR("gpiotest usage: neopixel gpiotest [-f hz] [-n cycles]");
+			return PX4_ERROR;
+		}
+	}
+
+	return neopixel_gpiotest(hz, cycles);
+}
+#endif
+
 ModuleBase::Descriptor NEOPIXEL::desc{task_spawn, custom_command, print_usage};
 
 NEOPIXEL::NEOPIXEL(unsigned int number_of_packages) :
@@ -107,8 +215,22 @@ int NEOPIXEL::init()
 		return PX4_ERROR;
 	}
 
-	neopixel_init(_leds, _number_of_packages);
-	neopixel_write(_leds, _number_of_packages);
+	int ret = neopixel_init(_leds, _number_of_packages);
+
+	if (ret != 0) {
+		PX4_ERR("neopixel_init failed (%d)", ret);
+		return PX4_ERROR;
+	}
+
+	ret = neopixel_write(_leds, _number_of_packages);
+
+	if (ret != 0) {
+		PX4_ERR("neopixel_write failed during init (%d)", ret);
+		return PX4_ERROR;
+	}
+
+	PX4_INFO("neopixel init ok (%u leds)", _number_of_packages);
+
 	ScheduleNow();
 	return OK;
 }
@@ -179,12 +301,43 @@ To drive all available leds.
 
 PRINT_MODULE_USAGE_NAME("newpixel", "driver");
 PRINT_MODULE_USAGE_DEFAULT_COMMANDS();
+PRINT_MODULE_USAGE_COMMAND_DESCR("poke", "Send 200 direct red frames (bypass led_control)");
+#if defined(USE_S_RGB_LED_DMA)
+PRINT_MODULE_USAGE_COMMAND_DESCR("timtest", "Force plain PWM on LED timer pin (PC9) to validate timer/pin path");
+PRINT_MODULE_USAGE_COMMAND_DESCR("gpiotest", "Force direct GPIO toggle on board data pin to validate physical net");
+#endif
 return 0;
 }
 
 int NEOPIXEL::custom_command(int argc, char *argv[])
 {
-   return print_usage("unrecognized option");
+	if (argc > 0 && strcmp(argv[0], "poke") == 0) {
+		return neopixel_poke_test(BOARD_HAS_N_S_RGB_LED);
+	}
+
+	if (argc > 1 && strcmp(argv[1], "poke") == 0) {
+		return neopixel_poke_test(BOARD_HAS_N_S_RGB_LED);
+	}
+
+#if defined(USE_S_RGB_LED_DMA)
+	if (argc > 0 && strcmp(argv[0], "timtest") == 0) {
+		return neopixel_timer_test_command(argc, argv, 0);
+	}
+
+	if (argc > 1 && strcmp(argv[1], "timtest") == 0) {
+		return neopixel_timer_test_command(argc, argv, 1);
+	}
+
+	if (argc > 0 && strcmp(argv[0], "gpiotest") == 0) {
+		return neopixel_gpio_test_command(argc, argv, 0);
+	}
+
+	if (argc > 1 && strcmp(argv[1], "gpiotest") == 0) {
+		return neopixel_gpio_test_command(argc, argv, 1);
+	}
+#endif
+
+	return print_usage("unrecognized option");
 }
 
 /**
@@ -241,7 +394,14 @@ void NEOPIXEL::Run()
             break;
         }
 	    }
-      neopixel_write(_leds, _number_of_packages);
+      const int ret = neopixel_write(_leds, _number_of_packages);
+
+      if (ret != 0) {
+	      PX4_ERR("neopixel_write failed (%d), stopping module", ret);
+	      ScheduleClear();
+	      exit_and_cleanup(desc);
+	      return;
+      }
 	}
 
 	/* re-queue ourselves to run again later */

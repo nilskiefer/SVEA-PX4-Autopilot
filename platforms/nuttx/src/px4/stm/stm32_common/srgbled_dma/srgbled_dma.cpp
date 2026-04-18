@@ -54,14 +54,21 @@
 #include <px4_platform_common/px4_config.h>
 #include <board_config.h>
 
+#include <px4_platform_common/log.h>
 #include <px4_platform_common/micro_hal.h>
 #include <systemlib/px4_macros.h>
 #include <drivers/drv_neopixel.h>
 
 #include <stm32_dma.h>
+#include <stm32_gpio.h>
 #include <stm32_tim.h>
 #include <dwt.h>
 #include <nvic.h>
+#include <errno.h>
+
+#if !defined(S_RGB_LED_DMA_NAME)
+#  define S_RGB_LED_DMA_NAME "S_RGB_LED_DMA"
+#endif
 
 
 #if defined(BOARD_HAS_N_S_RGB_LED) && defined(S_RGB_LED_DMA)
@@ -330,6 +337,24 @@
 #define BITS_PER_COLOR  8  // Each LED has 8 bits of luminosity
 #define BITS_PER_PACKAGE (BITS_PER_COLOR * COLOR_PER_LED)
 
+#if !defined(S_RGB_LED_TIM_USE_DOWNCOUNT)
+# define S_RGB_LED_TIM_USE_DOWNCOUNT 1
+#endif
+
+static inline uint32_t srgbled_pack_word(const neopixel::NeoLEDData &led)
+{
+#if defined(S_RGB_LED_COLOR_ORDER_RGB)
+	return ((uint32_t)led.data.grb[neopixel::NeoLEDData::eR] << 16) |
+	       ((uint32_t)led.data.grb[neopixel::NeoLEDData::eG] << 8) |
+	       (uint32_t)led.data.grb[neopixel::NeoLEDData::eB];
+#else
+	/* Default WS281x byte order: GRB. */
+	return ((uint32_t)led.data.grb[neopixel::NeoLEDData::eG] << 16) |
+	       ((uint32_t)led.data.grb[neopixel::NeoLEDData::eR] << 8) |
+	       (uint32_t)led.data.grb[neopixel::NeoLEDData::eB];
+#endif
+}
+
 
 // The DMA handle used by the driver.
 static DMA_HANDLE  dma_handle;
@@ -364,8 +389,9 @@ extern int neopixel_write(neopixel::NeoLEDData *led_data, int number_of_packages
 	// For the bits times to DMA
 
 	for (uint32_t i = 0, leds = 0; i < arraySize(bits) - 1; i++) {
+		const uint32_t packed = srgbled_pack_word(led_data[leds]);
 		mask = 1 << ((BITS_PER_PACKAGE - 1) - (i % BITS_PER_PACKAGE));
-		bits[i] = led_data[leds].data.l & mask ? T1H : T0H;
+		bits[i] = (packed & mask) ? T1H : T0H;
 
 		if (mask & 1) {
 			leds++;
@@ -403,6 +429,12 @@ int neopixel_init(neopixel::NeoLEDData *led_data, int number_of_packages)
 	if (number_of_packages > BOARD_HAS_N_S_RGB_LED) {
 		return -1;
 	}
+
+	PX4_INFO("sRGB DMA cfg: timer=%u ch=%u map=%s (0x%08x)",
+		 (unsigned)S_RGB_LED_TIMER,
+		 (unsigned)S_RGB_LED_CHANNEL,
+		 S_RGB_LED_DMA_NAME,
+		 (unsigned)S_RGB_LED_DMA);
 
 	memset(bits, 0, sizeof(bits));
 
@@ -446,9 +478,12 @@ int neopixel_init(neopixel::NeoLEDData *led_data, int number_of_packages)
 
 	SLED_rCCR = 0;
 
-	// Down count, edge aligned PWN 1 wiht auto reload
+	// Edge-aligned PWM1 with auto-reload; board controls count direction.
+	rCR1 = GTIM_CR1_ARPE | GTIM_CR1_EDGE;
 
-	rCR1 = GTIM_CR1_ARPE | GTIM_CR1_EDGE | GTIM_CR1_DIR;
+#if S_RGB_LED_TIM_USE_DOWNCOUNT
+	rCR1 |= GTIM_CR1_DIR;
+#endif
 
 	// Set up the GPIO
 
@@ -463,10 +498,148 @@ int neopixel_init(neopixel::NeoLEDData *led_data, int number_of_packages)
 
 int neopixel_deinit()
 {
+	rCR1 &= ~GTIM_CR1_CEN;
+
 	if (dma_handle != nullptr) {
 		stm32_dmafree(dma_handle);
+		dma_handle = nullptr;
 	}
 
 	return OK;
+}
+
+extern int neopixel_timtest(uint32_t freq_hz, uint8_t duty_pct, uint32_t duration_ms)
+{
+	if ((freq_hz == 0) || (duty_pct > 100)) {
+		PX4_ERR("timtest invalid args (freq=%u duty=%u)", (unsigned)freq_hz, (unsigned)duty_pct);
+		return -EINVAL;
+	}
+
+	if (rCR1 & GTIM_CR1_CEN) {
+		PX4_ERR("timtest refused: timer already running");
+		return -EBUSY;
+	}
+
+	/* Enable timer clock. */
+	modifyreg32(S_RGB_LED_CLOCK_POWER_REG, 0, S_RGB_LED_CLOCK_ENABLE);
+
+	/* Configure timer/channel for plain PWM output (no DMA). */
+	rCR1   = 0;
+	rCR2   = 0;
+	rCCER  &= SLED_CCER;
+	rCCER  = SLED_CCER;
+	rCCMR1 = SLED_CCMR1;
+	rCCMR2 = SLED_CCMR2;
+	rDCR   = 0;
+	rDIER  = 0;
+	rSMCR  = 0;
+
+#if defined(rBDTR)
+	rBDTR = ATIM_BDTR_MOE;
+#endif
+
+	uint32_t prescaler = (uint32_t)(((uint64_t)S_RGB_LED_CLOCK + ((uint64_t)freq_hz * 65535ULL) - 1ULL)
+					/ ((uint64_t)freq_hz * 65535ULL));
+
+	if (prescaler < 1) {
+		prescaler = 1;
+	}
+
+	uint32_t timer_clk = (uint32_t)((uint64_t)S_RGB_LED_CLOCK / (uint64_t)prescaler);
+	uint32_t period_counts = timer_clk / freq_hz;
+
+	if ((period_counts < 2U) || (period_counts > 65535U)) {
+		PX4_ERR("timtest frequency out of range: %u Hz", (unsigned)freq_hz);
+		return -ERANGE;
+	}
+
+	rPSC = prescaler - 1U;
+	rARR = period_counts - 1U;
+
+	uint32_t ccr = ((uint64_t)period_counts * (uint64_t)duty_pct) / 100ULL;
+
+	if (ccr > rARR) {
+		ccr = rARR;
+	}
+
+	SLED_rCCR = ccr;
+	rEGR = GTIM_EGR_UG;
+
+	const int pin_cfg_ret = stm32_configgpio(S_RGB_LED_TIM_GPIO);
+
+	if (pin_cfg_ret < 0) {
+		PX4_ERR("timtest pin cfg failed: gpio=0x%08x ret=%d", (unsigned)S_RGB_LED_TIM_GPIO, pin_cfg_ret);
+		return pin_cfg_ret;
+	}
+
+	rCR1 = GTIM_CR1_ARPE | GTIM_CR1_EDGE;
+
+#if S_RGB_LED_TIM_USE_DOWNCOUNT
+	rCR1 |= GTIM_CR1_DIR;
+#endif
+
+	rCR1 |= GTIM_CR1_CEN;
+
+	PX4_INFO("timtest running: timer=%u ch=%u map=%s gpio_af=0x%08x gpio_out=0x%08x order=%s downcount=%u freq=%uHz duty=%u%% psc=%u arr=%u ccr=%u dur=%ums",
+		 (unsigned)S_RGB_LED_TIMER,
+		 (unsigned)S_RGB_LED_CHANNEL,
+		 S_RGB_LED_DMA_NAME,
+		 (unsigned)S_RGB_LED_TIM_GPIO,
+		 (unsigned)GPIO_SRGBLED_DATA,
+#if defined(S_RGB_LED_COLOR_ORDER_RGB)
+		 "RGB",
+#else
+		 "GRB",
+#endif
+		 (unsigned)S_RGB_LED_TIM_USE_DOWNCOUNT,
+		 (unsigned)freq_hz,
+		 (unsigned)duty_pct,
+		 (unsigned)rPSC,
+		 (unsigned)rARR,
+		 (unsigned)SLED_rCCR,
+		 (unsigned)duration_ms);
+
+	if (duration_ms > 0) {
+		usleep((unsigned long)duration_ms * 1000UL);
+		rCR1 &= ~GTIM_CR1_CEN;
+		PX4_INFO("timtest done");
+	}
+
+	return 0;
+}
+
+extern int neopixel_gpiotest(uint32_t hz, uint32_t cycles)
+{
+	if ((hz == 0U) || (cycles == 0U)) {
+		PX4_ERR("gpiotest invalid args (hz=%u cycles=%u)", (unsigned)hz, (unsigned)cycles);
+		return -EINVAL;
+	}
+
+	const int ret = stm32_configgpio(GPIO_SRGBLED_DATA);
+
+	if (ret < 0) {
+		PX4_ERR("gpiotest pin cfg failed: gpio=0x%08x ret=%d", (unsigned)GPIO_SRGBLED_DATA, ret);
+		return ret;
+	}
+
+	const uint32_t half_period_us = (1000000U / hz) / 2U;
+
+	if (half_period_us == 0U) {
+		PX4_ERR("gpiotest frequency too high: %u Hz", (unsigned)hz);
+		return -ERANGE;
+	}
+
+	PX4_INFO("gpiotest running: gpio_out=0x%08x hz=%u cycles=%u",
+		 (unsigned)GPIO_SRGBLED_DATA, (unsigned)hz, (unsigned)cycles);
+
+	for (uint32_t i = 0; i < cycles; i++) {
+		stm32_gpiowrite(GPIO_SRGBLED_DATA, true);
+		usleep(half_period_us);
+		stm32_gpiowrite(GPIO_SRGBLED_DATA, false);
+		usleep(half_period_us);
+	}
+
+	PX4_INFO("gpiotest done");
+	return 0;
 }
 #endif // defined(BOARD_HAS_N_S_RGB_LED) && defined(S_RGB_LED_DMA)
