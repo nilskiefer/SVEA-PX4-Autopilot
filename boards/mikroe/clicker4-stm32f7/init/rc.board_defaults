@@ -35,8 +35,11 @@ then
 	param set SYS_AUTOCONFIG 1
 fi
 
-# Keep RC/SBUS UART free from MAVLink traffic by default.
-param set-default MAV_0_CONFIG 0
+# Auto-start MAVLink on TELEM1 (/dev/ttyS0 => PB7/PB6) for QGroundControl link.
+param set-default MAV_0_CONFIG 101
+param set-default MAV_0_MODE 2
+param set-default MAV_0_RATE 50000
+param set-default SER_TEL1_BAUD 921600
 param set-default MAV_1_CONFIG 0
 param set-default MAV_2_CONFIG 0
 
@@ -110,9 +113,13 @@ param set-default PWM_MAIN_TIM1 100
 param set-default PWM_MAIN_TIM2 100
 param set-default PWM_MAIN_TIM3 100
 
-# Keep USB CDC auto-management enabled (cdcacm_autostart handles MAVLink on USB).
-param set-default SYS_USB_AUTO 2
-param set-default USB_MAV_MODE 2
+# Disable USB CDC auto-management (no auto MAVLink on USB).
+param set-default SYS_USB_AUTO -1
+param set-default USB_MAV_MODE 0
+
+# Free TEL1 (/dev/ttyS0, PB7/PB6) from GPS for auto MAVLink TELEM1 link.
+param set-default GPS_1_CONFIG 0
+param set-default GPS_2_CONFIG 0
 
 # Use RAM-backed dataman. This board has no flash filesystem for /fs/dataman
 # and navigator/missions are not used, so RAM is sufficient.
@@ -144,8 +151,8 @@ param set-default BQ769X2_SHUNT 1000
 param set-default BQ769X2_COV_V 4.25
 param set-default BQ769X2_COV_RV 4.10
 param set-default BQ769X2_COV_DLY 1000
-param set-default BQ769X2_CUV_V 2.80
-param set-default BQ769X2_CUV_RV 3.00
+param set-default BQ769X2_CUV_V 3.20
+param set-default BQ769X2_CUV_RV 3.31
 param set-default BQ769X2_CUV_DLY 1000
 param set-default BQ769X2_OCC_A 6
 param set-default BQ769X2_OCC_DLY 100
@@ -160,19 +167,11 @@ param set-default BQ769X2_UTD_C -20
 param set-default BQ769X2_T_HYST_C 5
 # TS thermistors not populated on current powerboard revision.
 param set-default BQ769X2_TPROT_EN 0
-param set-default BQ769X2_PWR_CFG 10370
-param set-default BQ769X2_DIODEMA 500
-param set-default BQ769X2_FETOPT 29
-param set-default BQ769X2_FET_AUTO 1
-param set-default BQ769X2_FETMASK 5
-param set-default BQ769X2_PCHGMASK 8
-param set-default BQ769X2_PCHG_MS 0
-param set-default BQ769X2_PTO_MS 2000
-param set-default BQ769X2_PDV_PCT 5.0
-param set-default BQ769X2_POST_MS 10
-param set-default BQ769X2_ALL_OK 1
 param set-default BQ769X2_OW_CHK 1
 param set-default BQ769X2_OW_TIME 10
 param set-default BQ769X2_OWTOL 50
 # 3S with VC2-VC9 shorted: use channels VC1, VC2, VC10.
 param set-default BQ769X2_VCMODE 515
+# Chip auto-PDSG behavior: enforce timeout so predischarge resistor is never held indefinitely.
+param set-default BQ769X2_PDSG_TO 2000
+param set-default BQ769X2_PDSG_DV 500
