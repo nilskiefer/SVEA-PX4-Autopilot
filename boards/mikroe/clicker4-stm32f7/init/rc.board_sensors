@@ -3,46 +3,11 @@
 # Clicker 4 STM32F7 specific board sensors init
 #------------------------------------------------------------------------------
 
-# SVEA powerboard with LSM6DSOXTR on mikroBUS I2C2 (0x6b).
-if lsm6dsox -I -b 2 -a 0x6b -q start
-then
-	echo "lsm6dsox started on I2C bus 2 addr 0x6b"
-else
-	echo "ERROR: lsm6dsox not found on I2C bus 2 addr 0x6b"
-	set STARTUP_TUNE 2
-fi
+# Auto-start board I2C peripherals.
+# BQ769x2 starts first so pack power path policy is initialized before other devices.
+bq769x2 -I -b 2 -a 0x08 -t 1 -q start
+lsm6dsox -I -b 2 -a 0x6b -q start
+pcal6524 -I -b 2 -a 0x22 -M 0 -D 0x00ffffff -q start
+pcal6524 -I -b 2 -a 0x23 -M 24 -D 0x00ffffff -q start
 
-# PCAL6524 I/O expanders on powerboard I2C bus.
-# Default all pins to input; consumers can switch required pins to outputs via gpio_config.
-if pcal6524 -I -b 2 -a 0x22 -M 0 -D 0x00ffffff -q start
-then
-	echo "pcal6524 primary started on I2C bus 2 addr 0x22"
-else
-	echo "WARN: pcal6524 primary not available on I2C bus 2 addr 0x22"
-fi
-
-if pcal6524 -I -b 2 -a 0x23 -M 24 -D 0x00ffffff -q start
-then
-	echo "pcal6524 secondary started on I2C bus 2 addr 0x23"
-else
-	echo "WARN: pcal6524 secondary not available on I2C bus 2 addr 0x23"
-fi
-
-# Optional BQ769x2 smart battery monitor on powerboard I2C bus.
-if param compare SENS_EN_BQ769X2 1
-then
-	if bq769x2 -I -b 2 -a 0x08 -t 1 -q start
-	then
-		echo "bq769x2 started on I2C bus 2 addr 0x08"
-	else
-		echo "WARN: bq769x2 not available on I2C bus 2 addr 0x08, retrying once after delay"
-		sleep 2
-
-		if bq769x2 -I -b 2 -a 0x08 -t 1 -q start
-		then
-			echo "bq769x2 started on I2C bus 2 addr 0x08 (delayed)"
-		else
-			echo "WARN: bq769x2 still not available after delayed retry"
-		fi
-	fi
-fi
+echo "board sensors mode: auto BQ769x2 + LSM6DSOX + PCAL6524"
