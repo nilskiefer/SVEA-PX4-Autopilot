@@ -80,21 +80,12 @@ BQ769x2::BQ769x2(const I2CSPIDriverConfig &config, int battery_index) :
 	_param_dis_ut_c = param_find("BQ769X2_UTD_C");
 	_param_temp_hyst_c = param_find("BQ769X2_T_HYST_C");
 	_param_temp_prot_enable = param_find("BQ769X2_TPROT_EN");
-	_param_conf_power = param_find("BQ769X2_PWR_CFG");
-	_param_body_diode_ma = param_find("BQ769X2_DIODEMA");
-	_param_fet_options = param_find("BQ769X2_FETOPT");
-	_param_fets_auto = param_find("BQ769X2_FET_AUTO");
-	_param_fets_on_mask = param_find("BQ769X2_FETMASK");
-	_param_precharge_mask = param_find("BQ769X2_PCHGMASK");
-	_param_precharge_ms = param_find("BQ769X2_PCHG_MS");
-	_param_postcharge_ms = param_find("BQ769X2_POST_MS");
-	_param_precharge_timeout_ms = param_find("BQ769X2_PTO_MS");
-	_param_precharge_delta_pct = param_find("BQ769X2_PDV_PCT");
-	_param_fets_all_ok_gate = param_find("BQ769X2_ALL_OK");
 	_param_openwire_check = param_find("BQ769X2_OW_CHK");
 	_param_openwire_check_time_s = param_find("BQ769X2_OW_TIME");
 	_param_openwire_tol_mv_per_cell = param_find("BQ769X2_OWTOL");
 	_param_vcell_mode = param_find("BQ769X2_VCMODE");
+	_param_pdsg_timeout_ms = param_find("BQ769X2_PDSG_TO");
+	_param_pdsg_stop_dv_mv = param_find("BQ769X2_PDSG_DV");
 }
 
 BQ769x2::~BQ769x2()
@@ -146,15 +137,77 @@ int BQ769x2::init()
 		return PX4_ERROR;
 	}
 
-	if (_configure_on_startup && configure() != PX4_OK) {
-		PX4_ERR("config failed");
-		return PX4_ERROR;
+	if (_configure_on_startup) {
+		if (configMatchesDesired()) {
+			PX4_INFO("config already matches target, skip cfgupdate");
+
+		} else if (configure() != PX4_OK) {
+			PX4_ERR("config failed");
+			return PX4_ERROR;
+		}
 	}
 
 	if (ensureFetEnable() != PX4_OK) {
 		PX4_ERR("FET_ENABLE failed");
 		return PX4_ERROR;
 	}
+
+	// libresolar pattern: turn CHG + DSG on once at startup. Chip protections + auto-PDSG
+	// handle precharge sequencing and fault response autonomously from here on.
+	// Firmware never drives PCHG/PDSG - all bus precharge is hardware-owned.
+	if (enableMainFets() != PX4_OK) {
+		PX4_ERR("initial enableMainFets failed");
+		return PX4_ERROR;
+	}
+	_switches_initialized = true;
+
+	// Immediate post-init snapshot for cases where power/FETs oscillate before first scheduled sample.
+	uint8_t fet_status{0}, safety_a{0}, safety_b{0}, safety_c{0};
+	uint8_t pf_a{0}, pf_b{0}, pf_c{0}, pf_d{0};
+	uint16_t mfg_status{0};
+	uint16_t battery_status{0};
+	bool battery_status_valid{false};
+	int16_t raw_pack_mv{0}, raw_stack_mv{0}, raw_current_cc2{0};
+	float vpack = NAN, vstack = NAN, current_a = NAN;
+	bool pf_valid = false;
+	bool mfg_valid = false;
+
+	if (_protocol.directReadU1(BQ769X2_CMD_FET_STATUS, fet_status) == PX4_OK
+	    && _protocol.directReadU1(BQ769X2_CMD_SAFETY_STATUS_A, safety_a) == PX4_OK
+	    && _protocol.directReadU1(BQ769X2_CMD_SAFETY_STATUS_B, safety_b) == PX4_OK
+	    && _protocol.directReadU1(BQ769X2_CMD_SAFETY_STATUS_C, safety_c) == PX4_OK) {
+
+		if (_protocol.directReadU2(BQ769X2_CMD_BATTERY_STATUS, battery_status) == PX4_OK) {
+			battery_status_valid = true;
+		}
+
+		if (_protocol.directReadI2(BQ769X2_CMD_VOLTAGE_PACK, raw_pack_mv) == PX4_OK) {
+			vpack = static_cast<float>(raw_pack_mv) * 1e-2f;
+		}
+
+		if (_protocol.directReadI2(BQ769X2_CMD_VOLTAGE_STACK, raw_stack_mv) == PX4_OK) {
+			vstack = static_cast<float>(raw_stack_mv) * 1e-2f;
+		}
+
+		if (_protocol.directReadI2(BQ769X2_CMD_CURRENT_CC2, raw_current_cc2) == PX4_OK) {
+			current_a = static_cast<float>(raw_current_cc2) * 1e-2f;
+		}
+
+		pf_valid = (_protocol.directReadU1(BQ769X2_CMD_PF_STATUS_A, pf_a) == PX4_OK)
+			   && (_protocol.directReadU1(BQ769X2_CMD_PF_STATUS_B, pf_b) == PX4_OK)
+			   && (_protocol.directReadU1(BQ769X2_CMD_PF_STATUS_C, pf_c) == PX4_OK)
+			   && (_protocol.directReadU1(BQ769X2_CMD_PF_STATUS_D, pf_d) == PX4_OK);
+
+			mfg_valid = (_protocol.subcommandReadU2(BQ769X2_SUBCMD_MFG_STATUS, mfg_status) == PX4_OK);
+
+			PX4_INFO("init snapshot: FET_STATUS=0x%02x (mask=0x%02x) SAFETY_A/B/C=0x%02x/0x%02x/0x%02x PF_A/B/C/D=%s0x%02x/0x%02x/0x%02x/0x%02x BAT_STATUS=%s0x%04x MFG_STATUS=%s0x%04x Vstack=%.3fV Vpack=%.3fV I=%.2fA",
+				 fet_status, static_cast<unsigned>(fet_status & 0x0F),
+				 safety_a, safety_b, safety_c,
+				 pf_valid ? "" : "n/a:", pf_a, pf_b, pf_c, pf_d,
+				 battery_status_valid ? "" : "n/a:", static_cast<unsigned>(battery_status),
+				 mfg_valid ? "" : "n/a:", static_cast<unsigned>(mfg_status),
+				 (double)vstack, (double)vpack, (double)current_a);
+		}
 
 	ScheduleOnInterval(SAMPLE_INTERVAL_US);
 	return PX4_OK;
@@ -252,6 +305,78 @@ int BQ769x2::probe()
 	return PX4_OK;
 }
 
+bool BQ769x2::configMatchesDesired()
+{
+	const uint16_t vcell_mode = activeVcellModeMask();
+	const uint8_t pdsg_timeout_raw = static_cast<uint8_t>(math::constrain(lroundf(_pdsg_timeout_ms * 0.1f), 0l, 255l));
+	const uint8_t pdsg_stop_dv_raw = static_cast<uint8_t>(math::constrain(lroundf(_pdsg_stop_dv_mv * 0.1f), 0l, 255l));
+
+	uint16_t conf_power{0};
+	uint8_t conf_alert{0};
+	uint8_t conf_da{0};
+	uint16_t vcell_mode_read{0};
+	uint16_t body_diode_th_ma{0};
+	uint8_t fet_options{0};
+	uint8_t pdsg_timeout{0};
+	uint8_t pdsg_stop_dv{0};
+	uint8_t prot_enabled_a{0};
+	uint8_t prot_enabled_b{0};
+	uint8_t sf_alert_mask_a{0};
+	uint8_t sf_alert_mask_b{0};
+	uint8_t pf_alert_mask_a{0};
+	uint8_t pf_alert_mask_b{0};
+	uint8_t pf_alert_mask_c{0};
+	uint8_t pf_alert_mask_d{0};
+	uint16_t alarm_default_mask{0};
+
+	if (_protocol.datamemReadU2(BQ769X2_SET_CONF_POWER, conf_power) != PX4_OK
+	    || _protocol.datamemReadU1(BQ769X2_SET_CONF_ALERT, conf_alert) != PX4_OK
+	    || _protocol.datamemReadU1(BQ769X2_SET_CONF_DA, conf_da) != PX4_OK
+	    || _protocol.datamemReadU2(BQ769X2_SET_CONF_VCELL_MODE, vcell_mode_read) != PX4_OK
+	    || _protocol.datamemReadU2(BQ769X2_SET_PROT_BODY_DIODE_TH, body_diode_th_ma) != PX4_OK
+	    || _protocol.datamemReadU1(BQ769X2_SET_FET_OPTIONS, fet_options) != PX4_OK
+	    || _protocol.datamemReadU1(BQ769X2_SET_FET_PDSG_TIMEOUT, pdsg_timeout) != PX4_OK
+	    || _protocol.datamemReadU1(BQ769X2_SET_FET_PDSG_STOP_DV, pdsg_stop_dv) != PX4_OK
+	    || _protocol.datamemReadU1(BQ769X2_SET_PROT_ENABLED_A, prot_enabled_a) != PX4_OK
+	    || _protocol.datamemReadU1(BQ769X2_SET_PROT_ENABLED_B, prot_enabled_b) != PX4_OK
+	    || _protocol.datamemReadU1(BQ769X2_SET_ALARM_SF_ALERT_MASK_A, sf_alert_mask_a) != PX4_OK
+	    || _protocol.datamemReadU1(BQ769X2_SET_ALARM_SF_ALERT_MASK_B, sf_alert_mask_b) != PX4_OK
+	    || _protocol.datamemReadU1(BQ769X2_SET_ALARM_PF_ALERT_MASK_A, pf_alert_mask_a) != PX4_OK
+	    || _protocol.datamemReadU1(BQ769X2_SET_ALARM_PF_ALERT_MASK_B, pf_alert_mask_b) != PX4_OK
+	    || _protocol.datamemReadU1(BQ769X2_SET_ALARM_PF_ALERT_MASK_C, pf_alert_mask_c) != PX4_OK
+	    || _protocol.datamemReadU1(BQ769X2_SET_ALARM_PF_ALERT_MASK_D, pf_alert_mask_d) != PX4_OK
+	    || _protocol.datamemReadU2(BQ769X2_SET_ALARM_DEFAULT_MASK, alarm_default_mask) != PX4_OK) {
+		return false;
+	}
+
+	uint8_t expected_prot_enabled_a = static_cast<uint8_t>(BQ769X2_PROT_EN_A_CUV | BQ769X2_PROT_EN_A_COV
+					       | BQ769X2_PROT_EN_A_OCC | BQ769X2_PROT_EN_A_OCD1
+					       | BQ769X2_PROT_EN_A_SCD);
+	const uint8_t temp_bits = static_cast<uint8_t>(BQ769X2_PROT_EN_B_UTC | BQ769X2_PROT_EN_B_UTD
+				| BQ769X2_PROT_EN_B_OTC | BQ769X2_PROT_EN_B_OTD);
+	uint8_t expected_prot_enabled_b = _temp_prot_enable ? temp_bits : 0;
+
+	const bool matches = (conf_power == 0x2882)
+			     && (conf_alert == 0x00)
+			     && (conf_da == 0x06)
+			     && (vcell_mode_read == vcell_mode)
+			     && (body_diode_th_ma == 500u)
+			     && (fet_options == 0x1D)
+			     && (pdsg_timeout == pdsg_timeout_raw)
+			     && (pdsg_stop_dv == pdsg_stop_dv_raw)
+			     && ((prot_enabled_a & expected_prot_enabled_a) == expected_prot_enabled_a)
+			     && ((prot_enabled_b & temp_bits) == expected_prot_enabled_b)
+			     && (sf_alert_mask_a == prot_enabled_a)
+			     && (sf_alert_mask_b == prot_enabled_b)
+			     && (pf_alert_mask_a == 0xFF)
+			     && (pf_alert_mask_b == 0xFF)
+			     && (pf_alert_mask_c == 0xFF)
+			     && (pf_alert_mask_d == 0xFF)
+			     && ((alarm_default_mask & 0x1000u) != 0);
+
+	return matches;
+}
+
 int BQ769x2::configure()
 {
 	const int ret_enter = _protocol.setConfigUpdateMode(true);
@@ -272,15 +397,29 @@ int BQ769x2::configure()
 	// Match LibreSolar convention: CC2 current in 10 mA and stack/pack voltage in 10 mV.
 	ret |= _protocol.datamemWriteU1(BQ769X2_SET_CONF_DA, 0x06);
 
-	ret |= _protocol.datamemWriteU2(BQ769X2_SET_CONF_POWER, _conf_power);
+	// Disable sleep mode so chip doesn't autonomously drop CHG (libresolar default 0x2882).
+	ret |= _protocol.datamemWriteU2(BQ769X2_SET_CONF_POWER, 0x2882);
+
+	// Keep ALERT pin in its dedicated alarm function mode.
+	// (Libresolar default pin config writes ALERT=0x00.)
+	ret |= _protocol.datamemWriteU1(BQ769X2_SET_CONF_ALERT, 0x00);
 
 	ret |= _protocol.datamemWriteU2(BQ769X2_SET_CONF_VCELL_MODE, activeVcellModeMask());
-	ret |= _protocol.datamemWriteU1(BQ769X2_SET_FET_OPTIONS, _fet_options);
-	ret |= _protocol.datamemWriteU1(BQ769X2_SET_FET_PDSG_TIMEOUT, 0);
-	ret |= _protocol.datamemWriteU1(BQ769X2_SET_OPEN_WIRE_CHECK_TIME, _openwire_check_time_s);
 
-	ret |= _protocol.datamemWriteU2(BQ769X2_SET_PROT_BODY_DIODE_TH, static_cast<uint16_t>(math::constrain(lroundf(_body_diode_th_ma),
-								 0l, 32767l)));
+	// Body-diode threshold for ideal-diode control (libresolar default 500 mA).
+	ret |= _protocol.datamemWriteU2(BQ769X2_SET_PROT_BODY_DIODE_TH, 500);
+
+	// Auto-PDSG / hardware precharge of the bus through the predischarge resistor.
+	// FET_OPTIONS = 0x1D enables the chip's automatic pre-discharge before DSG turn-on.
+	// PDSG timeout and stop-delta are parameterized in user units (ms/mV), converted
+	// to the chip's 10 ms / 10 mV register encoding.
+	ret |= _protocol.datamemWriteU1(BQ769X2_SET_FET_OPTIONS, 0x1D);
+	const uint8_t pdsg_timeout_raw = static_cast<uint8_t>(math::constrain(lroundf(_pdsg_timeout_ms * 0.1f), 0l, 255l));
+	const uint8_t pdsg_stop_dv_raw = static_cast<uint8_t>(math::constrain(lroundf(_pdsg_stop_dv_mv * 0.1f), 0l, 255l));
+	ret |= _protocol.datamemWriteU1(BQ769X2_SET_FET_PDSG_TIMEOUT, pdsg_timeout_raw);
+	ret |= _protocol.datamemWriteU1(BQ769X2_SET_FET_PDSG_STOP_DV, pdsg_stop_dv_raw);
+
+	ret |= _protocol.datamemWriteU1(BQ769X2_SET_OPEN_WIRE_CHECK_TIME, _openwire_check_time_s);
 
 	ret |= configureProtections();
 
@@ -321,15 +460,11 @@ int BQ769x2::configureProtections()
 		return PX4_ERROR;
 	}
 
-	const uint8_t cov_threshold = static_cast<uint8_t>(cov_threshold_raw);
-	const uint8_t cov_hyst = static_cast<uint8_t>(cov_hyst_raw);
-	const uint16_t cov_delay = static_cast<uint16_t>(cov_delay_raw);
+	ret |= _protocol.datamemWriteU1(BQ769X2_PROT_COV_THRESHOLD, static_cast<uint8_t>(cov_threshold_raw));
+	ret |= _protocol.datamemWriteU1(BQ769X2_PROT_COV_RECOV_HYST, static_cast<uint8_t>(cov_hyst_raw));
+	ret |= _protocol.datamemWriteU2(BQ769X2_PROT_COV_DELAY, static_cast<uint16_t>(cov_delay_raw));
 
-	ret |= _protocol.datamemWriteU1(BQ769X2_PROT_COV_THRESHOLD, cov_threshold);
-	ret |= _protocol.datamemWriteU1(BQ769X2_PROT_COV_RECOV_HYST, cov_hyst);
-	ret |= _protocol.datamemWriteU2(BQ769X2_PROT_COV_DELAY, cov_delay);
-
-	// CUV: threshold/hysteresis/delay (50.6 mV units, 3.3 ms units).
+	// CUV: threshold/hysteresis/delay.
 	if (!validateRange(_cell_uv_limit_v, 1.5f, 4.6f, "CUV_V")
 	    || !validateRange(_cell_uv_delay_ms, 3.3f, 6755.f, "CUV_DLY")
 	    || !validateRange(_cell_uv_reset_v - _cell_uv_limit_v, 0.1012f, 1.012f, "CUV_HYST")) {
@@ -347,15 +482,11 @@ int BQ769x2::configureProtections()
 		return PX4_ERROR;
 	}
 
-	const uint8_t cuv_threshold = static_cast<uint8_t>(cuv_threshold_raw);
-	const uint8_t cuv_hyst = static_cast<uint8_t>(cuv_hyst_raw);
-	const uint16_t cuv_delay = static_cast<uint16_t>(cuv_delay_raw);
+	ret |= _protocol.datamemWriteU1(BQ769X2_PROT_CUV_THRESHOLD, static_cast<uint8_t>(cuv_threshold_raw));
+	ret |= _protocol.datamemWriteU1(BQ769X2_PROT_CUV_RECOV_HYST, static_cast<uint8_t>(cuv_hyst_raw));
+	ret |= _protocol.datamemWriteU2(BQ769X2_PROT_CUV_DELAY, static_cast<uint16_t>(cuv_delay_raw));
 
-	ret |= _protocol.datamemWriteU1(BQ769X2_PROT_CUV_THRESHOLD, cuv_threshold);
-	ret |= _protocol.datamemWriteU1(BQ769X2_PROT_CUV_RECOV_HYST, cuv_hyst);
-	ret |= _protocol.datamemWriteU2(BQ769X2_PROT_CUV_DELAY, cuv_delay);
-
-	// OCC/OCD thresholds and delays (2 mV units, 3.3 ms base + 6.6 ms offset).
+	// OCC/OCD thresholds and delays (2 mV units across shunt, 3.3 ms base + 6.6 ms offset).
 	if (!validateRange(_occ_limit_a, 1.f, 500.f, "OCC_A")
 	    || !validateRange(_occ_delay_ms, 6.6f, 425.f, "OCC_DLY")
 	    || !validateRange(_ocd_limit_a, 1.f, 500.f, "OCD_A")
@@ -373,11 +504,8 @@ int BQ769x2::configureProtections()
 		return PX4_ERROR;
 	}
 
-	const uint8_t occ_threshold = static_cast<uint8_t>(occ_threshold_raw);
-	const uint8_t occ_delay = static_cast<uint8_t>(occ_delay_raw);
-
-	ret |= _protocol.datamemWriteU1(BQ769X2_PROT_OCC_THRESHOLD, occ_threshold);
-	ret |= _protocol.datamemWriteU1(BQ769X2_PROT_OCC_DELAY, occ_delay);
+	ret |= _protocol.datamemWriteU1(BQ769X2_PROT_OCC_THRESHOLD, static_cast<uint8_t>(occ_threshold_raw));
+	ret |= _protocol.datamemWriteU1(BQ769X2_PROT_OCC_DELAY, static_cast<uint8_t>(occ_delay_raw));
 
 	const long ocd_threshold_raw = lroundf(_ocd_limit_a * _shunt_uohm / 2000.f);
 	const long ocd_delay_raw = lroundf((_ocd_delay_ms - 6.6f) / 3.3f);
@@ -387,11 +515,8 @@ int BQ769x2::configureProtections()
 		return PX4_ERROR;
 	}
 
-	const uint8_t ocd_threshold = static_cast<uint8_t>(ocd_threshold_raw);
-	const uint8_t ocd_delay = static_cast<uint8_t>(ocd_delay_raw);
-
-	ret |= _protocol.datamemWriteU1(BQ769X2_PROT_OCD1_THRESHOLD, ocd_threshold);
-	ret |= _protocol.datamemWriteU1(BQ769X2_PROT_OCD1_DELAY, ocd_delay);
+	ret |= _protocol.datamemWriteU1(BQ769X2_PROT_OCD1_THRESHOLD, static_cast<uint8_t>(ocd_threshold_raw));
+	ret |= _protocol.datamemWriteU1(BQ769X2_PROT_OCD1_DELAY, static_cast<uint8_t>(ocd_delay_raw));
 
 	// SCD threshold uses discrete table (mV across shunt), delay in 15 us steps.
 	static constexpr uint16_t scd_thresholds_mv[] {10, 20, 40, 60, 80, 100, 125, 150, 175, 200, 250, 300, 350, 400, 450, 500};
@@ -421,9 +546,8 @@ int BQ769x2::configureProtections()
 		return PX4_ERROR;
 	}
 
-	const uint8_t scd_delay = static_cast<uint8_t>(scd_delay_raw);
 	ret |= _protocol.datamemWriteU1(BQ769X2_PROT_SCD_THRESHOLD, scd_threshold_idx);
-	ret |= _protocol.datamemWriteU1(BQ769X2_PROT_SCD_DELAY, scd_delay);
+	ret |= _protocol.datamemWriteU1(BQ769X2_PROT_SCD_DELAY, static_cast<uint8_t>(scd_delay_raw));
 
 	// Temperature protections (degC, signed 8-bit values with hysteresis).
 	if (_temp_prot_enable) {
@@ -455,7 +579,8 @@ int BQ769x2::configureProtections()
 		ret |= _protocol.datamemWriteU1(BQ769X2_PROT_UTD_RECOVERY, static_cast<uint8_t>(utd_recovery));
 	}
 
-	// Ensure these protections are enabled in PROT_ENABLED_A.
+	// Ensure the cell/current protections are enabled in PROT_ENABLED_A. The chip
+	// drives the FETs off autonomously when any enabled protection trips.
 	uint8_t prot_enabled_a{0};
 	ret |= _protocol.datamemReadU1(BQ769X2_SET_PROT_ENABLED_A, prot_enabled_a);
 	prot_enabled_a |= static_cast<uint8_t>(BQ769X2_PROT_EN_A_CUV | BQ769X2_PROT_EN_A_COV | BQ769X2_PROT_EN_A_OCC
@@ -475,6 +600,18 @@ int BQ769x2::configureProtections()
 	}
 
 	ret |= _protocol.datamemWriteU1(BQ769X2_SET_PROT_ENABLED_B, prot_enabled_b);
+
+	// Route configured safety faults to ALERT pin (open-drain) so external LED/logic
+	// sees hardware-level protection events without relying on host polling.
+	// Mirrors libresolar approach: SF mask + ALARM_DEFAULT_MASK bit 12.
+	ret |= _protocol.datamemWriteU1(BQ769X2_SET_ALARM_SF_ALERT_MASK_A, prot_enabled_a);
+	ret |= _protocol.datamemWriteU1(BQ769X2_SET_ALARM_SF_ALERT_MASK_B, prot_enabled_b);
+	// PF events are also routed to ALERT so hardware fault latches are externally visible.
+	ret |= _protocol.datamemWriteU1(BQ769X2_SET_ALARM_PF_ALERT_MASK_A, 0xFF);
+	ret |= _protocol.datamemWriteU1(BQ769X2_SET_ALARM_PF_ALERT_MASK_B, 0xFF);
+	ret |= _protocol.datamemWriteU1(BQ769X2_SET_ALARM_PF_ALERT_MASK_C, 0xFF);
+	ret |= _protocol.datamemWriteU1(BQ769X2_SET_ALARM_PF_ALERT_MASK_D, 0xFF);
+	ret |= _protocol.datamemWriteU2(BQ769X2_SET_ALARM_DEFAULT_MASK, 0x1000);
 
 	return ret;
 }
@@ -597,50 +734,6 @@ void BQ769x2::updateParamsFromStore()
 		_temp_prot_enable = val_i32 != 0;
 	}
 
-	if (_param_conf_power != PARAM_INVALID && param_get(_param_conf_power, &val_i32) == PX4_OK) {
-		_conf_power = static_cast<uint16_t>(math::constrain(val_i32, static_cast<int32_t>(0), static_cast<int32_t>(0xFFFF)));
-	}
-
-	if (_param_body_diode_ma != PARAM_INVALID && param_get(_param_body_diode_ma, &val_f) == PX4_OK) {
-		_body_diode_th_ma = val_f;
-	}
-
-	if (_param_fet_options != PARAM_INVALID && param_get(_param_fet_options, &val_i32) == PX4_OK) {
-		_fet_options = static_cast<uint8_t>(math::constrain(val_i32, static_cast<int32_t>(0), static_cast<int32_t>(255)));
-	}
-
-	if (_param_fets_auto != PARAM_INVALID && param_get(_param_fets_auto, &val_i32) == PX4_OK) {
-		_fets_auto = val_i32 != 0;
-	}
-
-	if (_param_fets_on_mask != PARAM_INVALID && param_get(_param_fets_on_mask, &val_i32) == PX4_OK) {
-		_fets_on_mask = static_cast<uint8_t>(math::constrain(val_i32, static_cast<int32_t>(0), static_cast<int32_t>(15)));
-	}
-
-	if (_param_precharge_mask != PARAM_INVALID && param_get(_param_precharge_mask, &val_i32) == PX4_OK) {
-		_precharge_mask = static_cast<uint8_t>(math::constrain(val_i32, static_cast<int32_t>(0), static_cast<int32_t>(15)));
-	}
-
-	if (_param_precharge_ms != PARAM_INVALID && param_get(_param_precharge_ms, &val_i32) == PX4_OK) {
-		_precharge_ms = static_cast<uint16_t>(math::constrain(val_i32, static_cast<int32_t>(0), static_cast<int32_t>(2000)));
-	}
-
-	if (_param_postcharge_ms != PARAM_INVALID && param_get(_param_postcharge_ms, &val_i32) == PX4_OK) {
-		_postcharge_ms = static_cast<uint16_t>(math::constrain(val_i32, static_cast<int32_t>(0), static_cast<int32_t>(2000)));
-	}
-
-	if (_param_precharge_timeout_ms != PARAM_INVALID && param_get(_param_precharge_timeout_ms, &val_i32) == PX4_OK) {
-		_precharge_timeout_ms = static_cast<uint16_t>(math::constrain(val_i32, static_cast<int32_t>(1), static_cast<int32_t>(5000)));
-	}
-
-	if (_param_precharge_delta_pct != PARAM_INVALID && param_get(_param_precharge_delta_pct, &val_f) == PX4_OK) {
-		_precharge_delta_pct = math::constrain(val_f, 0.1f, 50.f);
-	}
-
-	if (_param_fets_all_ok_gate != PARAM_INVALID && param_get(_param_fets_all_ok_gate, &val_i32) == PX4_OK) {
-		_fets_all_ok_gate = val_i32 != 0;
-	}
-
 	if (_param_openwire_check != PARAM_INVALID && param_get(_param_openwire_check, &val_i32) == PX4_OK) {
 		_openwire_check = val_i32 != 0;
 	}
@@ -655,6 +748,14 @@ void BQ769x2::updateParamsFromStore()
 
 	if (_param_vcell_mode != PARAM_INVALID && param_get(_param_vcell_mode, &val_i32) == PX4_OK) {
 		_vcell_mode_mask = static_cast<uint16_t>(math::constrain(val_i32, static_cast<int32_t>(0), static_cast<int32_t>(0xFFFF)));
+	}
+
+	if (_param_pdsg_timeout_ms != PARAM_INVALID && param_get(_param_pdsg_timeout_ms, &val_i32) == PX4_OK) {
+		_pdsg_timeout_ms = static_cast<uint16_t>(math::constrain(val_i32, static_cast<int32_t>(10), static_cast<int32_t>(2550)));
+	}
+
+	if (_param_pdsg_stop_dv_mv != PARAM_INVALID && param_get(_param_pdsg_stop_dv_mv, &val_i32) == PX4_OK) {
+		_pdsg_stop_dv_mv = static_cast<uint16_t>(math::constrain(val_i32, static_cast<int32_t>(0), static_cast<int32_t>(2550)));
 	}
 }
 
@@ -841,10 +942,14 @@ int BQ769x2::collectAndPublish()
 	uint8_t safety_a{0};
 	uint8_t safety_b{0};
 	uint8_t safety_c{0};
+	uint8_t fet_status{0};
+	uint16_t battery_status{0};
+	bool battery_status_valid{false};
 
 	if (_protocol.directReadU1(BQ769X2_CMD_SAFETY_STATUS_A, safety_a) != PX4_OK
 	    || _protocol.directReadU1(BQ769X2_CMD_SAFETY_STATUS_B, safety_b) != PX4_OK
-	    || _protocol.directReadU1(BQ769X2_CMD_SAFETY_STATUS_C, safety_c) != PX4_OK) {
+	    || _protocol.directReadU1(BQ769X2_CMD_SAFETY_STATUS_C, safety_c) != PX4_OK
+	    || _protocol.directReadU1(BQ769X2_CMD_FET_STATUS, fet_status) != PX4_OK) {
 		perf_count(_comms_errors);
 		perf_end(_sample_perf);
 		return PX4_ERROR;
@@ -858,11 +963,14 @@ int BQ769x2::collectAndPublish()
 
 	report.warning = computeWarning(report.remaining, report.faults);
 
-	if (_fets_auto && applyFetPolicy(report.faults == 0) != PX4_OK) {
-		perf_count(_comms_errors);
-		perf_end(_sample_perf);
-		return PX4_ERROR;
+	// Telemetry only: log if chip raised a new safety bit (so we know why FETs went off).
+	if (_protocol.directReadU2(BQ769X2_CMD_BATTERY_STATUS, battery_status) == PX4_OK) {
+		battery_status_valid = true;
 	}
+
+	logFaultChange(safety_a, safety_b, safety_c, fet_status,
+		       battery_status, battery_status_valid,
+		       stack_voltage_v, report.voltage_v, report.current_a);
 
 	int instance = 0;
 	orb_publish_auto(ORB_ID(battery_status), &_battery_status_topic, &report, &instance);
@@ -880,10 +988,6 @@ int BQ769x2::collectAndPublish()
 
 void BQ769x2::publishDisconnected()
 {
-	if (_fets_auto) {
-		(void)applyFetPolicy(false);
-	}
-
 	battery_status_s report{};
 	report.timestamp = hrt_absolute_time();
 	report.id = _battery_id;
@@ -911,7 +1015,39 @@ int BQ769x2::ensureFetEnable()
 	}
 
 	if ((mfg_status & BQ769X2_MFG_STATUS_FET_EN_MASK) == 0) {
+		// FET_ENABLE subcommand sets FET_EN bit in MFG_STATUS (mirrors libresolar init).
 		if (_protocol.subcommand(BQ769X2_SUBCMD_FET_ENABLE) != PX4_OK) {
+			return PX4_ERROR;
+		}
+
+		// FET_ENABLE can take a short time to latch. Verify explicitly so later
+		// FET_CONTROL writes don't silently no-op.
+		bool fet_en_latched = false;
+
+		for (int attempt = 0; attempt < 20; attempt++) {
+			if (_protocol.subcommandReadU2(BQ769X2_SUBCMD_MFG_STATUS, mfg_status) == PX4_OK
+			    && ((mfg_status & BQ769X2_MFG_STATUS_FET_EN_MASK) != 0)) {
+				fet_en_latched = true;
+				break;
+			}
+
+			px4_usleep(2'000);
+		}
+
+		if (!fet_en_latched) {
+			uint8_t fet_status{0}, safety_a{0}, safety_b{0}, safety_c{0};
+			uint16_t bat_status{0};
+			(void)_protocol.directReadU1(BQ769X2_CMD_FET_STATUS, fet_status);
+			(void)_protocol.directReadU1(BQ769X2_CMD_SAFETY_STATUS_A, safety_a);
+			(void)_protocol.directReadU1(BQ769X2_CMD_SAFETY_STATUS_B, safety_b);
+			(void)_protocol.directReadU1(BQ769X2_CMD_SAFETY_STATUS_C, safety_c);
+			(void)_protocol.directReadU2(BQ769X2_CMD_BATTERY_STATUS, bat_status);
+
+			PX4_ERR("FET_ENABLE did not latch: MFG_STATUS=0x%04x FET_STATUS=0x%02x BAT_STATUS=0x%04x SAFETY_A/B/C=0x%02x/0x%02x/0x%02x",
+				static_cast<unsigned>(mfg_status),
+				fet_status,
+				static_cast<unsigned>(bat_status),
+				safety_a, safety_b, safety_c);
 			return PX4_ERROR;
 		}
 	}
@@ -920,161 +1056,203 @@ int BQ769x2::ensureFetEnable()
 	return PX4_OK;
 }
 
-int BQ769x2::applyFetPolicy(bool bq_all_ok)
+int BQ769x2::enableMainFets()
 {
-	if (ensureFetEnable() != PX4_OK) {
+	// Hardware-only FET strategy:
+	//   - Bus precharge is done in chip HW via auto-PDSG (FET_OPTIONS=0x1D,
+	//     see configure()). The chip gates DSG based on parameterized
+	//     PDSG timeout / PDSG stop-delta conditions.
+	//   - Firmware never drives PCHG or PDSG directly. This function only
+	//     enables the main CHG + DSG FETs once at init. Chip protections
+	//     (PROT_ENABLED_A/B) drop the FETs autonomously on faults.
+	//
+	// Mirror of libresolar's bms_ic_bq769x2_set_switches, narrowed to CHG+DSG:
+	//   1) Read current FET_STATUS, mask to lower nibble.
+	//   2) OR in the main-FET bits.
+	//   3) Write merged bits via FET_CONTROL subcommand.
+	//   4) Send ALL_FETS_ON to actually engage the requested combination.
+	uint8_t fet_status_before{0};
+
+	if (_protocol.directReadU1(BQ769X2_CMD_FET_STATUS, fet_status_before) != PX4_OK) {
 		return PX4_ERROR;
 	}
 
-	const bool all_ok = bq_all_ok && _fets_all_ok_gate;
-	const uint8_t desired_mask = all_ok ? requestedFetMask() : 0;
-	uint8_t fet_status{0};
+	const uint8_t before_mask = static_cast<uint8_t>(fet_status_before & 0x0F);
+	const uint8_t target = static_cast<uint8_t>(before_mask | DEFAULT_FET_MASK);
 
-	if (_protocol.directReadU1(BQ769X2_CMD_FET_STATUS, fet_status) != PX4_OK) {
-		return PX4_ERROR;
-	}
-
-	const uint8_t current_mask = static_cast<uint8_t>(fet_status & 0x0F);
-
-	if (current_mask == desired_mask) {
+	// Do not poke FET control on MCU reset when CHG+DSG are already on.
+	// This avoids re-triggering chip-side auto-PDSG sequencing just because
+	// the host rebooted and re-ran init.
+	if ((before_mask & DEFAULT_FET_MASK) == DEFAULT_FET_MASK) {
+		PX4_INFO("enableMainFets: skip (already on, FET_STATUS=0x%02x)", fet_status_before);
 		return PX4_OK;
 	}
 
-	if (!all_ok) {
-		int ret = _protocol.subcommand(BQ769X2_SUBCMD_DSG_PDSG_OFF);
-		ret |= _protocol.subcommand(BQ769X2_SUBCMD_CHG_PCHG_OFF);
-		ret |= _protocol.subcommand(BQ769X2_SUBCMD_ALL_FETS_OFF);
-		return ret == PX4_OK ? PX4_OK : PX4_ERROR;
+	const int ret_fet_control = _protocol.subcommandWriteU1(BQ769X2_SUBCMD_FET_CONTROL, target);
+	const int ret_all_fets_on = _protocol.subcommand(BQ769X2_SUBCMD_ALL_FETS_ON);
+	const int ret = ret_fet_control | ret_all_fets_on;
+
+	if (ret != PX4_OK) {
+		PX4_ERR("enableMainFets: command error (control=%d all_on=%d)", ret_fet_control, ret_all_fets_on);
+		return PX4_ERROR;
 	}
 
-	int ret = PX4_OK;
+	// Libresolar-style behavior: command requested switch state once and let the chip run
+	// autonomous auto-PDSG/DSG sequencing. Do not hard-fail on intermediate states (e.g. 0x09),
+	// only hard-fail if the chip is already reporting active safety/PF faults.
+	uint8_t fet_status_after{0};
+	uint8_t safety_a{0}, safety_b{0}, safety_c{0};
+	uint8_t pf_a{0}, pf_b{0}, pf_c{0}, pf_d{0};
+	uint16_t bat_status{0};
+	uint16_t mfg_status{0};
 
-	const uint8_t stage_mask = prechargeStageMask(desired_mask);
-
-	if (stage_mask != desired_mask && current_mask == 0) {
-		ret |= _protocol.subcommandWriteU1(BQ769X2_SUBCMD_FET_CONTROL, stage_mask);
-		ret |= _protocol.subcommand(BQ769X2_SUBCMD_ALL_FETS_ON);
-
-		if (ret != PX4_OK) {
-			return PX4_ERROR;
-		}
-
-		ret = waitForPrechargeEqualization();
-
-		if (ret != PX4_OK) {
-			return PX4_ERROR;
-		}
-
-		const uint8_t overlap_mask = static_cast<uint8_t>(desired_mask | (stage_mask & (BQ769X2_FET_PCHG | BQ769X2_FET_PDSG)));
-
-		if (overlap_mask != desired_mask && _postcharge_ms > 0) {
-			ret = _protocol.subcommandWriteU1(BQ769X2_SUBCMD_FET_CONTROL, overlap_mask);
-			ret |= _protocol.subcommand(BQ769X2_SUBCMD_ALL_FETS_ON);
-
-			if (ret != PX4_OK) {
-				return PX4_ERROR;
-			}
-
-			px4_usleep(static_cast<uint32_t>(_postcharge_ms) * 1000);
-		}
+	if (_protocol.directReadU1(BQ769X2_CMD_FET_STATUS, fet_status_after) != PX4_OK
+	    || _protocol.directReadU1(BQ769X2_CMD_SAFETY_STATUS_A, safety_a) != PX4_OK
+	    || _protocol.directReadU1(BQ769X2_CMD_SAFETY_STATUS_B, safety_b) != PX4_OK
+	    || _protocol.directReadU1(BQ769X2_CMD_SAFETY_STATUS_C, safety_c) != PX4_OK
+	    || _protocol.directReadU1(BQ769X2_CMD_PF_STATUS_A, pf_a) != PX4_OK
+	    || _protocol.directReadU1(BQ769X2_CMD_PF_STATUS_B, pf_b) != PX4_OK
+	    || _protocol.directReadU1(BQ769X2_CMD_PF_STATUS_C, pf_c) != PX4_OK
+	    || _protocol.directReadU1(BQ769X2_CMD_PF_STATUS_D, pf_d) != PX4_OK
+	    || _protocol.directReadU2(BQ769X2_CMD_BATTERY_STATUS, bat_status) != PX4_OK
+	    || _protocol.subcommandReadU2(BQ769X2_SUBCMD_MFG_STATUS, mfg_status) != PX4_OK) {
+		PX4_ERR("enableMainFets: readback failed (pre=0x%02x target=0x%02x control=%d all_on=%d)",
+			fet_status_before, target, ret_fet_control, ret_all_fets_on);
+		return PX4_ERROR;
 	}
 
-	ret |= _protocol.subcommandWriteU1(BQ769X2_SUBCMD_FET_CONTROL, desired_mask);
-	ret |= _protocol.subcommand(BQ769X2_SUBCMD_ALL_FETS_ON);
-	return ret == PX4_OK ? PX4_OK : PX4_ERROR;
-}
+	const uint8_t after_mask = static_cast<uint8_t>(fet_status_after & 0x0F);
+	const bool has_safety = (safety_a | safety_b | safety_c) != 0;
+	const bool has_pf = (pf_a | pf_b | pf_c | pf_d) != 0;
 
-int BQ769x2::waitForPrechargeEqualization()
-{
-	const hrt_abstime start = hrt_absolute_time();
-	const uint32_t timeout_us = static_cast<uint32_t>(_precharge_timeout_ms) * 1000u;
-	const uint32_t min_precharge_us = static_cast<uint32_t>(_precharge_ms) * 1000u;
-	float last_v_pack = NAN;
-	float last_v_stack = NAN;
-	bool have_last_sample = false;
-
-	while (hrt_elapsed_time(&start) < timeout_us) {
-		int16_t raw_pack_mv{0};
-		int16_t raw_stack_mv{0};
-
-		if (_protocol.directReadI2(BQ769X2_CMD_VOLTAGE_PACK, raw_pack_mv) != PX4_OK
-		    || _protocol.directReadI2(BQ769X2_CMD_VOLTAGE_STACK, raw_stack_mv) != PX4_OK) {
-			PX4_ERR("precharge equalization failed: voltage read error");
-			return PX4_ERROR;
-		}
-
-		const float v_pack = static_cast<float>(raw_pack_mv) * 1e-2f;
-		const float v_stack = static_cast<float>(raw_stack_mv) * 1e-2f;
-		last_v_pack = v_pack;
-		last_v_stack = v_stack;
-		have_last_sample = true;
-
-		// Percentage-based threshold: scales with actual battery voltage so the
-		// same parameter works across different SoC levels and pack sizes.
-		// Guard against divide-by-zero on a dead/missing pack.
-		const float delta_threshold_v = (fabsf(v_pack) > 0.1f)
-						? fabsf(v_pack) * (_precharge_delta_pct * 0.01f)
-						: 0.f;
-
-		const bool min_time_elapsed = hrt_elapsed_time(&start) >= min_precharge_us;
-
-		if (min_time_elapsed && fabsf(v_stack - v_pack) <= delta_threshold_v) {
-			const uint32_t elapsed_ms = static_cast<uint32_t>(hrt_elapsed_time(&start) / 1000);
-			PX4_INFO("precharge equalization complete (%ums): Vstack=%.3fV Vpack=%.3fV delta=%.3fV (thr=%.3fV / %.1f%%)",
-				 (unsigned)elapsed_ms,
-				 (double)v_stack,
-				 (double)v_pack,
-				 (double)fabsf(v_stack - v_pack),
-				 (double)delta_threshold_v,
-				 (double)_precharge_delta_pct);
-			return PX4_OK;
-		}
-
-		px4_usleep(10'000);
+	if (has_safety || has_pf) {
+		PX4_ERR("enableMainFets blocked by fault: pre=0x%02x target=0x%02x after=0x%02x SAFETY_A/B/C=0x%02x/0x%02x/0x%02x PF_A/B/C/D=0x%02x/0x%02x/0x%02x/0x%02x BAT_STATUS=0x%04x MFG_STATUS=0x%04x",
+			fet_status_before, target, after_mask,
+			safety_a, safety_b, safety_c,
+			pf_a, pf_b, pf_c, pf_d,
+			static_cast<unsigned>(bat_status),
+			static_cast<unsigned>(mfg_status));
+		return PX4_ERROR;
 	}
 
-	const uint32_t elapsed_ms = static_cast<uint32_t>(hrt_elapsed_time(&start) / 1000);
-
-	if (have_last_sample) {
-		const float delta_v = fabsf(last_v_stack - last_v_pack);
-		const float final_thr_v = (fabsf(last_v_pack) > 0.1f)
-					  ? fabsf(last_v_pack) * (_precharge_delta_pct * 0.01f)
-					  : 0.f;
-		PX4_ERR("precharge equalization timeout (%ums): Vbat(stack)=%.3fV Vpack=%.3fV delta=%.3fV (thr=%.3fV / %.1f%%)",
-			(unsigned)elapsed_ms,
-			(double)last_v_stack,
-			(double)last_v_pack,
-			(double)delta_v,
-			(double)final_thr_v,
-			(double)_precharge_delta_pct);
+	if ((after_mask & DEFAULT_FET_MASK) != DEFAULT_FET_MASK) {
+		PX4_WARN("enableMainFets pending (chip auto sequence): pre=0x%02x target=0x%02x after=0x%02x BAT_STATUS=0x%04x MFG_STATUS=0x%04x",
+			 fet_status_before, target, after_mask,
+			 static_cast<unsigned>(bat_status),
+			 static_cast<unsigned>(mfg_status));
 
 	} else {
-		PX4_ERR("precharge equalization timeout (%ums): no voltage samples", (unsigned)elapsed_ms);
+		PX4_INFO("enableMainFets: pre=0x%02x target=0x%02x after=0x%02x BAT_STATUS=0x%04x MFG_STATUS=0x%04x",
+			 fet_status_before, target, after_mask,
+			 static_cast<unsigned>(bat_status),
+			 static_cast<unsigned>(mfg_status));
 	}
 
-	return PX4_ERROR;
+	return PX4_OK;
 }
 
-uint8_t BQ769x2::prechargeStageMask(uint8_t desired_mask) const
+void BQ769x2::logFaultChange(uint8_t safety_a, uint8_t safety_b, uint8_t safety_c, uint8_t fet_status,
+			     uint16_t battery_status, bool battery_status_valid,
+			     float stack_voltage_v, float pack_voltage_v, float current_a)
 {
-	uint8_t stage = desired_mask;
+	const uint8_t new_a = static_cast<uint8_t>(safety_a & ~_last_safety_a);
+	const uint8_t new_b = static_cast<uint8_t>(safety_b & ~_last_safety_b);
+	const uint8_t new_c = static_cast<uint8_t>(safety_c & ~_last_safety_c);
 
-	if ((desired_mask & BQ769X2_FET_DSG) && (_precharge_mask & BQ769X2_FET_PDSG)) {
-		stage = static_cast<uint8_t>((stage & ~BQ769X2_FET_DSG) | BQ769X2_FET_PDSG);
+	if (new_a || new_b || new_c) {
+		const uint8_t fet_lo = static_cast<uint8_t>(fet_status & 0x0F);
+
+		PX4_WARN("safety bits raised: A=0x%02x B=0x%02x C=0x%02x; FET_STATUS=0x%02x",
+			 new_a, new_b, new_c, fet_status);
+
+		// Decode the most relevant bits so the operator immediately sees the cause.
+		if (new_a & BQ769X2_SAFETY_A_CUV)  { PX4_WARN(" -> cell undervoltage (CUV)"); }
+		if (new_a & BQ769X2_SAFETY_A_COV)  { PX4_WARN(" -> cell overvoltage (COV)"); }
+		if (new_a & BQ769X2_SAFETY_A_OCC)  { PX4_WARN(" -> charge overcurrent (OCC)"); }
+		if (new_a & BQ769X2_SAFETY_A_OCD1) { PX4_WARN(" -> discharge overcurrent (OCD1)"); }
+		if (new_a & BQ769X2_SAFETY_A_OCD2) { PX4_WARN(" -> discharge overcurrent (OCD2)"); }
+		if (new_a & BQ769X2_SAFETY_A_SCD)  { PX4_WARN(" -> short circuit discharge (SCD)"); }
+
+		if (new_b & BQ769X2_SAFETY_B_UTC)   { PX4_WARN(" -> charge undertemperature (UTC)"); }
+		if (new_b & BQ769X2_SAFETY_B_UTD)   { PX4_WARN(" -> discharge undertemperature (UTD)"); }
+		if (new_b & BQ769X2_SAFETY_B_UTINT) { PX4_WARN(" -> internal undertemperature (UTINT)"); }
+		if (new_b & BQ769X2_SAFETY_B_OTC)   { PX4_WARN(" -> charge overtemperature (OTC)"); }
+		if (new_b & BQ769X2_SAFETY_B_OTD)   { PX4_WARN(" -> discharge overtemperature (OTD)"); }
+		if (new_b & BQ769X2_SAFETY_B_OTINT) { PX4_WARN(" -> internal overtemperature (OTINT)"); }
+		if (new_b & BQ769X2_SAFETY_B_OTF)   { PX4_WARN(" -> FET overtemperature (OTF)"); }
+
+		if (new_c & BQ769X2_SAFETY_C_HWDF) { PX4_WARN(" -> host watchdog fault (HWDF)"); }
+		if (new_c & BQ769X2_SAFETY_C_PTO)  { PX4_WARN(" -> precharge timeout (PTO)"); }
+		if (new_c & BQ769X2_SAFETY_C_COVL) { PX4_WARN(" -> cell overvoltage latch (COVL)"); }
+		if (new_c & BQ769X2_SAFETY_C_OCDL) { PX4_WARN(" -> overcurrent discharge latch (OCDL)"); }
+		if (new_c & BQ769X2_SAFETY_C_SCDL) { PX4_WARN(" -> short-circuit discharge latch (SCDL)"); }
+		if (new_c & BQ769X2_SAFETY_C_OCD3) { PX4_WARN(" -> overcurrent discharge tier 3 (OCD3)"); }
+
+		if ((fet_lo & DEFAULT_FET_MASK) != DEFAULT_FET_MASK) {
+			PX4_WARN(" -> chip dropped FETs (FET_STATUS lower nibble = 0x%02x, expected 0x%02x)",
+				 fet_lo, DEFAULT_FET_MASK);
+		}
 	}
 
-	if ((desired_mask & BQ769X2_FET_CHG) && (_precharge_mask & BQ769X2_FET_PCHG)) {
-		stage = static_cast<uint8_t>((stage & ~BQ769X2_FET_CHG) | BQ769X2_FET_PCHG);
+	// Cleared bits also worth reporting (chip recovered).
+	const uint8_t cleared_a = static_cast<uint8_t>(_last_safety_a & ~safety_a);
+	const uint8_t cleared_b = static_cast<uint8_t>(_last_safety_b & ~safety_b);
+	const uint8_t cleared_c = static_cast<uint8_t>(_last_safety_c & ~safety_c);
+
+	if (cleared_a || cleared_b || cleared_c) {
+		PX4_INFO("safety bits cleared: A=0x%02x B=0x%02x C=0x%02x; FET_STATUS=0x%02x",
+			 cleared_a, cleared_b, cleared_c, fet_status);
 	}
 
-	return static_cast<uint8_t>(stage &
-				     (BQ769X2_FET_CHG | BQ769X2_FET_PCHG | BQ769X2_FET_DSG | BQ769X2_FET_PDSG));
-}
+	const uint8_t fet_lo = static_cast<uint8_t>(fet_status & 0x0F);
+	const bool fet_changed = _last_fet_status_valid && (fet_lo != static_cast<uint8_t>(_last_fet_status & 0x0F));
 
-uint8_t BQ769x2::requestedFetMask() const
-{
-	return static_cast<uint8_t>(_fets_on_mask &
-				     (BQ769X2_FET_CHG | BQ769X2_FET_PCHG | BQ769X2_FET_DSG | BQ769X2_FET_PDSG));
+	if (fet_changed) {
+		const hrt_abstime now = hrt_absolute_time();
+		const float dt_ms = (_last_fet_transition_time > 0) ? (now - _last_fet_transition_time) * 1e-3f : NAN;
+		const uint8_t prev_fet_lo = static_cast<uint8_t>(_last_fet_status & 0x0F);
+		const float bus_delta = (PX4_ISFINITE(stack_voltage_v) && PX4_ISFINITE(pack_voltage_v))
+					? fabsf(stack_voltage_v - pack_voltage_v) : NAN;
+		uint8_t pf_a{0}, pf_b{0}, pf_c{0}, pf_d{0};
+		const bool pf_valid = (_protocol.directReadU1(BQ769X2_CMD_PF_STATUS_A, pf_a) == PX4_OK)
+				      && (_protocol.directReadU1(BQ769X2_CMD_PF_STATUS_B, pf_b) == PX4_OK)
+				      && (_protocol.directReadU1(BQ769X2_CMD_PF_STATUS_C, pf_c) == PX4_OK)
+				      && (_protocol.directReadU1(BQ769X2_CMD_PF_STATUS_D, pf_d) == PX4_OK);
+		uint16_t mfg_status{0};
+		const bool mfg_valid = (_protocol.subcommandReadU2(BQ769X2_SUBCMD_MFG_STATUS, mfg_status) == PX4_OK);
+
+		PX4_WARN("FET transition: 0x%02x -> 0x%02x in %.1f ms | SAFETY_A/B/C=0x%02x/0x%02x/0x%02x | PF_A/B/C/D=%s0x%02x/0x%02x/0x%02x/0x%02x | BAT_STATUS=%s0x%04x | MFG_STATUS=%s0x%04x | Vstack=%.3fV Vpack=%.3fV dV=%.3fV I=%.2fA",
+			 prev_fet_lo, fet_lo, (double)dt_ms,
+			 safety_a, safety_b, safety_c,
+			 pf_valid ? "" : "n/a:",
+			 pf_a, pf_b, pf_c, pf_d,
+			 battery_status_valid ? "" : "n/a:",
+			 static_cast<unsigned>(battery_status),
+			 mfg_valid ? "" : "n/a:",
+			 static_cast<unsigned>(mfg_status),
+			 (double)stack_voltage_v, (double)pack_voltage_v, (double)bus_delta, (double)current_a);
+
+		if ((fet_lo & DEFAULT_FET_MASK) != DEFAULT_FET_MASK) {
+			PX4_WARN(" -> main FETs no longer fully on (mask=0x%02x, expected 0x%02x)",
+				 fet_lo, DEFAULT_FET_MASK);
+		}
+
+		if (!new_a && !new_b && !new_c && (safety_a == 0) && (safety_b == 0) && (safety_c == 0)) {
+			PX4_WARN(" -> transition occurred with no SAFETY bits set (possible autonomous precharge/FET policy or external command)");
+		}
+
+		_last_fet_transition_time = now;
+	}
+
+	_last_safety_a = safety_a;
+	_last_safety_b = safety_b;
+	_last_safety_c = safety_c;
+	_last_fet_status = fet_status;
+
+	if (!_last_fet_status_valid) {
+		_last_fet_status_valid = true;
+		_last_fet_transition_time = hrt_absolute_time();
+	}
 }
 
 uint16_t BQ769x2::mapFaults(uint8_t safety_a, uint8_t safety_b, uint8_t safety_c) const
@@ -1145,15 +1323,73 @@ void BQ769x2::print_status()
 	perf_print_counter(_sample_perf);
 	perf_print_counter(_comms_errors);
 	perf_print_counter(_collection_errors);
-	PX4_INFO("connected: %s", _connected ? "yes" : "no");
-	PX4_INFO("fets auto: %s, all_ok_gate: %s, on_mask: 0x%02x", _fets_auto ? "yes" : "no",
-		 _fets_all_ok_gate ? "on" : "off", requestedFetMask());
-	PX4_INFO("precharge: min %u ms + %u ms overlap, mask: 0x%02x", _precharge_ms, _postcharge_ms, _precharge_mask);
-	PX4_INFO("precharge equalization: timeout %u ms, delta %.1f%% of Vpack", _precharge_timeout_ms,
-		 (double)_precharge_delta_pct);
+	PX4_INFO("connected: %s, switches initialized: %s", _connected ? "yes" : "no",
+		 _switches_initialized ? "yes" : "no");
+	PX4_INFO("FET policy: chip auto (HW auto-PDSG=on, FET_OPTIONS=0x1D, PDSG_TIMEOUT=%u ms, PDSG_STOP_DV=%u mV)",
+		 static_cast<unsigned>(_pdsg_timeout_ms), static_cast<unsigned>(_pdsg_stop_dv_mv));
+
+	uint8_t pdsg_timeout_raw{0};
+	uint8_t pdsg_stop_dv_raw{0};
+
+	if (_protocol.datamemReadU1(BQ769X2_SET_FET_PDSG_TIMEOUT, pdsg_timeout_raw) == PX4_OK
+	    && _protocol.datamemReadU1(BQ769X2_SET_FET_PDSG_STOP_DV, pdsg_stop_dv_raw) == PX4_OK) {
+		PX4_INFO("auto-PDSG chip cfg: timeout=%u ms (raw=0x%02x), stop_delta=%u mV (raw=0x%02x)",
+			 static_cast<unsigned>(pdsg_timeout_raw) * 10u, pdsg_timeout_raw,
+			 static_cast<unsigned>(pdsg_stop_dv_raw) * 10u, pdsg_stop_dv_raw);
+
+	} else {
+		PX4_WARN("failed to read PDSG timeout/stop-delta");
+	}
+
+	uint8_t alert_pin_cfg{0};
+	uint8_t sf_alert_mask_a{0};
+	uint8_t sf_alert_mask_b{0};
+	uint8_t pf_alert_mask_a{0};
+	uint8_t pf_alert_mask_b{0};
+	uint8_t pf_alert_mask_c{0};
+	uint8_t pf_alert_mask_d{0};
+	uint16_t alarm_default_mask{0};
+
+	if (_protocol.datamemReadU1(BQ769X2_SET_CONF_ALERT, alert_pin_cfg) == PX4_OK
+	    && _protocol.datamemReadU1(BQ769X2_SET_ALARM_SF_ALERT_MASK_A, sf_alert_mask_a) == PX4_OK
+	    && _protocol.datamemReadU1(BQ769X2_SET_ALARM_SF_ALERT_MASK_B, sf_alert_mask_b) == PX4_OK
+	    && _protocol.datamemReadU1(BQ769X2_SET_ALARM_PF_ALERT_MASK_A, pf_alert_mask_a) == PX4_OK
+	    && _protocol.datamemReadU1(BQ769X2_SET_ALARM_PF_ALERT_MASK_B, pf_alert_mask_b) == PX4_OK
+	    && _protocol.datamemReadU1(BQ769X2_SET_ALARM_PF_ALERT_MASK_C, pf_alert_mask_c) == PX4_OK
+	    && _protocol.datamemReadU1(BQ769X2_SET_ALARM_PF_ALERT_MASK_D, pf_alert_mask_d) == PX4_OK
+	    && _protocol.datamemReadU2(BQ769X2_SET_ALARM_DEFAULT_MASK, alarm_default_mask) == PX4_OK) {
+		PX4_INFO("alert cfg: CONF_ALERT=0x%02x SF_MASK_A/B=0x%02x/0x%02x PF_MASK_A/B/C/D=0x%02x/0x%02x/0x%02x/0x%02x DEFAULT_MASK=0x%04x (SF routing %s)",
+			 alert_pin_cfg, sf_alert_mask_a, sf_alert_mask_b,
+			 pf_alert_mask_a, pf_alert_mask_b, pf_alert_mask_c, pf_alert_mask_d,
+			 static_cast<unsigned>(alarm_default_mask),
+			 (alarm_default_mask & 0x1000u) ? "on" : "off");
+
+	} else {
+		PX4_WARN("failed to read ALERT pin/alarm mask config");
+	}
+
+	int16_t raw_pack_mv{0};
+	int16_t raw_stack_mv{0};
+
+	if (_protocol.directReadI2(BQ769X2_CMD_VOLTAGE_PACK, raw_pack_mv) == PX4_OK
+	    && _protocol.directReadI2(BQ769X2_CMD_VOLTAGE_STACK, raw_stack_mv) == PX4_OK) {
+		const float v_pack = static_cast<float>(raw_pack_mv) * 1e-2f;
+		const float v_stack = static_cast<float>(raw_stack_mv) * 1e-2f;
+		const float delta_v = fabsf(v_stack - v_pack);
+		const float stop_v = static_cast<float>(pdsg_stop_dv_raw) * 0.01f;
+		PX4_INFO("bus equalization: Vstack=%.3fV Vpack=%.3fV delta=%.3fV (auto-PDSG stop %.3fV)",
+			 (double)v_stack, (double)v_pack, (double)delta_v, (double)stop_v);
+
+	} else {
+		PX4_WARN("failed to read pack/stack voltages");
+	}
+
 	PX4_INFO("openwire check: %s, hw_period: %u s, tolerance: %.1f mV/cell", _openwire_check ? "on" : "off",
 		 _openwire_check_time_s, (double)_openwire_tol_mv_per_cell);
-	PX4_INFO("current prot: OCC %.1fA/%.1fms, OCD %.1fA/%.1fms, SCD %.1fA/%.1fus",
+	PX4_INFO("voltage prot: COV %.3fV/%.3fV reset/%.0fms, CUV %.3fV/%.3fV reset/%.0fms",
+		 (double)_cell_ov_limit_v, (double)_cell_ov_reset_v, (double)_cell_ov_delay_ms,
+		 (double)_cell_uv_limit_v, (double)_cell_uv_reset_v, (double)_cell_uv_delay_ms);
+	PX4_INFO("current prot: OCC %.1fA/%.1fms, OCD %.1fA/%.1fms, SCD %.1fA/%.0fus",
 		 (double)_occ_limit_a, (double)_occ_delay_ms, (double)_ocd_limit_a, (double)_ocd_delay_ms,
 		 (double)_scd_limit_a, (double)_scd_delay_us);
 	PX4_INFO("temp prot: %s, OTC %.1fC, UTC %.1fC, OTD %.1fC, UTD %.1fC, hyst %.1fC",
@@ -1161,9 +1397,44 @@ void BQ769x2::print_status()
 		 (double)_dis_ot_limit_c, (double)_dis_ut_limit_c, (double)_temp_hyst_c);
 	PX4_INFO("capacity: %.0f mAh", (double)_capacity_mah);
 	PX4_INFO("consumed: %.1f mAh, %.3f Wh", (double)_discharged_mah, (double)_discharged_wh);
-	PX4_INFO("battery id: %u, cells: %u, vcell_mode: 0x%04x", _battery_id, __builtin_popcount(activeVcellModeMask()), activeVcellModeMask());
+	PX4_INFO("battery id: %u, cells: %u, vcell_mode: 0x%04x", _battery_id, __builtin_popcount(activeVcellModeMask()),
+		 activeVcellModeMask());
 	PX4_INFO("device: %u, fw: 0x%08lx, hw: 0x%08lx", _device_number,
 		 static_cast<unsigned long>(_fw_version), static_cast<unsigned long>(_hw_version));
+
+	uint8_t fet_status{0};
+	uint8_t safety_a{0};
+	uint8_t safety_b{0};
+	uint8_t safety_c{0};
+	uint8_t pf_a{0};
+	uint8_t pf_b{0};
+	uint8_t pf_c{0};
+	uint8_t pf_d{0};
+	uint16_t mfg_status{0};
+
+	if (_protocol.directReadU1(BQ769X2_CMD_FET_STATUS, fet_status) == PX4_OK
+	    && _protocol.directReadU1(BQ769X2_CMD_SAFETY_STATUS_A, safety_a) == PX4_OK
+	    && _protocol.directReadU1(BQ769X2_CMD_SAFETY_STATUS_B, safety_b) == PX4_OK
+	    && _protocol.directReadU1(BQ769X2_CMD_SAFETY_STATUS_C, safety_c) == PX4_OK
+	    && _protocol.directReadU1(BQ769X2_CMD_PF_STATUS_A, pf_a) == PX4_OK
+	    && _protocol.directReadU1(BQ769X2_CMD_PF_STATUS_B, pf_b) == PX4_OK
+	    && _protocol.directReadU1(BQ769X2_CMD_PF_STATUS_C, pf_c) == PX4_OK
+	    && _protocol.directReadU1(BQ769X2_CMD_PF_STATUS_D, pf_d) == PX4_OK) {
+		const uint8_t current_fet_mask = static_cast<uint8_t>(fet_status & 0x0F);
+		(void)_protocol.subcommandReadU2(BQ769X2_SUBCMD_MFG_STATUS, mfg_status);
+		PX4_INFO("regs: FET_STATUS=0x%02x (mask=0x%02x: CHG=%u PCHG=%u DSG=%u PDSG=%u), SAFETY_A/B/C=0x%02x/0x%02x/0x%02x, PF_A/B/C/D=0x%02x/0x%02x/0x%02x/0x%02x, MFG_STATUS=0x%04x",
+			 fet_status, current_fet_mask,
+			 (current_fet_mask & BQ769X2_FET_CHG)  ? 1u : 0u,
+			 (current_fet_mask & BQ769X2_FET_PCHG) ? 1u : 0u,
+			 (current_fet_mask & BQ769X2_FET_DSG)  ? 1u : 0u,
+			 (current_fet_mask & BQ769X2_FET_PDSG) ? 1u : 0u,
+			 safety_a, safety_b, safety_c,
+			 pf_a, pf_b, pf_c, pf_d,
+			 static_cast<unsigned>(mfg_status));
+
+	} else {
+		PX4_WARN("regs: failed to read FET/SAFETY/PF status");
+	}
 }
 
 uint16_t BQ769x2::activeVcellModeMask() const
