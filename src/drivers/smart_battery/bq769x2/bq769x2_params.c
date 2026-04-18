@@ -63,13 +63,13 @@ PARAM_DEFINE_INT32(BQ769X2_CELLS, 3);
 /**
  * Enable BQ769x2 CRC mode for host communication.
  *
- * Keep disabled unless data memory communication type is configured accordingly.
+ * SVEA powerboard defaults to CRC enabled.
  *
  * @group Sensors
  * @boolean
  * @reboot_required true
  */
-PARAM_DEFINE_INT32(BQ769X2_CRC, 0);
+PARAM_DEFINE_INT32(BQ769X2_CRC, 1);
 
 /**
  * Apply BQ769x2 configuration writes on startup.
@@ -103,7 +103,7 @@ PARAM_DEFINE_FLOAT(BQ769X2_SHUNT, 1000.f);
  * @max 5.6
  * @reboot_required true
  */
-PARAM_DEFINE_FLOAT(BQ769X2_COV_V, 4.25f);
+PARAM_DEFINE_FLOAT(BQ769X2_COV_V, 4.20f);
 
 /**
  * Cell overvoltage recovery threshold in volts.
@@ -133,7 +133,7 @@ PARAM_DEFINE_FLOAT(BQ769X2_COV_DLY, 1000.f);
  * @max 4.6
  * @reboot_required true
  */
-PARAM_DEFINE_FLOAT(BQ769X2_CUV_V, 2.80f);
+PARAM_DEFINE_FLOAT(BQ769X2_CUV_V, 3.20f);
 
 /**
  * Cell undervoltage recovery threshold in volts.
@@ -143,7 +143,7 @@ PARAM_DEFINE_FLOAT(BQ769X2_CUV_V, 2.80f);
  * @max 4.6
  * @reboot_required true
  */
-PARAM_DEFINE_FLOAT(BQ769X2_CUV_RV, 3.00f);
+PARAM_DEFINE_FLOAT(BQ769X2_CUV_RV, 3.30f);
 
 /**
  * Cell undervoltage detection delay in milliseconds.
@@ -163,7 +163,7 @@ PARAM_DEFINE_FLOAT(BQ769X2_CUV_DLY, 1000.f);
  * @max 500
  * @reboot_required true
  */
-PARAM_DEFINE_FLOAT(BQ769X2_OCC_A, 120.f);
+PARAM_DEFINE_FLOAT(BQ769X2_OCC_A, 10.f);
 
 /**
  * Charge overcurrent delay in milliseconds (OCC).
@@ -173,7 +173,7 @@ PARAM_DEFINE_FLOAT(BQ769X2_OCC_A, 120.f);
  * @max 425
  * @reboot_required true
  */
-PARAM_DEFINE_FLOAT(BQ769X2_OCC_DLY, 100.f);
+PARAM_DEFINE_FLOAT(BQ769X2_OCC_DLY, 200.f);
 
 /**
  * Discharge overcurrent threshold in amps (OCD1).
@@ -183,7 +183,7 @@ PARAM_DEFINE_FLOAT(BQ769X2_OCC_DLY, 100.f);
  * @max 500
  * @reboot_required true
  */
-PARAM_DEFINE_FLOAT(BQ769X2_OCD_A, 130.f);
+PARAM_DEFINE_FLOAT(BQ769X2_OCD_A, 140.f);
 
 /**
  * Discharge overcurrent delay in milliseconds (OCD1).
@@ -193,7 +193,7 @@ PARAM_DEFINE_FLOAT(BQ769X2_OCD_A, 130.f);
  * @max 425
  * @reboot_required true
  */
-PARAM_DEFINE_FLOAT(BQ769X2_OCD_DLY, 20.f);
+PARAM_DEFINE_FLOAT(BQ769X2_OCD_DLY, 320.f);
 
 /**
  * Short-circuit threshold in amps (SCD).
@@ -203,7 +203,7 @@ PARAM_DEFINE_FLOAT(BQ769X2_OCD_DLY, 20.f);
  * @max 1000
  * @reboot_required true
  */
-PARAM_DEFINE_FLOAT(BQ769X2_SCD_A, 220.f);
+PARAM_DEFINE_FLOAT(BQ769X2_SCD_A, 150.f);
 
 /**
  * Short-circuit delay in microseconds (SCD).
@@ -213,7 +213,7 @@ PARAM_DEFINE_FLOAT(BQ769X2_SCD_A, 220.f);
  * @max 450
  * @reboot_required true
  */
-PARAM_DEFINE_FLOAT(BQ769X2_SCD_DLY, 60.f);
+PARAM_DEFINE_FLOAT(BQ769X2_SCD_DLY, 100.f);
 
 /**
  * Charge over-temperature threshold in degC (OTC).
@@ -279,145 +279,10 @@ PARAM_DEFINE_FLOAT(BQ769X2_T_HYST_C, 5.f);
 PARAM_DEFINE_INT32(BQ769X2_TPROT_EN, 0);
 
 /**
- * BQ769x2 CONF_POWER data memory word.
- *
- * Default 0x2882 follows LibreSolar: disables sleep-driven CHG dropouts.
- *
- * @group Sensors
- * @min 0
- * @max 65535
- * @reboot_required true
- */
-PARAM_DEFINE_INT32(BQ769X2_PWR_CFG, 10370);
-
-/**
- * Body-diode threshold in mA.
- *
- * @group Sensors
- * @min 0
- * @max 32767
- * @reboot_required true
- */
-PARAM_DEFINE_FLOAT(BQ769X2_DIODEMA, 500.f);
-
-/**
- * BQ769x2 FET behavior options (data memory FET_OPTIONS).
- *
- * Default 0x1D follows LibreSolar pre-discharge behavior.
- *
- * @group Sensors
- * @min 0
- * @max 255
- * @reboot_required true
- */
-PARAM_DEFINE_INT32(BQ769X2_FETOPT, 29);
-
-/**
- * Automatic FET control policy.
- *
- * When enabled, CHG/DSG/PCHG are controlled in firmware:
- *  - forced OFF when BQ safety faults are active or ALL_OK gate is low
- *  - driven to BQ769X2_FETMASK when all checks are OK
- *
- * @group Sensors
- * @boolean
- */
-PARAM_DEFINE_INT32(BQ769X2_FET_AUTO, 1);
-
-/**
- * FET mask to apply when automatic policy is allowed.
- *
- * Bits: 0=CHG, 1=PCHG, 2=DSG, 3=PDSG.
- *
- * @group Sensors
- * @min 0
- * @max 15
- */
-PARAM_DEFINE_INT32(BQ769X2_FETMASK, 5);
-
-/**
- * Precharge stage mask used during ALL_OK transition to ON.
- *
- * Bits: 0=CHG, 1=PCHG, 2=DSG, 3=PDSG.
- * During staged turn-on, CHG and/or DSG can be replaced by PCHG/PDSG if enabled here.
- *
- * @group Sensors
- * @min 0
- * @max 15
- */
-PARAM_DEFINE_INT32(BQ769X2_PCHGMASK, 8);
-
-/**
- * Minimum precharge stage time in milliseconds.
- *
- * Applied only when transitioning from all FETs OFF to ON and staged mask differs from final mask.
- * Precharge completion additionally requires |Vstack - Vpack| <= BQ769X2_PDV_PCT% of Vpack
- * before BQ769X2_PTO_MS timeout.
- *
- * @group Sensors
- * @min 0
- * @max 2000
- */
-PARAM_DEFINE_INT32(BQ769X2_PCHG_MS, 50);
-
-/**
- * Postcharge overlap duration in milliseconds.
- *
- * After precharge stage, main FETs are turned on while precharge FET stays on
- * for this additional overlap time, then precharge FET is turned off.
- *
- * @group Sensors
- * @min 0
- * @max 2000
- */
-PARAM_DEFINE_INT32(BQ769X2_POST_MS, 10);
-
-/**
- * Precharge equalization timeout in milliseconds.
- *
- * During staged precharge, firmware compares stack voltage and pack voltage.
- * If |Vstack - Vpack| does not fall below BQ769X2_PDV_PCT% of Vpack before timeout,
- * precharge fails and main FET closure is aborted.
- *
- * @group Sensors
- * @min 1
- * @max 5000
- */
-PARAM_DEFINE_INT32(BQ769X2_PTO_MS, 500);
-
-/**
- * Precharge equalization delta threshold as percentage of pack voltage.
- *
- * Staged precharge is considered complete when |Vstack - Vpack|
- * is less than or equal to (BQ769X2_PDV_PCT / 100) * Vpack.
- * E.g. 5.0 means the stack must be within 5% of pack voltage.
- * Scales automatically with battery voltage, so a single value
- * works across different state-of-charge levels.
- *
- * @group Sensors
- * @min 0.1
- * @max 50.0
- * @decimal 1
- * @unit %
- */
-PARAM_DEFINE_FLOAT(BQ769X2_PDV_PCT, 5.f);
-
-/**
- * External ALL_OK gate for automatic FET policy.
- *
- * Intended for a board manager module to gate FET closure from cross-device checks.
- * If 0, automatic policy forces all FETs off.
- *
- * @group Sensors
- * @boolean
- */
-PARAM_DEFINE_INT32(BQ769X2_ALL_OK, 1);
-
-/**
  * Enable open-wire consistency check.
  *
  * Compares measured stack voltage against sum of selected cell voltages.
- * On mismatch, FAULT_CELL_FAIL is raised and automatic FET policy will force OFF.
+ * On mismatch, FAULT_CELL_FAIL is raised in telemetry.
  *
  * @group Sensors
  * @boolean
@@ -460,3 +325,30 @@ PARAM_DEFINE_FLOAT(BQ769X2_OWTOL, 50.f);
  * @reboot_required true
  */
 PARAM_DEFINE_INT32(BQ769X2_VCMODE, 0);
+
+/**
+ * Auto-PDSG timeout in milliseconds.
+ *
+ * Written to BQ769x2 FET_PDSG_TIMEOUT (0x930E), encoded in 10 ms steps.
+ * Must be >0 so predischarge doesn't hold indefinitely.
+ *
+ * @group Sensors
+ * @min 10
+ * @max 2550
+ * @reboot_required true
+ * @unit ms
+ */
+PARAM_DEFINE_INT32(BQ769X2_PDSG_TO, 2000);
+
+/**
+ * Auto-PDSG stop delta in millivolts.
+ *
+ * Written to BQ769x2 FET_PDSG_STOP_DV (0x930F), encoded in 10 mV steps.
+ * 0 disables voltage-stop condition (timeout-only behavior).
+ *
+ * @group Sensors
+ * @min 0
+ * @max 2550
+ * @reboot_required true
+ */
+PARAM_DEFINE_INT32(BQ769X2_PDSG_DV, 500);
