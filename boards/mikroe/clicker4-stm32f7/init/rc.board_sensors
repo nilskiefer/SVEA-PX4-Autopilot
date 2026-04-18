@@ -9,5 +9,6 @@ bq769x2 -I -b 2 -a 0x08 -t 1 -q start
 lsm6dsox -I -b 2 -a 0x6b -q start
 pcal6524 -I -b 2 -a 0x22 -M 0 -D 0x00ffffff -q start
 pcal6524 -I -b 2 -a 0x23 -M 24 -D 0x00ffffff -q start
+pca9685_pwm_out start -a 0x61 -b 2
 
-echo "board sensors mode: auto BQ769x2 + LSM6DSOX + PCAL6524"
+echo "board sensors mode: auto BQ769x2 + LSM6DSOX + PCAL6524 + PCA9685(0x61)"

@@ -175,3 +175,44 @@ param set-default BQ769X2_VCMODE 515
 # Chip auto-PDSG behavior: enforce timeout so predischarge resistor is never held indefinitely.
 param set-default BQ769X2_PDSG_TO 2000
 param set-default BQ769X2_PDSG_DV 500
+
+# PCA9685 PWM driver defaults (I2C2 @ 0x61).
+# Channel map (0-based physical channels):
+#  0 throttle, 1 steering, 2 front diff, 3 rear diff, 4 gear, 5 misc servo, 6 misc servo.
+param set-default PCA9685_EN_BUS 2
+param set-default PCA9685_I2C_ADDR 97
+param set-default PCA9685_PWM_FREQ 50
+param set-default PCA9685_SCHD_HZ 100
+param set-default PCA9685_DUTY_EN 0
+
+# PCA9685 output functions (driver uses 1-based channel params for HW channels 0..15).
+param set-default PCA9685_FUNC1 101  # CH0: throttle (Motor1)
+param set-default PCA9685_FUNC2 201  # CH1: steering (Servo1)
+param set-default PCA9685_FUNC3 203  # CH2: front differential (Servo3)
+param set-default PCA9685_FUNC4 204  # CH3: rear differential (Servo4)
+param set-default PCA9685_FUNC5 202  # CH4: gear (Servo2)
+param set-default PCA9685_FUNC6 205  # CH5: misc servo (Servo5)
+param set-default PCA9685_FUNC7 206  # CH6: misc servo (Servo6)
+
+# PCA9685 signal ranges for channels 0..6.
+param set-default PCA9685_MIN1 1000
+param set-default PCA9685_MAX1 2000
+param set-default PCA9685_DIS1 1000
+param set-default PCA9685_MIN2 1000
+param set-default PCA9685_MAX2 2000
+param set-default PCA9685_DIS2 1500
+param set-default PCA9685_MIN3 1000
+param set-default PCA9685_MAX3 2000
+param set-default PCA9685_DIS3 1500
+param set-default PCA9685_MIN4 1000
+param set-default PCA9685_MAX4 2000
+param set-default PCA9685_DIS4 1500
+param set-default PCA9685_MIN5 1000
+param set-default PCA9685_MAX5 2000
+param set-default PCA9685_DIS5 1500
+param set-default PCA9685_MIN6 1000
+param set-default PCA9685_MAX6 2000
+param set-default PCA9685_DIS6 1500
+param set-default PCA9685_MIN7 1000
+param set-default PCA9685_MAX7 2000
+param set-default PCA9685_DIS7 1500
