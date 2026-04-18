@@ -51,6 +51,17 @@
 
 using namespace time_literals;
 
+/*
+ * BQ769x2 driver - structured to mirror libresolar's bms-firmware (mature reference impl).
+ *
+ * FET / precharge philosophy:
+ *   - Predischarge (PDSG / "bus precharge through 47R") is handled ENTIRELY in chip HW
+ *     via FET_OPTIONS=0x1D with parameterized PDSG timeout/stop-delta.
+ *     Firmware never stages PCHG/PDSG.
+ *   - At init we turn CHG+DSG on once. Chip protections (PROT_ENABLED_A/B) autonomously
+ *     drop the FETs on faults. We just observe FET_STATUS and SAFETY_STATUS for telemetry.
+ */
+
 class BQ769x2 : public device::I2C, public ModuleParams, public I2CSPIDriver<BQ769x2>, public BQ769x2ProtocolBus
 {
 public:
@@ -75,18 +86,23 @@ private:
 	static constexpr uint32_t SAMPLE_INTERVAL_US{100_ms};
 	static constexpr uint8_t MAX_CELL_COUNT{14};
 
+	// Default FET mask we drive once at startup (libresolar's bms_state_machine end-state
+	// for a healthy pack: charge + discharge enabled, chip handles PCHG/PDSG sequencing).
+	static constexpr uint8_t DEFAULT_FET_MASK{static_cast<uint8_t>(BQ769X2_FET_CHG | BQ769X2_FET_DSG)};
+
 	int collectAndPublish();
 	int configure();
+	bool configMatchesDesired();
 	int configureProtections();
 	int ensureFetEnable();
-	int applyFetPolicy(bool bq_all_ok);
-	int waitForPrechargeEqualization();
-	uint8_t prechargeStageMask(uint8_t desired_mask) const;
+	int enableMainFets(); ///< Turn CHG+DSG on once. Chip auto-PDSG owns precharge; firmware never drives PCHG/PDSG.
 	void publishDisconnected();
 	void updateParamsFromStore();
 	uint16_t activeVcellModeMask() const;
-	uint8_t requestedFetMask() const;
 	uint16_t mapFaults(uint8_t safety_a, uint8_t safety_b, uint8_t safety_c) const;
+	void logFaultChange(uint8_t safety_a, uint8_t safety_b, uint8_t safety_c, uint8_t fet_status,
+			    uint16_t battery_status, bool battery_status_valid,
+			    float stack_voltage_v, float pack_voltage_v, float current_a);
 	uint8_t computeWarning(float remaining, uint16_t faults) const;
 	float estimateRemaining(float avg_cell_voltage) const;
 
@@ -100,9 +116,13 @@ private:
 	orb_advert_t _battery_status_topic{nullptr};
 	orb_advert_t _battery_info_topic{nullptr};
 
+	// All tunable fields below are populated from the parameter store in
+	// updateParamsFromStore(), which is called at the top of init() before
+	// configure()/configureProtections() run. The params file (bq769x2_params.c)
+	// is the single source of truth for defaults - do NOT re-declare them here.
 	uint8_t _battery_id{1};
-	uint8_t _cell_count{3};
-	bool _configure_on_startup{true};
+	uint8_t _cell_count{0};
+	bool _configure_on_startup{false};
 	bool _connected{false};
 	hrt_abstime _last_integration_us{0};
 	float _discharged_mah{0.f};
@@ -112,48 +132,48 @@ private:
 	uint32_t _fw_version{0};
 	uint32_t _hw_version{0};
 
-	float _bat_low_thr{0.3f};
-	float _bat_crit_thr{0.2f};
-	float _bat_emerg_thr{0.1f};
-	float _cell_voltage_empty{3.2f};
-	float _cell_voltage_charged{4.2f};
-	float _shunt_uohm{1000.f};
-	float _cell_ov_limit_v{4.25f};
-	float _cell_ov_reset_v{4.10f};
-	float _cell_ov_delay_ms{1000.f};
-	float _cell_uv_limit_v{2.80f};
-	float _cell_uv_reset_v{3.00f};
-	float _cell_uv_delay_ms{1000.f};
-	float _occ_limit_a{120.f};
-	float _occ_delay_ms{100.f};
-	float _ocd_limit_a{130.f};
-	float _ocd_delay_ms{20.f};
-	float _scd_limit_a{220.f};
-	float _scd_delay_us{60.f};
-	float _chg_ot_limit_c{45.f};
+	float _bat_low_thr{0.f};
+	float _bat_crit_thr{0.f};
+	float _bat_emerg_thr{0.f};
+	float _cell_voltage_empty{0.f};
+	float _cell_voltage_charged{0.f};
+	float _shunt_uohm{0.f};
+	float _cell_ov_limit_v{0.f};
+	float _cell_ov_reset_v{0.f};
+	float _cell_ov_delay_ms{0.f};
+	float _cell_uv_limit_v{0.f};
+	float _cell_uv_reset_v{0.f};
+	float _cell_uv_delay_ms{0.f};
+	float _occ_limit_a{0.f};
+	float _occ_delay_ms{0.f};
+	float _ocd_limit_a{0.f};
+	float _ocd_delay_ms{0.f};
+	float _scd_limit_a{0.f};
+	float _scd_delay_us{0.f};
+	float _chg_ot_limit_c{0.f};
 	float _chg_ut_limit_c{0.f};
-	float _dis_ot_limit_c{60.f};
-	float _dis_ut_limit_c{-20.f};
-	float _temp_hyst_c{5.f};
+	float _dis_ot_limit_c{0.f};
+	float _dis_ut_limit_c{0.f};
+	float _temp_hyst_c{0.f};
 	float _capacity_mah{0.f};
-	float _body_diode_th_ma{500.f};
-	uint16_t _conf_power{0x2882};
-	uint8_t _fet_options{0x1D};
-	uint8_t _fets_on_mask{static_cast<uint8_t>(BQ769X2_FET_CHG | BQ769X2_FET_DSG)};
-	uint8_t _precharge_mask{BQ769X2_FET_PDSG};
-	uint16_t _precharge_ms{50};
-	uint16_t _postcharge_ms{10};
-	uint16_t _precharge_timeout_ms{500};
-	float _precharge_delta_pct{5.f};    ///< |Vstack-Vpack| <= pct/100 * Vpack to pass equalization
-	bool _fets_auto{true};
-	bool _fets_all_ok_gate{true};
-	bool _openwire_check{true};
+	bool _openwire_check{false};
 	bool _temp_prot_enable{false};
 	bool _crc_param_enabled{false};
+	bool _switches_initialized{false};
 	bool _fets_initialized{false};
-	uint8_t _openwire_check_time_s{10};
-	float _openwire_tol_mv_per_cell{50.f};
+	uint16_t _pdsg_timeout_ms{2000};       ///< Auto-PDSG timeout (chip units are 10 ms/LSB)
+	uint16_t _pdsg_stop_dv_mv{500};        ///< Auto-PDSG stop delta (chip units are 10 mV/LSB)
+	uint8_t _openwire_check_time_s{0};
+	float _openwire_tol_mv_per_cell{0.f};
 	uint16_t _vcell_mode_mask{0};
+
+	// Last seen safety bits, for rising-edge logging in collectAndPublish().
+	uint8_t _last_safety_a{0};
+	uint8_t _last_safety_b{0};
+	uint8_t _last_safety_c{0};
+	uint8_t _last_fet_status{0};
+	bool _last_fet_status_valid{false};
+	hrt_abstime _last_fet_transition_time{0};
 
 	param_t _param_cells{PARAM_INVALID};
 	param_t _param_crc{PARAM_INVALID};
@@ -183,19 +203,10 @@ private:
 	param_t _param_dis_ut_c{PARAM_INVALID};
 	param_t _param_temp_hyst_c{PARAM_INVALID};
 	param_t _param_temp_prot_enable{PARAM_INVALID};
-	param_t _param_conf_power{PARAM_INVALID};
-	param_t _param_body_diode_ma{PARAM_INVALID};
-	param_t _param_fet_options{PARAM_INVALID};
-	param_t _param_fets_auto{PARAM_INVALID};
-	param_t _param_fets_on_mask{PARAM_INVALID};
-	param_t _param_precharge_mask{PARAM_INVALID};
-	param_t _param_precharge_ms{PARAM_INVALID};
-	param_t _param_postcharge_ms{PARAM_INVALID};
-	param_t _param_precharge_timeout_ms{PARAM_INVALID};
-	param_t _param_precharge_delta_pct{PARAM_INVALID};
-	param_t _param_fets_all_ok_gate{PARAM_INVALID};
 	param_t _param_openwire_check{PARAM_INVALID};
 	param_t _param_openwire_check_time_s{PARAM_INVALID};
 	param_t _param_openwire_tol_mv_per_cell{PARAM_INVALID};
 	param_t _param_vcell_mode{PARAM_INVALID};
+	param_t _param_pdsg_timeout_ms{PARAM_INVALID};
+	param_t _param_pdsg_stop_dv_mv{PARAM_INVALID};
 };

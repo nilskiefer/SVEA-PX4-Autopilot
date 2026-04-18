@@ -41,6 +41,10 @@ static constexpr uint8_t BQ769X2_DEFAULT_I2C_ADDR{0x08};
 static constexpr uint8_t BQ769X2_CMD_SAFETY_STATUS_A{0x03};
 static constexpr uint8_t BQ769X2_CMD_SAFETY_STATUS_B{0x05};
 static constexpr uint8_t BQ769X2_CMD_SAFETY_STATUS_C{0x07};
+static constexpr uint8_t BQ769X2_CMD_PF_STATUS_A{0x0B};
+static constexpr uint8_t BQ769X2_CMD_PF_STATUS_B{0x0D};
+static constexpr uint8_t BQ769X2_CMD_PF_STATUS_C{0x0F};
+static constexpr uint8_t BQ769X2_CMD_PF_STATUS_D{0x11};
 static constexpr uint8_t BQ769X2_CMD_BATTERY_STATUS{0x12};
 static constexpr uint8_t BQ769X2_CMD_VOLTAGE_CELL_1{0x14};
 static constexpr uint8_t BQ769X2_CMD_VOLTAGE_STACK{0x34};
@@ -70,12 +74,21 @@ static constexpr uint16_t BQ769X2_SUBCMD_FET_CONTROL{0x0097};
 /* Data memory */
 static constexpr uint16_t BQ769X2_CAL_CURR_CC_GAIN{0x91A8};
 static constexpr uint16_t BQ769X2_SET_CONF_POWER{0x9234};
+static constexpr uint16_t BQ769X2_SET_CONF_ALERT{0x92FC};
 static constexpr uint16_t BQ769X2_SET_PROT_ENABLED_A{0x9261};
 static constexpr uint16_t BQ769X2_SET_PROT_ENABLED_B{0x9262};
+static constexpr uint16_t BQ769X2_SET_ALARM_DEFAULT_MASK{0x926D};
+static constexpr uint16_t BQ769X2_SET_ALARM_SF_ALERT_MASK_A{0x926F};
+static constexpr uint16_t BQ769X2_SET_ALARM_SF_ALERT_MASK_B{0x9270};
+static constexpr uint16_t BQ769X2_SET_ALARM_PF_ALERT_MASK_A{0x92C4};
+static constexpr uint16_t BQ769X2_SET_ALARM_PF_ALERT_MASK_B{0x92C5};
+static constexpr uint16_t BQ769X2_SET_ALARM_PF_ALERT_MASK_C{0x92C6};
+static constexpr uint16_t BQ769X2_SET_ALARM_PF_ALERT_MASK_D{0x92C7};
 static constexpr uint16_t BQ769X2_SET_CONF_DA{0x9303};
 static constexpr uint16_t BQ769X2_SET_CONF_VCELL_MODE{0x9304};
 static constexpr uint16_t BQ769X2_SET_FET_OPTIONS{0x9308};
 static constexpr uint16_t BQ769X2_SET_FET_PDSG_TIMEOUT{0x930E};
+static constexpr uint16_t BQ769X2_SET_FET_PDSG_STOP_DV{0x930F};   // 10 mV/LSB
 static constexpr uint16_t BQ769X2_SET_OPEN_WIRE_CHECK_TIME{0x9314};
 
 static constexpr uint16_t BQ769X2_PROT_CUV_THRESHOLD{0x9275};   // 50.6 mV
