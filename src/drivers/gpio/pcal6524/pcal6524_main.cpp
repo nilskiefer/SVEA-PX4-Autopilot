@@ -109,4 +109,3 @@ extern "C" int pcal6524_main(int argc, char *argv[])
 	PCAL6524::print_usage();
 	return -1;
 }
-
