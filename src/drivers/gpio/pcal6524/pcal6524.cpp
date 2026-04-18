@@ -199,21 +199,58 @@ int PCAL6524::configure(uint32_t mask, PCAL6524PinType type)
 
 int PCAL6524::set_up()
 {
-	int ret = PX4_OK;
+	auto sync_registered_gpio_pintypes = [this]() {
+		for (uint8_t i = 0; i < config.num_pins && i < 24; i++) {
+			if (!_gpio_handle[i].registered) {
+				continue;
+			}
+
+			const uint32_t mask = 1u << i;
+
+			if ((_iodir & mask) == 0) {
+				_gpio_handle[i].gpio.gp_pintype = GPIO_OUTPUT_PIN;
+
+			} else if (((_pull_enable & mask) != 0) && ((_pull_select & mask) != 0)) {
+				_gpio_handle[i].gpio.gp_pintype = GPIO_INPUT_PIN_PULLUP;
+
+			} else {
+				_gpio_handle[i].gpio.gp_pintype = GPIO_INPUT_PIN;
+			}
+		}
+	};
+
+	// Startup is strictly read-only:
+	// adopt live HW state and do not write any registers here.
+	uint32_t hw_iodir{0};
+	uint32_t hw_olat{0};
+	uint32_t hw_pull_en{0};
+	uint32_t hw_pull_sel{0};
 
 	for (uint8_t bank = 0; bank < config.num_banks; bank++) {
-		const uint8_t iodir = static_cast<uint8_t>((_iodir >> (8 * bank)) & 0xFF);
-		const uint8_t olat = static_cast<uint8_t>((_olat >> (8 * bank)) & 0xFF);
-		const uint8_t pull_en = static_cast<uint8_t>((_pull_enable >> (8 * bank)) & 0xFF);
-		const uint8_t pull_sel = static_cast<uint8_t>((_pull_select >> (8 * bank)) & 0xFF);
+		uint8_t got_iodir{0};
+		uint8_t got_olat{0};
+		uint8_t got_pull_en{0};
+		uint8_t got_pull_sel{0};
 
-		ret |= write_reg(bank_config_reg(bank), iodir);
-		ret |= write_reg(bank_output_reg(bank), olat);
-		ret |= write_reg(bank_pull_enable_reg(bank), pull_en);
-		ret |= write_reg(bank_pull_select_reg(bank), pull_sel);
+		if (read_reg(bank_config_reg(bank), got_iodir) != PX4_OK
+		    || read_reg(bank_output_reg(bank), got_olat) != PX4_OK
+		    || read_reg(bank_pull_enable_reg(bank), got_pull_en) != PX4_OK
+		    || read_reg(bank_pull_select_reg(bank), got_pull_sel) != PX4_OK) {
+			return PX4_ERROR;
+		}
+
+		hw_iodir |= static_cast<uint32_t>(got_iodir) << (8 * bank);
+		hw_olat |= static_cast<uint32_t>(got_olat) << (8 * bank);
+		hw_pull_en |= static_cast<uint32_t>(got_pull_en) << (8 * bank);
+		hw_pull_sel |= static_cast<uint32_t>(got_pull_sel) << (8 * bank);
 	}
 
-	return ret;
+	_iodir = hw_iodir & 0x00FFFFFFu;
+	_olat = hw_olat & 0x00FFFFFFu;
+	_pull_enable = hw_pull_en & 0x00FFFFFFu;
+	_pull_select = hw_pull_sel & 0x00FFFFFFu;
+	sync_registered_gpio_pintypes();
+	return PX4_OK;
 }
 
 int PCAL6524::sanity_check()
@@ -387,6 +424,7 @@ void PCAL6524::print_status()
 	perf_print_counter(_cycle_perf);
 	perf_print_counter(_comms_errors);
 	perf_print_counter(_register_check);
+	PX4_INFO("startup mode: preserve live expander state (read-only)");
 	PX4_INFO("iodir: 0x%06lx state: 0x%06lx pullup: 0x%06lx", (unsigned long)_iodir,
 		 (unsigned long)_olat, (unsigned long)_pull_select);
 }
@@ -558,14 +596,17 @@ int PCAL6524::gpio_setpintype(struct gpio_dev_s *dev, enum gpio_pintype_e pintyp
 	switch (pintype) {
 	case GPIO_INPUT_PIN:
 		msg.config = gpio_config_s::INPUT;
+		gpio->gpio.gp_pintype = GPIO_INPUT_PIN;
 		break;
 
 	case GPIO_INPUT_PIN_PULLUP:
 		msg.config = gpio_config_s::INPUT_PULLUP;
+		gpio->gpio.gp_pintype = GPIO_INPUT_PIN_PULLUP;
 		break;
 
 	case GPIO_OUTPUT_PIN:
 		msg.config = gpio_config_s::OUTPUT;
+		gpio->gpio.gp_pintype = GPIO_OUTPUT_PIN;
 		break;
 
 	default:
