@@ -282,3 +282,73 @@ To inspect these on target:
 param show BAT1_*
 param show BQ769X2_*
 ```
+
+## 11) PCA9685 manual servo test commands
+
+PCA9685 is started on I2C bus `2` at address `0x61`.
+
+Quick checks:
+
+```sh
+i2cdetect -b 2
+pca9685_pwm_out status
+param show PCA9685_EN_BUS
+param show PCA9685_I2C_ADDR
+```
+
+Expected address hit in `i2cdetect`: `61`.
+
+### Channel mapping in this firmware
+
+- CH0 (`PCA9685_FUNC1`) = throttle (`101`)
+- CH1 (`PCA9685_FUNC2`) = steering (`201`)
+- CH2 (`PCA9685_FUNC3`) = front differential (`203`)
+- CH3 (`PCA9685_FUNC4`) = rear differential (`204`)
+- CH4 (`PCA9685_FUNC5`) = gear (`202`)
+- CH5 (`PCA9685_FUNC6`) = misc servo (`205`)
+- CH6 (`PCA9685_FUNC7`) = misc servo (`206`)
+
+Verify:
+
+```sh
+param show PCA9685_FUNC1
+param show PCA9685_FUNC2
+param show PCA9685_FUNC3
+param show PCA9685_FUNC4
+param show PCA9685_FUNC5
+param show PCA9685_FUNC6
+param show PCA9685_FUNC7
+```
+
+### Manual pulse test from NSH (safe, disarmed path)
+
+Use `PCA9685_DISx` to drive fixed pulse width while disarmed.
+
+Example: test steering on CH1 (`PCA9685_DIS2`):
+
+```sh
+param set PCA9685_DIS2 1000
+param set PCA9685_DIS2 1500
+param set PCA9685_DIS2 2000
+```
+
+Other channels:
+
+- CH0 throttle: `PCA9685_DIS1`
+- CH2 front diff: `PCA9685_DIS3`
+- CH3 rear diff: `PCA9685_DIS4`
+- CH4 gear: `PCA9685_DIS5`
+- CH5 misc: `PCA9685_DIS6`
+- CH6 misc: `PCA9685_DIS7`
+
+Persist after tuning:
+
+```sh
+param save
+```
+
+Notes:
+
+- Servo-style channels are configured for `1000..2000` us.
+- Center/neutral is typically `1500` us.
+- If you changed `PCA9685_FUNCx`, restore the mapping above before normal operation.
