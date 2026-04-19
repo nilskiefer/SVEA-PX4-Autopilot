@@ -272,6 +272,26 @@ gpio write /dev/gpio0 1
 gpio write /dev/gpio0 0
 ```
 
+### Arming-driven power rails
+
+`svea_power_gate` is auto-started and controls:
+
+- `/dev/gpio9`  (ESC enable)
+- `/dev/gpio10` (Servo TPS enable)
+
+Behavior:
+
+- disarmed -> both rails forced low
+- armed -> both rails set high
+
+Check:
+
+```sh
+svea_power_gate status
+gpio read /dev/gpio9
+gpio read /dev/gpio10
+```
+
 ## 10) SVEA firmware defaults (battery and BMS specs)
 
 These are the defaults set in `boards/mikroe/clicker4-stm32f7/init/rc.board_defaults`.
@@ -361,6 +381,12 @@ Expected address hit in `i2cdetect`: `61`.
 - CH4 (`PCA9685_FUNC5`) = gear (`202`)
 - CH5 (`PCA9685_FUNC6`) = misc servo (`205`)
 - CH6 (`PCA9685_FUNC7`) = misc servo (`206`)
+
+Driveline neutral/arming defaults (from SVEA LLI Zephyr behavior):
+
+- CH2 front differential trim = `1900` us (engaged)
+- CH3 rear differential trim = `1100` us (engaged)
+- CH4 gear trim = `1900` us (low gear)
 
 Verify:
 
