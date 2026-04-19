@@ -1,0 +1,5 @@
+menuconfig EXAMPLES_NEOPIXEL_FX
+	bool "neopixel_fx"
+	default n
+	---help---
+		Enable support for neopixel_fx
