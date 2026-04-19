@@ -31,9 +31,9 @@
 #
 ############################################################################
 
-# Board-local backend shim: satisfy the neopixel driver's arch_srgbled_dma
-# dependency by linking the non-DMA platform_srgbled implementation.
+# Board-local arch_srgbled_dma target for Clicker4:
+# build the STM32 timer+DMA neopixel backend without changing global
+# stm32f7 platform CMake wiring.
 px4_add_library(arch_srgbled_dma
-	srgbled_impl.cpp
+	srgbled_dma_clicker4.cpp
 )
-target_link_libraries(arch_srgbled_dma PUBLIC platform_srgbled)
