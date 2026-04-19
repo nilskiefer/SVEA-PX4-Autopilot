@@ -138,6 +138,77 @@ static int neopixel_poke_test(unsigned int number_of_packages)
 	return PX4_ERROR;
 }
 
+static int neopixel_solid_test(unsigned int number_of_packages, uint8_t r, uint8_t g, uint8_t b, int frames)
+{
+	if (number_of_packages == 0 || frames <= 0) {
+		return PX4_ERROR;
+	}
+
+	neopixel::NeoLEDData *leds = new neopixel::NeoLEDData[number_of_packages];
+
+	if (leds == nullptr) {
+		PX4_ERR("solid alloc failed");
+		return PX4_ERROR;
+	}
+
+	for (unsigned int i = 0; i < number_of_packages; i++) {
+		leds[i].R() = r;
+		leds[i].G() = g;
+		leds[i].B() = b;
+	}
+
+	const int init_ret = neopixel_init(leds, number_of_packages);
+
+	if (init_ret != 0) {
+		PX4_ERR("solid neopixel_init failed (%d)", init_ret);
+		delete[] leds;
+		return PX4_ERROR;
+	}
+
+	int write_ret = 0;
+
+	for (int i = 0; i < frames; i++) {
+		write_ret = neopixel_write(leds, number_of_packages);
+
+		if (write_ret != 0) {
+			PX4_ERR("solid neopixel_write failed (%d)", write_ret);
+			break;
+		}
+
+		usleep(2000);
+	}
+
+	neopixel_deinit();
+	delete[] leds;
+
+	if (write_ret == 0) {
+		PX4_INFO("solid done: rgb=(%u,%u,%u), frames=%d", (unsigned)r, (unsigned)g, (unsigned)b, frames);
+		return PX4_OK;
+	}
+
+	return PX4_ERROR;
+}
+
+static int neopixel_solid_command(int argc, char *argv[], int cmd_index)
+{
+	if (argc <= cmd_index + 3) {
+		PX4_ERR("solid usage: neopixel solid <r> <g> <b> [frames]");
+		return PX4_ERROR;
+	}
+
+	const int r = (int)strtol(argv[cmd_index + 1], nullptr, 0);
+	const int g = (int)strtol(argv[cmd_index + 2], nullptr, 0);
+	const int b = (int)strtol(argv[cmd_index + 3], nullptr, 0);
+	const int frames = (argc > cmd_index + 4) ? (int)strtol(argv[cmd_index + 4], nullptr, 0) : 200;
+
+	if (r < 0 || r > 255 || g < 0 || g > 255 || b < 0 || b > 255 || frames <= 0) {
+		PX4_ERR("solid invalid args");
+		return PX4_ERROR;
+	}
+
+	return neopixel_solid_test(BOARD_HAS_N_S_RGB_LED, (uint8_t)r, (uint8_t)g, (uint8_t)b, frames);
+}
+
 #if defined(USE_S_RGB_LED_DMA)
 extern int neopixel_timtest(uint32_t freq_hz, uint8_t duty_pct, uint32_t duration_ms);
 extern int neopixel_gpiotest(uint32_t hz, uint32_t cycles);
@@ -302,6 +373,7 @@ To drive all available leds.
 PRINT_MODULE_USAGE_NAME("newpixel", "driver");
 PRINT_MODULE_USAGE_DEFAULT_COMMANDS();
 PRINT_MODULE_USAGE_COMMAND_DESCR("poke", "Send 200 direct red frames (bypass led_control)");
+PRINT_MODULE_USAGE_COMMAND_DESCR("solid", "Send direct fixed RGB frames: solid <r> <g> <b> [frames]");
 #if defined(USE_S_RGB_LED_DMA)
 PRINT_MODULE_USAGE_COMMAND_DESCR("timtest", "Force plain PWM on LED timer pin (PC9) to validate timer/pin path");
 PRINT_MODULE_USAGE_COMMAND_DESCR("gpiotest", "Force direct GPIO toggle on board data pin to validate physical net");
@@ -317,6 +389,14 @@ int NEOPIXEL::custom_command(int argc, char *argv[])
 
 	if (argc > 1 && strcmp(argv[1], "poke") == 0) {
 		return neopixel_poke_test(BOARD_HAS_N_S_RGB_LED);
+	}
+
+	if (argc > 0 && strcmp(argv[0], "solid") == 0) {
+		return neopixel_solid_command(argc, argv, 0);
+	}
+
+	if (argc > 1 && strcmp(argv[1], "solid") == 0) {
+		return neopixel_solid_command(argc, argv, 1);
 	}
 
 #if defined(USE_S_RGB_LED_DMA)

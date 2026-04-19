@@ -326,16 +326,31 @@
 		      DMA_SCR_DIR_M2P | DMA_SCR_TCIE | DMA_SCR_TEIE | DMA_SCR_DMEIE)
 
 #define DIVISOR          1000000000ll // working in nS
-// Timing from data sheet Total bit time is 1200 nS
-// one is ----____, (600/600) a zero is ---_____ (300/900)
+/*
+ * WS2815F datasheet (local Datasheets/73891C955DEC6197CF8B156952A7297B.pdf):
+ *   T0H: 220ns~380ns
+ *   T1H: 580ns~840ns
+ *   TDATA: >=1.25us
+ *
+ * Use conservative in-range values and a bit-period above minimum to avoid
+ * marginal decoding and color instability.
+ */
+#define T0H_NS           300ll
+#define T1H_NS           650ll
+#define TW_NS            1300ll
 
-#define T0H              ((300ll  * S_RGB_LED_CLOCK) / DIVISOR)
-#define T1H              ((600ll  * S_RGB_LED_CLOCK) / DIVISOR)
-#define TW               ((1200ll * S_RGB_LED_CLOCK) / DIVISOR)
+#define T0H              ((T0H_NS * S_RGB_LED_CLOCK) / DIVISOR)
+#define T1H              ((T1H_NS * S_RGB_LED_CLOCK) / DIVISOR)
+#define TW               ((TW_NS  * S_RGB_LED_CLOCK) / DIVISOR)
 
 #define COLOR_PER_LED   3  // There is a R G B in each package.
 #define BITS_PER_COLOR  8  // Each LED has 8 bits of luminosity
 #define BITS_PER_PACKAGE (BITS_PER_COLOR * COLOR_PER_LED)
+#define LED_DATA_BITS    (BITS_PER_PACKAGE * BOARD_HAS_N_S_RGB_LED)
+/* WS2815 latch/reset low-time is typically >=280us. Add explicit low tail. */
+#define RESET_LOW_NS     300000ll
+#define RESET_SLOTS      ((RESET_LOW_NS + 1199ll) / 1200ll)
+#define FRAME_BITS       (LED_DATA_BITS + RESET_SLOTS)
 
 #if !defined(S_RGB_LED_TIM_USE_DOWNCOUNT)
 # define S_RGB_LED_TIM_USE_DOWNCOUNT 1
@@ -374,7 +389,7 @@ void dma_callback(DMA_HANDLE handle, uint8_t status, void *arg)
  *  [hi][lo]:{8 * 3 * 8} [ffff] Last DMA will set the output low
  *  Output =  ctr < ccr ? 1 : 0;
 */
-uint16_t bits[(BITS_PER_COLOR * COLOR_PER_LED * BOARD_HAS_N_S_RGB_LED) + 1] __attribute__((aligned(sizeof(uint16_t))));
+uint16_t bits[FRAME_BITS] __attribute__((aligned(sizeof(uint16_t))));
 
 extern int neopixel_write(neopixel::NeoLEDData *led_data, int number_of_packages)
 {
@@ -388,7 +403,7 @@ extern int neopixel_write(neopixel::NeoLEDData *led_data, int number_of_packages
 
 	// For the bits times to DMA
 
-	for (uint32_t i = 0, leds = 0; i < arraySize(bits) - 1; i++) {
+	for (uint32_t i = 0, leds = 0; i < LED_DATA_BITS; i++) {
 		const uint32_t packed = srgbled_pack_word(led_data[leds]);
 		mask = 1 << ((BITS_PER_PACKAGE - 1) - (i % BITS_PER_PACKAGE));
 		bits[i] = (packed & mask) ? T1H : T0H;
@@ -398,12 +413,22 @@ extern int neopixel_write(neopixel::NeoLEDData *led_data, int number_of_packages
 		}
 	}
 
+	/* Explicit reset tail: keep line low long enough for deterministic frame latch. */
+	for (uint32_t i = LED_DATA_BITS; i < FRAME_BITS; i++) {
+		bits[i] = 0;
+	}
+
 	// Set up the DMA Operations
 
+	/*
+	 * We preload CCR with bits[0] before starting the timer, so DMA must start
+	 * from bits[1]. Otherwise the first symbol is sent twice, shifting the
+	 * whole frame by one bit and corrupting colors.
+	 */
 	stm32_dmasetup(dma_handle,
 		       _TIM_REG(STM32_GTIM_DMAR_OFFSET),
-		       (uint32_t) bits,
-		       arraySize(bits),
+		       (uint32_t)(&bits[1]),
+		       FRAME_BITS - 1,
 		       SLED_DMA_SCR);
 
 	// atomic operations
@@ -580,7 +605,7 @@ extern int neopixel_timtest(uint32_t freq_hz, uint8_t duty_pct, uint32_t duratio
 
 	rCR1 |= GTIM_CR1_CEN;
 
-	PX4_INFO("timtest running: timer=%u ch=%u map=%s gpio_af=0x%08x gpio_out=0x%08x order=%s downcount=%u freq=%uHz duty=%u%% psc=%u arr=%u ccr=%u dur=%ums",
+	PX4_INFO("timtest running: timer=%u ch=%u map=%s gpio_af=0x%08x gpio_out=0x%08x order=%s downcount=%u frame_bits=%u reset_slots=%u freq=%uHz duty=%u%% psc=%u arr=%u ccr=%u dur=%ums",
 		 (unsigned)S_RGB_LED_TIMER,
 		 (unsigned)S_RGB_LED_CHANNEL,
 		 S_RGB_LED_DMA_NAME,
@@ -592,6 +617,8 @@ extern int neopixel_timtest(uint32_t freq_hz, uint8_t duty_pct, uint32_t duratio
 		 "GRB",
 #endif
 		 (unsigned)S_RGB_LED_TIM_USE_DOWNCOUNT,
+		 (unsigned)FRAME_BITS,
+		 (unsigned)RESET_SLOTS,
 		 (unsigned)freq_hz,
 		 (unsigned)duty_pct,
 		 (unsigned)rPSC,

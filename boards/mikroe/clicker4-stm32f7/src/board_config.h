@@ -96,8 +96,7 @@
 #if defined(USE_S_RGB_LED_DMA)
 #  define S_RGB_LED_TIMER            8
 #  define S_RGB_LED_CHANNEL          4
-/* WS2815F on this board behaves as RGB (not GRB). */
-#  define S_RGB_LED_COLOR_ORDER_RGB  1
+/* WS2815F datasheet: 24-bit color order is GRB, MSB first. */
 /* Use up-count PWM timing for non-inverted WS281x symbol generation. */
 #  define S_RGB_LED_TIM_USE_DOWNCOUNT 0
 
