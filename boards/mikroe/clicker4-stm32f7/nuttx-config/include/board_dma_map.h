@@ -99,3 +99,22 @@
 //      DMAMAP_TIM1_UP                        // DMA2, Stream 5, Channel 6    (DSHOT)
 //      AVAILABLE                             // DMA1, Stream 6
 //      AVAILABLE                             // DMA1, Stream 7
+
+/* Canonical alias for TIM8 CH4 used by the Clicker4 sRGB LED DMA path. */
+#if !defined(DMAMAP_TIM8_CH4)
+#  if defined(DMAMAP_TIM8_CH4_0) && !defined(DMAMAP_TIM8_CH4_1) && !defined(DMAMAP_TIM8_CH4_2)
+#    define DMAMAP_TIM8_CH4 DMAMAP_TIM8_CH4_0
+#  elif defined(DMAMAP_TIM8_CH4_1) && !defined(DMAMAP_TIM8_CH4_2)
+#    define DMAMAP_TIM8_CH4 DMAMAP_TIM8_CH4_1
+#  elif defined(DMAMAP_TIM8_CH4_2) && !defined(DMAMAP_TIM8_CH4_1)
+#    define DMAMAP_TIM8_CH4 DMAMAP_TIM8_CH4_2
+#  elif defined(DMAMAP_TIM8_CH4_1) && defined(DMAMAP_TIM8_CH4_2)
+#    error TIM8_CH4 exposes multiple DMA map variants; select one explicitly in board_dma_map.h
+#  elif defined(DMAMAP_DMA12_TIM8CH4_0) && !defined(DMAMAP_DMA12_TIM8CH4_1)
+#    define DMAMAP_TIM8_CH4 DMAMAP_DMA12_TIM8CH4_0
+#  elif defined(DMAMAP_DMA12_TIM8CH4_1) && !defined(DMAMAP_DMA12_TIM8CH4_0)
+#    define DMAMAP_TIM8_CH4 DMAMAP_DMA12_TIM8CH4_1
+#  elif defined(DMAMAP_DMA12_TIM8CH4_0) && defined(DMAMAP_DMA12_TIM8CH4_1)
+#    error TIM8CH4 exposes multiple DMA12 map variants; select one explicitly in board_dma_map.h
+#  endif
+#endif

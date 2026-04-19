@@ -76,4 +76,5 @@ int neopixel_init(neopixel::NeoLEDData *led_data, int number_of_packages);
 int neopixel_write(neopixel::NeoLEDData *led_data, int number_of_packages);
 int neopixel_deinit(void);
 int neopixel_write_no_dma(uint8_t r, uint8_t g, uint8_t b, uint8_t led_count);
+int neopixel_set_led_control_enabled(bool enabled);
 __END_DECLS

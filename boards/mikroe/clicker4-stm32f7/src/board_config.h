@@ -47,6 +47,7 @@
 #include <nuttx/compiler.h>
 #include <stdint.h>
 
+#include <stm32_dma.h>
 #include <stm32_gpio.h>
 
 /****************************************************************************************************
@@ -85,6 +86,62 @@
 #define BOARD_MAX_LEDS             BOARD_HAS_N_S_RGB_LED
 #define BOARD_SRGBLED_PORT         STM32_GPIOC_ODR
 #define BOARD_SRGBLED_BIT          9
+
+/*
+ * USE_S_RGB_LED_DMA is passed in from the *.px4board file.
+ * This mirrors the upstream CAN-GPS board pattern: bootloader can stay on
+ * software timing, while the application uses timer+DMA for deterministic
+ * output timing.
+ */
+#if defined(USE_S_RGB_LED_DMA)
+#  define S_RGB_LED_TIMER            8
+#  define S_RGB_LED_CHANNEL          4
+/* WS2815F datasheet: 24-bit color order is GRB, MSB first. */
+/* Use up-count PWM timing for non-inverted WS281x symbol generation. */
+#  define S_RGB_LED_TIM_USE_DOWNCOUNT 0
+
+/* Hard-select the TIM8_CH4 macro that resolves to PC9 (MB4PWM). */
+#  define _SLED_PC9_MASK             (GPIO_PORT_MASK | GPIO_PIN_MASK)
+#  define _SLED_PC9_VALUE            (GPIO_PORTC | GPIO_PIN9)
+
+#  if defined(GPIO_TIM8_CH4OUT) && (((GPIO_TIM8_CH4OUT) & _SLED_PC9_MASK) == _SLED_PC9_VALUE)
+#    define S_RGB_LED_TIM_GPIO       GPIO_TIM8_CH4OUT
+#  elif defined(GPIO_TIM8_CH4OUT_1) && (((GPIO_TIM8_CH4OUT_1) & _SLED_PC9_MASK) == _SLED_PC9_VALUE)
+#    define S_RGB_LED_TIM_GPIO       GPIO_TIM8_CH4OUT_1
+#  elif defined(GPIO_TIM8_CH4OUT_2) && (((GPIO_TIM8_CH4OUT_2) & _SLED_PC9_MASK) == _SLED_PC9_VALUE)
+#    define S_RGB_LED_TIM_GPIO       GPIO_TIM8_CH4OUT_2
+#  elif defined(GPIO_TIM8_CH4) && (((GPIO_TIM8_CH4) & _SLED_PC9_MASK) == _SLED_PC9_VALUE)
+#    define S_RGB_LED_TIM_GPIO       GPIO_TIM8_CH4
+#  elif defined(GPIO_TIM8_CH4_1) && (((GPIO_TIM8_CH4_1) & _SLED_PC9_MASK) == _SLED_PC9_VALUE)
+#    define S_RGB_LED_TIM_GPIO       GPIO_TIM8_CH4_1
+#  elif defined(GPIO_TIM8_CH4_2) && (((GPIO_TIM8_CH4_2) & _SLED_PC9_MASK) == _SLED_PC9_VALUE)
+#    define S_RGB_LED_TIM_GPIO       GPIO_TIM8_CH4_2
+#  else
+#    error No TIM8_CH4 pin macro maps to PC9; cannot route WS281x timer output to MB4PWM
+#  endif
+
+#  undef _SLED_PC9_MASK
+#  undef _SLED_PC9_VALUE
+
+#  if defined(DMAMAP_TIM8_CH4)
+#    define S_RGB_LED_DMA          DMAMAP_TIM8_CH4
+#    define S_RGB_LED_DMA_NAME     "DMAMAP_TIM8_CH4"
+#  elif defined(DMAMAP_TIM8_CH4_2)
+#    define S_RGB_LED_DMA          DMAMAP_TIM8_CH4_2
+#    define S_RGB_LED_DMA_NAME     "DMAMAP_TIM8_CH4_2"
+#  elif defined(DMAMAP_TIM8_CH4_1)
+#    define S_RGB_LED_DMA          DMAMAP_TIM8_CH4_1
+#    define S_RGB_LED_DMA_NAME     "DMAMAP_TIM8_CH4_1"
+#  elif defined(DMAMAP_DMA12_TIM8CH4_0)
+#    define S_RGB_LED_DMA          DMAMAP_DMA12_TIM8CH4_0
+#    define S_RGB_LED_DMA_NAME     "DMAMAP_DMA12_TIM8CH4_0"
+#  elif defined(DMAMAP_DMA12_TIM8CH4_1)
+#    define S_RGB_LED_DMA          DMAMAP_DMA12_TIM8CH4_1
+#    define S_RGB_LED_DMA_NAME     "DMAMAP_DMA12_TIM8CH4_1"
+#  else
+#    error No TIM8 CH4 DMA map macro available in stm32_dma.h for this toolchain
+#  endif
+#endif
 
 #define  FLASH_BASED_PARAMS
 
