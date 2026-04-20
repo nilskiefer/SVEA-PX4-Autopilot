@@ -357,7 +357,35 @@ param show BAT1_*
 param show BQ769X2_*
 ```
 
-## 11) PCA9685 manual servo test commands
+## 11) INA226 current monitor commands
+
+Two INA226 monitors are wired on I2C bus `2`:
+
+- `0x4E` ESC current shunt = `1 mOhm` (`0.001`)
+- `0x4F` Servo buck current shunt = `5 mOhm` (`0.005`)
+
+Board startup runs:
+
+```sh
+svea_ina226 -I -b 2 -a 0x4E -r 0.001 start
+svea_ina226 -I -b 2 -a 0x4F -r 0.005 start
+```
+
+`-r` is the per-instance shunt override (Ohm).  
+
+Manual checks:
+
+```sh
+i2cdetect -b 2
+svea_ina226 status
+```
+
+`svea_ina226` is intentionally treated as a rail monitor and does **not** publish `battery_status`.
+Use `svea_ina226 status` (or add a dedicated rail telemetry uORB topic later) for diagnostics/ROS bridging.
+
+Expected address hits in `i2cdetect`: `4e` and `4f`.
+
+## 12) PCA9685 manual servo test commands
 
 PCA9685 is started on I2C bus `2` at address `0x61`.
 
