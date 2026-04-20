@@ -1,0 +1,5 @@
+menuconfig DRIVERS_POWER_MONITOR_SVEA_INA226
+	bool "svea_ina226"
+default n
+	---help---
+		Enable support for SVEA INA226
