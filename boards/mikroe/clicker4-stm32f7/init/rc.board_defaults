@@ -217,12 +217,3 @@ param set-default PCA9685_DIS6 1500
 param set-default PCA9685_MIN7 1000
 param set-default PCA9685_MAX7 2000
 param set-default PCA9685_DIS7 1500
-
-# Driveline arming defaults (aligned with SVEA LLI Zephyr):
-# - low gear
-# - front diff engaged
-# - rear diff engaged
-# These are set as trims so neutral commanded value (0) resolves to these pulses.
-param set-default PCA9685_TRIM3 1900  # CH2 front diff (engaged)
-param set-default PCA9685_TRIM4 1100  # CH3 rear diff (engaged)
-param set-default PCA9685_TRIM5 1900  # CH4 gear (low gear)
