@@ -40,6 +40,8 @@
 
 #include "svea_ina226.h"
 
+#include <cstring>
+
 
 SVEA_INA226::SVEA_INA226(const I2CSPIDriverConfig &config) :
 	I2C(config),
@@ -234,13 +236,54 @@ SVEA_INA226::collect()
 {
 	perf_begin(_sample_perf);
 
+	if (_parameter_update_sub.updated()) {
+		parameter_update_s parameter_update{};
+		_parameter_update_sub.copy(&parameter_update);
+		updateParams();
+	}
+
 	// read from the sensor
 	// Note: If the sensor is connected backwards, then _current can be negative but valid.
+	int16_t mask_enable{0};
+	int16_t alert_limit{0};
 	bool success{true};
 	success = success && (read(INA226_REG_BUSVOLTAGE, _bus_voltage) == PX4_OK);
-	// success = success && (read(INA226_REG_POWER, _power) == PX4_OK);
+	success = success && (read(INA226_REG_POWER, _power) == PX4_OK);
 	success = success && (read(INA226_REG_CURRENT, _current) == PX4_OK);
-	// success = success && (read(INA226_REG_SHUNTVOLTAGE, _shunt) == PX4_OK);
+	success = success && (read(INA226_REG_SHUNTVOLTAGE, _shunt) == PX4_OK);
+	success = success && (read(INA226_REG_MASKENABLE, mask_enable) == PX4_OK);
+	success = success && (read(INA226_REG_ALERTLIMIT, alert_limit) == PX4_OK);
+
+	if (!success) {
+		_bus_voltage = 0;
+		_power = 0;
+		_current = 0;
+		_shunt = 0;
+		mask_enable = 0;
+		alert_limit = 0;
+	}
+
+	const float v_bus_minus = static_cast<float>(_bus_voltage) * INA226_VSCALE;
+	const float v_shunt = static_cast<float>(_shunt) * INA226_VSHUNT_SCALE;
+	const float v_bus_plus = v_bus_minus + v_shunt;
+	const float i_bus = static_cast<float>(_current) * _current_lsb;
+	const float p_bus = static_cast<float>(_power) * _power_lsb;
+	const hrt_abstime now = hrt_absolute_time();
+
+	memset(&_pm_status, 0, sizeof(_pm_status));
+	_pm_status.timestamp = now;
+	_pm_status.voltage_v = success ? v_bus_plus : 0.f;
+	_pm_status.current_a = success ? i_bus : -1.f;
+	_pm_status.power_w = success ? p_bus : -1.f;
+	_pm_status.rconf = static_cast<int16_t>(_config);
+	_pm_status.rsv = _shunt;
+	_pm_status.rbv = _bus_voltage;
+	_pm_status.rp = _power;
+	_pm_status.rc = _current;
+	_pm_status.rcal = _cal;
+	_pm_status.me = mask_enable;
+	_pm_status.al = alert_limit;
+	_pm_pub_topic.publish(_pm_status);
 
 	perf_end(_sample_perf);
 

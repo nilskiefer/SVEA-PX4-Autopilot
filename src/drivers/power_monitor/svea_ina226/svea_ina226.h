@@ -42,8 +42,13 @@
 #include <px4_platform_common/px4_config.h>
 #include <px4_platform_common/getopt.h>
 #include <drivers/device/i2c.h>
+#include <px4_platform_common/module_params.h>
 #include <lib/perf/perf_counter.h>
 #include <drivers/drv_hrt.h>
+#include <uORB/PublicationMulti.hpp>
+#include <uORB/topics/power_monitor.h>
+#include <uORB/SubscriptionInterval.hpp>
+#include <uORB/topics/parameter_update.h>
 #include <px4_platform_common/i2c_spi_buses.h>
 
 using namespace time_literals;
@@ -197,6 +202,11 @@ private:
 	uint16_t          _config{INA226_CONFIG};
 	float             _current_lsb{_max_current / DN_MAX};
 	float             _power_lsb{25.0f * _current_lsb};
+
+	uORB::PublicationMulti<power_monitor_s> _pm_pub_topic{ORB_ID(power_monitor)};
+	uORB::SubscriptionInterval _parameter_update_sub{ORB_ID(parameter_update), 1_s};
+
+	power_monitor_s _pm_status{};
 
 	int read(uint8_t address, int16_t &data);
 	int write(uint8_t address, uint16_t data);
