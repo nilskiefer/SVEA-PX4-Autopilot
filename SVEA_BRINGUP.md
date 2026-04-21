@@ -371,17 +371,73 @@ svea_ina226 -I -b 2 -a 0x4E -r 0.001 start
 svea_ina226 -I -b 2 -a 0x4F -r 0.005 start
 ```
 
-`-r` is the per-instance shunt override (Ohm).  
+`-r` is the per-instance shunt override (Ohm).
 
 Manual checks:
 
 ```sh
 i2cdetect -b 2
 svea_ina226 status
+listener power_monitor 5
 ```
 
-`svea_ina226` is intentionally treated as a rail monitor and does **not** publish `battery_status`.
-Use `svea_ina226 status` (or add a dedicated rail telemetry uORB topic later) for diagnostics/ROS bridging.
+`svea_ina226` is treated as a rail monitor and publishes `power_monitor` (not `battery_status`).
+
+### PX4_UORB_TUNNEL forwarding for `power_monitor`
+
+Use these NSH commands to forward `power_monitor` over `PX4_UORB_TUNNEL`.
+
+First verify which instances actually exist:
+
+```sh
+listener power_monitor
+```
+
+If you only see `Instance 0` and `Instance 1`, only add those.
+
+Add forwarding entries:
+
+```sh
+mavlink uorb_tunnel add -t power_monitor -i 0 -r 10
+mavlink uorb_tunnel add -t power_monitor -i 1 -r 10
+```
+
+List configured entries:
+
+```sh
+mavlink uorb_tunnel list
+```
+
+Remove one entry (example: slot 2):
+
+```sh
+mavlink uorb_tunnel remove -s 2
+```
+
+Notes:
+
+- `add` now validates the requested uORB instance and rejects instances that are not advertised.
+- Example rejection: `uorb tunnel add rejected: topic=power_monitor instance=3 is not advertised`.
+- This avoids silent misconfiguration where an entry exists in the list but never produces frames.
+
+### MAVLink-only rail telemetry (`mavlinkproxy.py`)
+
+Enable MAVLink stream from NSH:
+
+```sh
+mavlink stream -d /dev/ttyACM0 -s DEBUG_FLOAT_ARRAY -r 20
+```
+
+Each INA226 instance publishes one `DEBUG_FLOAT_ARRAY` packet (`name` = `ina2_4E` or `ina2_4F`):
+
+- `data[0]` = rail voltage (`Vbus+`, V)
+- `data[1]` = rail current (A)
+- `data[2]` = rail power (W)
+- `data[3]` = raw shunt register
+- `data[4]` = raw bus register
+- `data[5]` = raw current register
+- `data[6]` = `CVRF` flag (`1`/`0`)
+- `data[7]` = `OVF` flag (`1`/`0`)
 
 Expected address hits in `i2cdetect`: `4e` and `4f`.
 
