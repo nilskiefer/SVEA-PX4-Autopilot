@@ -32,8 +32,8 @@
 #define BOARD_LED_ON                   1
 #define BOARD_LED_OFF                  0
 
-#define USBMFGSTRING                   "MikroElektronika"
-#define USBDEVICESTRING                "PX4 BL Clicker4 STM32F7"
+#define USBMFGSTRING                   "SVEA"
+#define USBDEVICESTRING                "PX4 BOOTLOADER"
 #define USBPRODUCTID                   0x0050
 
 #ifndef STM32_CPUCLK_FREQUENCY
