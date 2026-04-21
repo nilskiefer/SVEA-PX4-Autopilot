@@ -94,6 +94,7 @@ private:
 	int configure();
 	bool configMatchesDesired();
 	int configureProtections();
+	int configureBalancing();
 	int ensureFetEnable();
 	int enableMainFets(); ///< Turn CHG+DSG on once. Chip auto-PDSG owns precharge; firmware never drives PCHG/PDSG.
 	void publishDisconnected();
@@ -127,6 +128,7 @@ private:
 	hrt_abstime _last_integration_us{0};
 	float _discharged_mah{0.f};
 	float _discharged_wh{0.f};
+	bool _soc_seeded_from_voltage{false};
 
 	uint16_t _device_number{0};
 	uint32_t _fw_version{0};
@@ -156,13 +158,18 @@ private:
 	float _dis_ut_limit_c{0.f};
 	float _temp_hyst_c{0.f};
 	float _capacity_mah{0.f};
+	float _bal_cell_voltage_min_v{3.8f};
+	float _bal_cell_voltage_diff_v{0.01f};
+	float _bal_idle_current_a{0.1f};
 	bool _openwire_check{false};
+	bool _bal_auto_enable{true};
 	bool _temp_prot_enable{false};
 	bool _crc_param_enabled{false};
 	bool _switches_initialized{false};
 	bool _fets_initialized{false};
 	uint16_t _pdsg_timeout_ms{2000};       ///< Auto-PDSG timeout (chip units are 10 ms/LSB)
 	uint16_t _pdsg_stop_dv_mv{500};        ///< Auto-PDSG stop delta (chip units are 10 mV/LSB)
+	uint8_t _bal_max_cells{3};
 	uint8_t _openwire_check_time_s{0};
 	float _openwire_tol_mv_per_cell{0.f};
 	uint16_t _vcell_mode_mask{0};
@@ -185,6 +192,11 @@ private:
 	param_t _param_v_charged{PARAM_INVALID};
 	param_t _param_shunt_uohm{PARAM_INVALID};
 	param_t _param_capacity{PARAM_INVALID};
+	param_t _param_bal_auto_enable{PARAM_INVALID};
+	param_t _param_bal_cell_voltage_min_v{PARAM_INVALID};
+	param_t _param_bal_cell_voltage_diff_v{PARAM_INVALID};
+	param_t _param_bal_idle_current_a{PARAM_INVALID};
+	param_t _param_bal_max_cells{PARAM_INVALID};
 	param_t _param_cell_ov_v{PARAM_INVALID};
 	param_t _param_cell_ov_reset_v{PARAM_INVALID};
 	param_t _param_cell_ov_delay_ms{PARAM_INVALID};

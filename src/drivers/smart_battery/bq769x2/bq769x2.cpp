@@ -62,6 +62,11 @@ BQ769x2::BQ769x2(const I2CSPIDriverConfig &config, int battery_index) :
 	_param_v_charged = param_find("BAT1_V_CHARGED");
 	_param_shunt_uohm = param_find("BQ769X2_SHUNT");
 	_param_capacity = param_find("BAT1_CAPACITY");
+	_param_bal_auto_enable = param_find("BQ769X2_BAL_EN");
+	_param_bal_cell_voltage_min_v = param_find("BQ769X2_BAL_VMIN");
+	_param_bal_cell_voltage_diff_v = param_find("BQ769X2_BAL_DV");
+	_param_bal_idle_current_a = param_find("BQ769X2_BAL_IIDL");
+	_param_bal_max_cells = param_find("BQ769X2_BAL_MAX");
 	_param_cell_ov_v = param_find("BQ769X2_COV_V");
 	_param_cell_ov_reset_v = param_find("BQ769X2_COV_RV");
 	_param_cell_ov_delay_ms = param_find("BQ769X2_COV_DLY");
@@ -319,6 +324,18 @@ bool BQ769x2::configMatchesDesired()
 	uint8_t fet_options{0};
 	uint8_t pdsg_timeout{0};
 	uint8_t pdsg_stop_dv{0};
+	uint16_t dsg_curr_th_ma{0};
+	uint16_t chg_curr_th_ma{0};
+	uint8_t cbal_conf{0};
+	uint8_t cbal_min_cell_temp{0};
+	uint8_t cbal_max_cell_temp{0};
+	uint8_t cbal_max_cells{0};
+	uint16_t cbal_chg_min_cell_mv{0};
+	uint8_t cbal_chg_min_delta_mv{0};
+	uint8_t cbal_chg_stop_delta_mv{0};
+	uint16_t cbal_rlx_min_cell_mv{0};
+	uint8_t cbal_rlx_min_delta_mv{0};
+	uint8_t cbal_rlx_stop_delta_mv{0};
 	uint8_t prot_enabled_a{0};
 	uint8_t prot_enabled_b{0};
 	uint8_t sf_alert_mask_a{0};
@@ -337,6 +354,18 @@ bool BQ769x2::configMatchesDesired()
 	    || _protocol.datamemReadU1(BQ769X2_SET_FET_OPTIONS, fet_options) != PX4_OK
 	    || _protocol.datamemReadU1(BQ769X2_SET_FET_PDSG_TIMEOUT, pdsg_timeout) != PX4_OK
 	    || _protocol.datamemReadU1(BQ769X2_SET_FET_PDSG_STOP_DV, pdsg_stop_dv) != PX4_OK
+	    || _protocol.datamemReadU2(BQ769X2_SET_DSG_CURR_TH, dsg_curr_th_ma) != PX4_OK
+	    || _protocol.datamemReadU2(BQ769X2_SET_CHG_CURR_TH, chg_curr_th_ma) != PX4_OK
+	    || _protocol.datamemReadU1(BQ769X2_SET_CBAL_CONF, cbal_conf) != PX4_OK
+	    || _protocol.datamemReadU1(BQ769X2_SET_CBAL_MIN_CELL_TEMP, cbal_min_cell_temp) != PX4_OK
+	    || _protocol.datamemReadU1(BQ769X2_SET_CBAL_MAX_CELL_TEMP, cbal_max_cell_temp) != PX4_OK
+	    || _protocol.datamemReadU1(BQ769X2_SET_CBAL_MAX_CELLS, cbal_max_cells) != PX4_OK
+	    || _protocol.datamemReadU2(BQ769X2_SET_CBAL_CHG_MIN_CELL_V, cbal_chg_min_cell_mv) != PX4_OK
+	    || _protocol.datamemReadU1(BQ769X2_SET_CBAL_CHG_MIN_DELTA, cbal_chg_min_delta_mv) != PX4_OK
+	    || _protocol.datamemReadU1(BQ769X2_SET_CBAL_CHG_STOP_DELTA, cbal_chg_stop_delta_mv) != PX4_OK
+	    || _protocol.datamemReadU2(BQ769X2_SET_CBAL_RLX_MIN_CELL_V, cbal_rlx_min_cell_mv) != PX4_OK
+	    || _protocol.datamemReadU1(BQ769X2_SET_CBAL_RLX_MIN_DELTA, cbal_rlx_min_delta_mv) != PX4_OK
+	    || _protocol.datamemReadU1(BQ769X2_SET_CBAL_RLX_STOP_DELTA, cbal_rlx_stop_delta_mv) != PX4_OK
 	    || _protocol.datamemReadU1(BQ769X2_SET_PROT_ENABLED_A, prot_enabled_a) != PX4_OK
 	    || _protocol.datamemReadU1(BQ769X2_SET_PROT_ENABLED_B, prot_enabled_b) != PX4_OK
 	    || _protocol.datamemReadU1(BQ769X2_SET_ALARM_SF_ALERT_MASK_A, sf_alert_mask_a) != PX4_OK
@@ -355,6 +384,13 @@ bool BQ769x2::configMatchesDesired()
 	const uint8_t temp_bits = static_cast<uint8_t>(BQ769X2_PROT_EN_B_UTC | BQ769X2_PROT_EN_B_UTD
 				| BQ769X2_PROT_EN_B_OTC | BQ769X2_PROT_EN_B_OTD);
 	uint8_t expected_prot_enabled_b = _temp_prot_enable ? temp_bits : 0;
+	const uint8_t cbal_conf_expected = _bal_auto_enable ? 0x03u : 0x00u;
+	const uint16_t bal_min_cell_mv = static_cast<uint16_t>(math::constrain(lroundf(_bal_cell_voltage_min_v * 1000.f), 0l, 5000l));
+	const uint8_t bal_delta_mv = static_cast<uint8_t>(math::constrain(lroundf(_bal_cell_voltage_diff_v * 1000.f), 1l, 127l));
+	const int16_t bal_idle_ma = static_cast<int16_t>(math::constrain(lroundf(_bal_idle_current_a * 1000.f), 0l, 30000l));
+	const uint8_t bal_max_cells = static_cast<uint8_t>(math::constrain(_bal_max_cells, static_cast<uint8_t>(1), static_cast<uint8_t>(16)));
+	const int8_t bal_min_temp_c = static_cast<int8_t>(math::constrain(lroundf(_dis_ut_limit_c), -40l, 120l));
+	const int8_t bal_max_temp_c = static_cast<int8_t>(math::constrain(lroundf(_dis_ot_limit_c), -40l, 120l));
 
 	const bool matches = (conf_power == 0x2882)
 			     && (conf_alert == 0x00)
@@ -364,6 +400,18 @@ bool BQ769x2::configMatchesDesired()
 			     && (fet_options == 0x1D)
 			     && (pdsg_timeout == pdsg_timeout_raw)
 			     && (pdsg_stop_dv == pdsg_stop_dv_raw)
+			     && (dsg_curr_th_ma == static_cast<uint16_t>(bal_idle_ma))
+			     && (chg_curr_th_ma == static_cast<uint16_t>(bal_idle_ma))
+			     && ((cbal_conf & 0x03u) == cbal_conf_expected)
+			     && (cbal_min_cell_temp == static_cast<uint8_t>(bal_min_temp_c))
+			     && (cbal_max_cell_temp == static_cast<uint8_t>(bal_max_temp_c))
+			     && (cbal_max_cells == bal_max_cells)
+			     && (cbal_chg_min_cell_mv == bal_min_cell_mv)
+			     && (cbal_chg_min_delta_mv == bal_delta_mv)
+			     && (cbal_chg_stop_delta_mv == bal_delta_mv)
+			     && (cbal_rlx_min_cell_mv == bal_min_cell_mv)
+			     && (cbal_rlx_min_delta_mv == bal_delta_mv)
+			     && (cbal_rlx_stop_delta_mv == bal_delta_mv)
 			     && ((prot_enabled_a & expected_prot_enabled_a) == expected_prot_enabled_a)
 			     && ((prot_enabled_b & temp_bits) == expected_prot_enabled_b)
 			     && (sf_alert_mask_a == prot_enabled_a)
@@ -421,10 +469,62 @@ int BQ769x2::configure()
 
 	ret |= _protocol.datamemWriteU1(BQ769X2_SET_OPEN_WIRE_CHECK_TIME, _openwire_check_time_s);
 
+	ret |= configureBalancing();
 	ret |= configureProtections();
 
 	const int ret_exit = _protocol.setConfigUpdateMode(false);
 	ret |= ret_exit;
+
+	return ret;
+}
+
+int BQ769x2::configureBalancing()
+{
+	const auto validateRange = [](float value, float min, float max, const char *name) {
+		if (value < min || value > max || !PX4_ISFINITE(value)) {
+			PX4_ERR("%s out of range: %.3f (allowed %.3f..%.3f)", name, (double)value, (double)min, (double)max);
+			return false;
+		}
+
+		return true;
+	};
+
+	if (!validateRange(_bal_cell_voltage_min_v, 2.5f, 4.3f, "BAL_VMIN")
+	    || !validateRange(_bal_cell_voltage_diff_v, 0.002f, 0.12f, "BAL_DV")
+	    || !validateRange(_bal_idle_current_a, 0.0f, 20.f, "BAL_IIDL")) {
+		return PX4_ERROR;
+	}
+
+	int ret = PX4_OK;
+
+	const uint16_t bal_min_cell_mv = static_cast<uint16_t>(math::constrain(lroundf(_bal_cell_voltage_min_v * 1000.f), 0l, 5000l));
+	const uint8_t bal_delta_mv = static_cast<uint8_t>(math::constrain(lroundf(_bal_cell_voltage_diff_v * 1000.f), 1l, 127l));
+	const int16_t bal_idle_ma = static_cast<int16_t>(math::constrain(lroundf(_bal_idle_current_a * 1000.f), 0l, 30000l));
+	const uint8_t bal_max_cells = static_cast<uint8_t>(math::constrain(_bal_max_cells, static_cast<uint8_t>(1), static_cast<uint8_t>(16)));
+	const int8_t bal_min_temp_c = static_cast<int8_t>(math::constrain(lroundf(_dis_ut_limit_c), -40l, 120l));
+	const int8_t bal_max_temp_c = static_cast<int8_t>(math::constrain(lroundf(_dis_ot_limit_c), -40l, 120l));
+
+	// Match LibreSolar strategy: keep charge and relaxed balancing thresholds identical.
+	ret |= _protocol.datamemWriteU2(BQ769X2_SET_CBAL_CHG_MIN_CELL_V, bal_min_cell_mv);
+	ret |= _protocol.datamemWriteU1(BQ769X2_SET_CBAL_CHG_MIN_DELTA, bal_delta_mv);
+	ret |= _protocol.datamemWriteU1(BQ769X2_SET_CBAL_CHG_STOP_DELTA, bal_delta_mv);
+	ret |= _protocol.datamemWriteU2(BQ769X2_SET_CBAL_RLX_MIN_CELL_V, bal_min_cell_mv);
+	ret |= _protocol.datamemWriteU1(BQ769X2_SET_CBAL_RLX_MIN_DELTA, bal_delta_mv);
+	ret |= _protocol.datamemWriteU1(BQ769X2_SET_CBAL_RLX_STOP_DELTA, bal_delta_mv);
+
+	// Balancing temperature window follows discharge temperature limits.
+	ret |= _protocol.datamemWriteU1(BQ769X2_SET_CBAL_MIN_CELL_TEMP, static_cast<uint8_t>(bal_min_temp_c));
+	ret |= _protocol.datamemWriteU1(BQ769X2_SET_CBAL_MAX_CELL_TEMP, static_cast<uint8_t>(bal_max_temp_c));
+
+	// Relaxed balancing current thresholds (absolute current window around 0 A).
+	ret |= _protocol.datamemWriteU2(BQ769X2_SET_DSG_CURR_TH, static_cast<uint16_t>(bal_idle_ma));
+	ret |= _protocol.datamemWriteU2(BQ769X2_SET_CHG_CURR_TH, static_cast<uint16_t>(bal_idle_ma));
+
+	// Board thermal limit for concurrent balancing channels.
+	ret |= _protocol.datamemWriteU1(BQ769X2_SET_CBAL_MAX_CELLS, bal_max_cells);
+
+	// Enable/disable autonomous balancing in chip logic.
+	ret |= _protocol.datamemWriteU1(BQ769X2_SET_CBAL_CONF, _bal_auto_enable ? 0x03 : 0x00);
 
 	return ret;
 }
@@ -662,6 +762,26 @@ void BQ769x2::updateParamsFromStore()
 		_capacity_mah = math::max(val_f, 0.f);
 	}
 
+	if (_param_bal_auto_enable != PARAM_INVALID && param_get(_param_bal_auto_enable, &val_i32) == PX4_OK) {
+		_bal_auto_enable = val_i32 != 0;
+	}
+
+	if (_param_bal_cell_voltage_min_v != PARAM_INVALID && param_get(_param_bal_cell_voltage_min_v, &val_f) == PX4_OK) {
+		_bal_cell_voltage_min_v = val_f;
+	}
+
+	if (_param_bal_cell_voltage_diff_v != PARAM_INVALID && param_get(_param_bal_cell_voltage_diff_v, &val_f) == PX4_OK) {
+		_bal_cell_voltage_diff_v = val_f;
+	}
+
+	if (_param_bal_idle_current_a != PARAM_INVALID && param_get(_param_bal_idle_current_a, &val_f) == PX4_OK) {
+		_bal_idle_current_a = val_f;
+	}
+
+	if (_param_bal_max_cells != PARAM_INVALID && param_get(_param_bal_max_cells, &val_i32) == PX4_OK) {
+		_bal_max_cells = static_cast<uint8_t>(math::constrain(val_i32, static_cast<int32_t>(1), static_cast<int32_t>(16)));
+	}
+
 	if (_param_cell_ov_v != PARAM_INVALID && param_get(_param_cell_ov_v, &val_f) == PX4_OK) {
 		_cell_ov_limit_v = val_f;
 	}
@@ -895,14 +1015,16 @@ int BQ769x2::collectAndPublish()
 		const float remaining_voltage_based = estimateRemaining(sum_cell_v / valid_cells);
 		report.remaining = remaining_voltage_based;
 
-		if (_capacity_mah > 0.f && PX4_ISFINITE(_discharged_mah) && _discharged_mah >= 0.f) {
-			const float remaining_coulomb_based = math::constrain(1.f - (_discharged_mah / _capacity_mah), 0.f, 1.f);
+		// Initialize consumed capacity from voltage once at startup, then track SoC by coulomb counting.
+		if (_capacity_mah > 0.f) {
+			if (!_soc_seeded_from_voltage && PX4_ISFINITE(remaining_voltage_based) && remaining_voltage_based >= 0.f) {
+				_discharged_mah = math::constrain((1.f - remaining_voltage_based) * _capacity_mah, 0.f, _capacity_mah);
+				_soc_seeded_from_voltage = true;
+				report.discharged_mah = _discharged_mah;
+			}
 
-			if (PX4_ISFINITE(remaining_voltage_based) && remaining_voltage_based >= 0.f) {
-				report.remaining = math::min(remaining_voltage_based, remaining_coulomb_based);
-
-			} else {
-				report.remaining = remaining_coulomb_based;
+			if (_soc_seeded_from_voltage && PX4_ISFINITE(_discharged_mah) && _discharged_mah >= 0.f) {
+				report.remaining = math::constrain(1.f - (_discharged_mah / _capacity_mah), 0.f, 1.f);
 			}
 		}
 	}
@@ -1339,6 +1461,33 @@ void BQ769x2::print_status()
 
 	} else {
 		PX4_WARN("failed to read PDSG timeout/stop-delta");
+	}
+
+	uint8_t cbal_conf{0};
+	uint8_t cbal_max_cells{0};
+	uint16_t cbal_chg_min_cell_mv{0};
+	uint8_t cbal_chg_min_delta_mv{0};
+	uint16_t cbal_rlx_min_cell_mv{0};
+	uint8_t cbal_rlx_min_delta_mv{0};
+	uint16_t dsg_curr_th_ma{0};
+	uint16_t chg_curr_th_ma{0};
+
+	if (_protocol.datamemReadU1(BQ769X2_SET_CBAL_CONF, cbal_conf) == PX4_OK
+	    && _protocol.datamemReadU1(BQ769X2_SET_CBAL_MAX_CELLS, cbal_max_cells) == PX4_OK
+	    && _protocol.datamemReadU2(BQ769X2_SET_CBAL_CHG_MIN_CELL_V, cbal_chg_min_cell_mv) == PX4_OK
+	    && _protocol.datamemReadU1(BQ769X2_SET_CBAL_CHG_MIN_DELTA, cbal_chg_min_delta_mv) == PX4_OK
+	    && _protocol.datamemReadU2(BQ769X2_SET_CBAL_RLX_MIN_CELL_V, cbal_rlx_min_cell_mv) == PX4_OK
+	    && _protocol.datamemReadU1(BQ769X2_SET_CBAL_RLX_MIN_DELTA, cbal_rlx_min_delta_mv) == PX4_OK
+	    && _protocol.datamemReadU2(BQ769X2_SET_DSG_CURR_TH, dsg_curr_th_ma) == PX4_OK
+	    && _protocol.datamemReadU2(BQ769X2_SET_CHG_CURR_TH, chg_curr_th_ma) == PX4_OK) {
+		PX4_INFO("balancing cfg: auto=%s (CBAL_CONF=0x%02x) max_cells=%u CHG[min=%.3fV dv=%umV] RLX[min=%.3fV dv=%umV] idle_th[DSG=%dmA CHG=%dmA]",
+			 (cbal_conf & 0x03) ? "on" : "off", cbal_conf, cbal_max_cells,
+			 static_cast<double>(cbal_chg_min_cell_mv) * 1e-3, cbal_chg_min_delta_mv,
+			 static_cast<double>(cbal_rlx_min_cell_mv) * 1e-3, cbal_rlx_min_delta_mv,
+			 static_cast<int16_t>(dsg_curr_th_ma), static_cast<int16_t>(chg_curr_th_ma));
+
+	} else {
+		PX4_WARN("failed to read balancing config");
 	}
 
 	uint8_t alert_pin_cfg{0};
