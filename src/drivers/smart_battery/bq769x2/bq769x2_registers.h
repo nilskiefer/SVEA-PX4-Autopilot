@@ -89,7 +89,19 @@ static constexpr uint16_t BQ769X2_SET_CONF_VCELL_MODE{0x9304};
 static constexpr uint16_t BQ769X2_SET_FET_OPTIONS{0x9308};
 static constexpr uint16_t BQ769X2_SET_FET_PDSG_TIMEOUT{0x930E};
 static constexpr uint16_t BQ769X2_SET_FET_PDSG_STOP_DV{0x930F};   // 10 mV/LSB
+static constexpr uint16_t BQ769X2_SET_DSG_CURR_TH{0x9310};        // mA
+static constexpr uint16_t BQ769X2_SET_CHG_CURR_TH{0x9312};        // mA
 static constexpr uint16_t BQ769X2_SET_OPEN_WIRE_CHECK_TIME{0x9314};
+static constexpr uint16_t BQ769X2_SET_CBAL_CONF{0x9335};
+static constexpr uint16_t BQ769X2_SET_CBAL_MIN_CELL_TEMP{0x9336}; // degC
+static constexpr uint16_t BQ769X2_SET_CBAL_MAX_CELL_TEMP{0x9337}; // degC
+static constexpr uint16_t BQ769X2_SET_CBAL_MAX_CELLS{0x933A};
+static constexpr uint16_t BQ769X2_SET_CBAL_CHG_MIN_CELL_V{0x933B}; // mV
+static constexpr uint16_t BQ769X2_SET_CBAL_CHG_MIN_DELTA{0x933D}; // mV
+static constexpr uint16_t BQ769X2_SET_CBAL_CHG_STOP_DELTA{0x933E}; // mV
+static constexpr uint16_t BQ769X2_SET_CBAL_RLX_MIN_CELL_V{0x933F}; // mV
+static constexpr uint16_t BQ769X2_SET_CBAL_RLX_MIN_DELTA{0x9341}; // mV
+static constexpr uint16_t BQ769X2_SET_CBAL_RLX_STOP_DELTA{0x9342}; // mV
 
 static constexpr uint16_t BQ769X2_PROT_CUV_THRESHOLD{0x9275};   // 50.6 mV
 static constexpr uint16_t BQ769X2_PROT_CUV_DELAY{0x9276};       // 3.3 ms
