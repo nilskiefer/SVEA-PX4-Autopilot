@@ -64,7 +64,8 @@ public:
 private:
     static constexpr const char *kEscEnDev = "/dev/gpio9";
     static constexpr const char *kServoEnDev = "/dev/gpio10";
-    static constexpr useconds_t kRailStaggerUs = 500000;
+    static constexpr useconds_t kRailStaggerUsON = 500000;
+    static constexpr useconds_t kRailStaggerUsOFF = 50000;
     static constexpr uint32_t kPollIntervalUs = 200000;
     static constexpr hrt_abstime kReassertIntervalUs = 200000;
 
@@ -119,13 +120,13 @@ void SveaPowerGate::apply_power(bool on) {
     if (on) {
         // Enable servo rail first, then ESC rail after a short delay.
         servo = write_gpio(kServoEnDev, true);
-        usleep(kRailStaggerUs);
+        usleep(kRailStaggerUsON);
         esc = write_gpio(kEscEnDev, true);
 
     } else {
         // Disable ESC rail first, then servo rail after a short delay.
         esc = write_gpio(kEscEnDev, false);
-        usleep(kRailStaggerUs);
+        usleep(kRailStaggerUsOFF);
         servo = write_gpio(kServoEnDev, false);
     }
 
