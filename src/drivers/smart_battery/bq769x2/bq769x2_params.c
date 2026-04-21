@@ -96,6 +96,63 @@ PARAM_DEFINE_INT32(BQ769X2_CFG, 1);
 PARAM_DEFINE_FLOAT(BQ769X2_SHUNT, 1000.f);
 
 /**
+ * Enable autonomous balancing in BQ769x2 (CB_CHG + CB_RLX).
+ *
+ * @group Sensors
+ * @boolean
+ * @reboot_required true
+ */
+PARAM_DEFINE_INT32(BQ769X2_BAL_EN, 1);
+
+/**
+ * Minimum cell voltage for balancing (charge and relaxed), in volts.
+ *
+ * 3S LiPo/NMC default: 3.8V.
+ *
+ * @group Sensors
+ * @min 2.5
+ * @max 4.3
+ * @reboot_required true
+ */
+PARAM_DEFINE_FLOAT(BQ769X2_BAL_VMIN, 3.80f);
+
+/**
+ * Minimum/stop delta for balancing, in volts.
+ *
+ * Applied to both charge and relaxed balancing modes.
+ *
+ * @group Sensors
+ * @min 0.002
+ * @max 0.12
+ * @reboot_required true
+ */
+PARAM_DEFINE_FLOAT(BQ769X2_BAL_DV, 0.01f);
+
+/**
+ * Idle current threshold for relaxed balancing, in amps.
+ *
+ * Written to both DSG_CURR_TH and CHG_CURR_TH.
+ *
+ * @group Sensors
+ * @min 0.0
+ * @max 20.0
+ * @reboot_required true
+ */
+PARAM_DEFINE_FLOAT(BQ769X2_BAL_IIDL, 0.10f);
+
+/**
+ * Maximum simultaneously balanced cells.
+ *
+ * Board thermal limit. For 3S default is 3.
+ *
+ * @group Sensors
+ * @min 1
+ * @max 16
+ * @reboot_required true
+ */
+PARAM_DEFINE_INT32(BQ769X2_BAL_MAX, 3);
+
+/**
  * Cell overvoltage threshold (COV) in volts.
  *
  * @group Sensors
