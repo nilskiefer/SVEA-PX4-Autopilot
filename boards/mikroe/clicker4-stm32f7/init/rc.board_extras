@@ -9,6 +9,22 @@ then
 	pwm_out start
 fi
 
+# Delay PX4_UORB_TUNNEL power_monitor forwarding until INA226 instances are advertised.
+# This does not require a MAVLink peer connection, only local uORB publishers.
+sleep 3
+for inst in 0 1
+do
+	for attempt in 1 2 3 4 5 6 7 8 9 10
+	do
+		if mavlink uorb_tunnel add -t power_monitor -i ${inst} -r 10
+		then
+			break
+		fi
+
+		sleep 1
+	done
+done
+
 # WS281x/WS2815 on PC9 is available, but do not auto-start at boot.
 # Start manually when needed:
 #   neopixel start -n 1
