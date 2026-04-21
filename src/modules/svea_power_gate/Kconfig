@@ -1,4 +1,4 @@
-menuconfig EXAMPLES_SVEA_POWER_GATE
+menuconfig MODULES_SVEA_POWER_GATE
 	bool "svea_power_gate"
 	default n
 	---help---
