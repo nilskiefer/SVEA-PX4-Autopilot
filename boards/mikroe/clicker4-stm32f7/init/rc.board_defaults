@@ -93,6 +93,16 @@ param set-default RC_KILLSWITCH_TH 0.75
 param set-default RC_MAP_ARM_SW 7
 param set-default COM_ARM_SWISBTN 1
 
+# Native RC-loss safety policy:
+# - detect RC loss quickly
+# - disarm on RC loss (forces disarmed outputs)
+# - no mode exceptions
+# - auto-disarm shortly after kill engagement
+param set-default COM_RC_LOSS_T 0.5
+param set-default NAV_RCL_ACT 6
+param set-default COM_RCL_EXCEPT 0
+param set-default COM_KILL_DISARM 5
+
 # Mute behavior (kill/disarmed): force all active outputs to 0 duty.
 param set-default PWM_MAIN_DIS1 0
 param set-default PWM_MAIN_DIS2 0
@@ -136,6 +146,15 @@ param set-default LSM6DSOX_ACC_FS 4
 param set-default LSM6DSOX_GYR_FS 500
 param set-default LSM6DSOX_ACC_ODR 104
 param set-default LSM6DSOX_GYR_ODR 104
+
+# Temporary calibration defaults (replace with full per-unit calibration set).
+param set-default CAL_ACC0_ID 3173137
+param set-default CAL_ACC0_XOFF 0
+param set-default CAL_ACC0_YOFF 0
+param set-default CAL_ACC0_ZOFF 0
+param set-default CAL_ACC0_XSCALE 1
+param set-default CAL_ACC0_YSCALE 1
+param set-default CAL_ACC0_ZSCALE 1
 
 # BQ769x2 smart battery defaults (powerboard 3S setup).
 param set-default SENS_EN_BQ769X2 1
