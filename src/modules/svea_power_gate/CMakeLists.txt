@@ -32,7 +32,7 @@
 ############################################################################
 
 px4_add_module(
-	MODULE examples__svea_power_gate
+	MODULE modules__svea_power_gate
 	MAIN svea_power_gate
 	SRCS
 		svea_power_gate.cpp
