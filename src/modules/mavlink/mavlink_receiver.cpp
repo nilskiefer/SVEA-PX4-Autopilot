@@ -46,6 +46,7 @@
 
 #include <math.h>
 #include <poll.h>
+#include <cstring>
 
 #ifdef CONFIG_NET
 #include <net/if.h>
@@ -89,6 +90,12 @@ MavlinkReceiver::~MavlinkReceiver()
 	_sensor_baro_pub.unadvertise();
 	_sensor_gps_pub.unadvertise();
 	_sensor_optical_flow_pub.unadvertise();
+
+	for (auto &pending : _px4_uorb_pending_fragments) {
+		delete[] pending.buffer;
+		pending.buffer = nullptr;
+		pending.valid = false;
+	}
 }
 
 static constexpr vehicle_odometry_s vehicle_odometry_empty {
@@ -1977,6 +1984,14 @@ MavlinkReceiver::handle_message_tunnel(mavlink_message_t *msg)
 	mavlink_tunnel_t mavlink_tunnel;
 	mavlink_msg_tunnel_decode(msg, &mavlink_tunnel);
 
+	if (mavlink_tunnel.payload_type == kPx4UorbTunnelPayloadType) {
+		if (!handle_px4_uorb_tunnel_message(mavlink_tunnel)) {
+			PX4_WARN("PX4_UORB_TUNNEL RX decode/publish failed");
+		}
+
+		return;
+	}
+
 	mavlink_tunnel_s tunnel{};
 
 	tunnel.timestamp = hrt_absolute_time();
@@ -1998,6 +2013,335 @@ MavlinkReceiver::handle_message_tunnel(mavlink_message_t *msg)
 	}
 
 
+}
+
+static uint16_t read_u16_le(const uint8_t *buffer)
+{
+	return static_cast<uint16_t>(buffer[0]) | (static_cast<uint16_t>(buffer[1]) << 8);
+}
+
+static uint32_t read_u32_le(const uint8_t *buffer)
+{
+	return static_cast<uint32_t>(buffer[0])
+	       | (static_cast<uint32_t>(buffer[1]) << 8)
+	       | (static_cast<uint32_t>(buffer[2]) << 16)
+	       | (static_cast<uint32_t>(buffer[3]) << 24);
+}
+
+void
+MavlinkReceiver::clear_stale_px4_uorb_tunnel_fragments()
+{
+	const hrt_abstime now = hrt_absolute_time();
+
+	for (auto &pending : _px4_uorb_pending_fragments) {
+		if (!pending.valid) {
+			continue;
+		}
+
+		if ((now - pending.last_update) > kPx4UorbTunnelFragmentTimeoutUs) {
+			delete[] pending.buffer;
+			pending.buffer = nullptr;
+			pending.valid = false;
+		}
+	}
+}
+
+const orb_metadata *
+MavlinkReceiver::find_uorb_topic_by_name(const char *topic_name)
+{
+	if (topic_name == nullptr || topic_name[0] == '\0') {
+		return nullptr;
+	}
+
+	for (auto &entry : _px4_uorb_topic_meta_cache) {
+		if (entry.valid && strcmp(entry.topic_name, topic_name) == 0) {
+			return entry.meta;
+		}
+	}
+
+	const orb_metadata *const *topic_list = orb_get_topics();
+
+	for (unsigned i = 0; i < ORB_TOPICS_COUNT; i++) {
+		const orb_metadata *meta = topic_list[i];
+
+		if (meta == nullptr || meta->o_name == nullptr) {
+			continue;
+		}
+
+		if (strcmp(meta->o_name, topic_name) == 0) {
+			for (auto &entry : _px4_uorb_topic_meta_cache) {
+				if (!entry.valid) {
+					entry.valid = true;
+					strncpy(entry.topic_name, topic_name, sizeof(entry.topic_name) - 1);
+					entry.topic_name[sizeof(entry.topic_name) - 1] = '\0';
+					entry.meta = meta;
+					break;
+				}
+			}
+
+			return meta;
+		}
+	}
+
+	return nullptr;
+}
+
+bool
+MavlinkReceiver::publish_px4_uorb_topic(const orb_metadata *meta, uint8_t instance, const uint8_t *payload, uint16_t payload_len)
+{
+	if (meta == nullptr || payload == nullptr) {
+		return false;
+	}
+
+	if (payload_len != meta->o_size_no_padding && payload_len != meta->o_size) {
+		PX4_WARN("PX4_UORB_TUNNEL RX size mismatch topic=%s len=%u expected=%u/%u",
+			 meta->o_name, payload_len, meta->o_size_no_padding, meta->o_size);
+		return false;
+	}
+
+	uint8_t *publish_buf = nullptr;
+
+	if (payload_len == meta->o_size) {
+		publish_buf = const_cast<uint8_t *>(payload);
+
+	} else {
+		publish_buf = new uint8_t[meta->o_size];
+
+		if (publish_buf == nullptr) {
+			return false;
+		}
+
+		memcpy(publish_buf, payload, payload_len);
+		memset(publish_buf + payload_len, 0, meta->o_size - payload_len);
+	}
+
+	Px4UorbAdvertiserEntry *advertiser = nullptr;
+
+	for (auto &entry : _px4_uorb_advertisers) {
+		if (entry.valid && entry.meta == meta && entry.instance == instance) {
+			advertiser = &entry;
+			break;
+		}
+	}
+
+	if (advertiser == nullptr) {
+		for (auto &entry : _px4_uorb_advertisers) {
+			if (!entry.valid) {
+				advertiser = &entry;
+				break;
+			}
+		}
+	}
+
+	bool result = false;
+
+	if (advertiser == nullptr) {
+		PX4_WARN("PX4_UORB_TUNNEL RX advertiser cache full");
+		result = false;
+
+	} else if (!advertiser->valid) {
+		int requested_instance = static_cast<int>(instance);
+		orb_advert_t handle = orb_advertise_multi(meta, publish_buf, &requested_instance);
+
+		if (handle == nullptr) {
+			PX4_WARN("PX4_UORB_TUNNEL RX advertise failed topic=%s inst=%u", meta->o_name, instance);
+			result = false;
+
+		} else if (requested_instance != instance) {
+			PX4_WARN("PX4_UORB_TUNNEL RX instance mismatch topic=%s requested=%u got=%d",
+				 meta->o_name, instance, requested_instance);
+			result = false;
+
+		} else {
+			advertiser->valid = true;
+			advertiser->meta = meta;
+			advertiser->instance = instance;
+			advertiser->handle = handle;
+			result = true;
+		}
+
+	} else {
+		result = (orb_publish(meta, advertiser->handle, publish_buf) == PX4_OK);
+
+		if (!result) {
+			PX4_WARN("PX4_UORB_TUNNEL RX publish failed topic=%s inst=%u", meta->o_name, instance);
+		}
+	}
+
+	if (publish_buf != payload) {
+		delete[] publish_buf;
+	}
+
+	return result;
+}
+
+bool
+MavlinkReceiver::handle_px4_uorb_tunnel_message(const mavlink_tunnel_t &mavlink_tunnel)
+{
+	if (mavlink_tunnel.target_system != 0 && mavlink_tunnel.target_system != _mavlink.get_system_id()) {
+		return true;
+	}
+
+	if (mavlink_tunnel.target_component != 0 && mavlink_tunnel.target_component != _mavlink.get_component_id()) {
+		return true;
+	}
+
+	clear_stale_px4_uorb_tunnel_fragments();
+
+	if (mavlink_tunnel.payload_length > MAVLINK_MSG_TUNNEL_FIELD_PAYLOAD_LEN) {
+		return false;
+	}
+
+	const uint8_t *frame = mavlink_tunnel.payload;
+	const uint16_t frame_len = mavlink_tunnel.payload_length;
+
+	if (frame_len < kPx4UorbTunnelHeaderLen) {
+		return false;
+	}
+
+	const uint8_t version = frame[0];
+	const uint8_t instance = frame[2];
+	const uint8_t sequence = frame[3];
+	const uint32_t message_hash = read_u32_le(&frame[4]);
+	const uint16_t topic_name_len = read_u16_le(&frame[8]);
+	const uint16_t total_len = read_u16_le(&frame[10]);
+	const uint16_t fragment_offset = read_u16_le(&frame[12]);
+
+	if (version != kPx4UorbTunnelProtocolVersion) {
+		return false;
+	}
+
+	if (topic_name_len == 0 || topic_name_len > kPx4UorbTunnelTopicNameMaxLen) {
+		return false;
+	}
+
+	if (total_len == 0) {
+		return false;
+	}
+
+	const uint16_t header_len = static_cast<uint16_t>(kPx4UorbTunnelHeaderLen + topic_name_len);
+
+	if (header_len > frame_len) {
+		return false;
+	}
+
+	char topic_name[kPx4UorbTunnelTopicNameMaxLen + 1]{};
+	memcpy(topic_name, &frame[kPx4UorbTunnelHeaderLen], topic_name_len);
+	topic_name[topic_name_len] = '\0';
+
+	const uint8_t *fragment_payload = &frame[header_len];
+	const uint16_t fragment_len = frame_len - header_len;
+
+	if (fragment_offset > total_len || static_cast<uint32_t>(fragment_offset) + fragment_len > total_len) {
+		return false;
+	}
+
+	const orb_metadata *meta = find_uorb_topic_by_name(topic_name);
+
+	if (meta == nullptr) {
+		PX4_WARN("PX4_UORB_TUNNEL RX unknown topic %s", topic_name);
+		return false;
+	}
+
+	if (meta->message_hash != message_hash) {
+		PX4_WARN("PX4_UORB_TUNNEL RX hash mismatch topic=%s got=0x%08x expected=0x%08x",
+			 topic_name, static_cast<unsigned int>(message_hash), static_cast<unsigned int>(meta->message_hash));
+		return false;
+	}
+
+	if (total_len != meta->o_size_no_padding && total_len != meta->o_size) {
+		PX4_WARN("PX4_UORB_TUNNEL RX total_len mismatch topic=%s len=%u expected=%u/%u",
+			 topic_name, total_len, meta->o_size_no_padding, meta->o_size);
+		return false;
+	}
+
+	if (fragment_offset == 0 && fragment_len == total_len) {
+		return publish_px4_uorb_topic(meta, instance, fragment_payload, total_len);
+	}
+
+	Px4UorbPendingFragment *pending = nullptr;
+
+	for (auto &entry : _px4_uorb_pending_fragments) {
+		if (!entry.valid) {
+			continue;
+		}
+
+		if (entry.instance == instance && entry.sequence == sequence && entry.message_hash == message_hash
+		    && strcmp(entry.topic_name, topic_name) == 0) {
+			pending = &entry;
+			break;
+		}
+	}
+
+	if (fragment_offset == 0) {
+		if (pending == nullptr) {
+			for (auto &entry : _px4_uorb_pending_fragments) {
+				if (!entry.valid) {
+					pending = &entry;
+					break;
+				}
+			}
+		}
+
+		if (pending == nullptr) {
+			PX4_WARN("PX4_UORB_TUNNEL RX pending fragment slots exhausted");
+			return false;
+		}
+
+		delete[] pending->buffer;
+		pending->buffer = new uint8_t[total_len];
+
+		if (pending->buffer == nullptr) {
+			pending->valid = false;
+			return false;
+		}
+
+		memcpy(pending->topic_name, topic_name, sizeof(pending->topic_name));
+		pending->instance = instance;
+		pending->sequence = sequence;
+		pending->message_hash = message_hash;
+		pending->total_len = total_len;
+		pending->next_offset = fragment_len;
+		pending->last_update = hrt_absolute_time();
+		pending->valid = true;
+
+		memcpy(pending->buffer, fragment_payload, fragment_len);
+
+		if (pending->next_offset == pending->total_len) {
+			const bool result = publish_px4_uorb_topic(meta, instance, pending->buffer, pending->total_len);
+			delete[] pending->buffer;
+			pending->buffer = nullptr;
+			pending->valid = false;
+			return result;
+		}
+
+		return true;
+	}
+
+	if (pending == nullptr) {
+		return false;
+	}
+
+	if (pending->total_len != total_len || pending->next_offset != fragment_offset) {
+		delete[] pending->buffer;
+		pending->buffer = nullptr;
+		pending->valid = false;
+		return false;
+	}
+
+	memcpy(pending->buffer + fragment_offset, fragment_payload, fragment_len);
+	pending->next_offset += fragment_len;
+	pending->last_update = hrt_absolute_time();
+
+	if (pending->next_offset == pending->total_len) {
+		const bool result = publish_px4_uorb_topic(meta, instance, pending->buffer, pending->total_len);
+		delete[] pending->buffer;
+		pending->buffer = nullptr;
+		pending->valid = false;
+		return result;
+	}
+
+	return true;
 }
 
 void
