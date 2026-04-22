@@ -138,7 +138,7 @@ using namespace time_literals;
 #define INA226_SUL                           (1 << 14)
 #define INA226_SOL                           (1 << 15)
 
-#define INA226_SAMPLE_FREQUENCY_HZ            10
+#define INA226_SAMPLE_FREQUENCY_HZ            4
 #define INA226_SAMPLE_INTERVAL_US             (1_s / INA226_SAMPLE_FREQUENCY_HZ)
 #define INA226_CONVERSION_INTERVAL            (INA226_SAMPLE_INTERVAL_US - 7)
 #define MAX_CURRENT                           164.0f    /* 164 Amps */
