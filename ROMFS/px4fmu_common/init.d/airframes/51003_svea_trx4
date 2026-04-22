@@ -49,3 +49,22 @@ param set-default RO_SPEED_RED 1
 param set-default PP_LOOKAHD_GAIN 1
 param set-default PP_LOOKAHD_MAX 10
 param set-default PP_LOOKAHD_MIN 1.5
+
+# Dev calibration defaults (Clicker4 + LSM6DSOX)
+# Keep these as defaults only; runtime calibration can still override.
+param set-default CAL_ACC0_ID 3173137
+param set-default CAL_ACC0_PRIO 50
+param set-default CAL_ACC0_ROT -1
+param set-default CAL_ACC0_XOFF 0.0334
+param set-default CAL_ACC0_XSCALE 1.0
+param set-default CAL_ACC0_YOFF -0.0964
+param set-default CAL_ACC0_YSCALE 1.0
+param set-default CAL_ACC0_ZOFF 0.1396
+param set-default CAL_ACC0_ZSCALE 1.0
+
+param set-default CAL_GYRO0_ID 3173137
+param set-default CAL_GYRO0_PRIO 50
+param set-default CAL_GYRO0_ROT -1
+param set-default CAL_GYRO0_XOFF -0.0107
+param set-default CAL_GYRO0_YOFF -0.0040
+param set-default CAL_GYRO0_ZOFF -0.0134
