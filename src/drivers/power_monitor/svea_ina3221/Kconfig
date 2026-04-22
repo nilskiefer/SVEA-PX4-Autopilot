@@ -1,0 +1,5 @@
+menuconfig DRIVERS_POWER_MONITOR_SVEA_INA3221
+	bool "svea_ina3221"
+default n
+	---help---
+		Enable support for SVEA INA3221

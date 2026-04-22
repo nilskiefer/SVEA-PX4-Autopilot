@@ -15,7 +15,13 @@ pcal6524 -I -b 2 -a 0x23 -M 24 -D 0x00ffffff -q start
 svea_ina226 -I -b 2 -a 0x4E -r 0.001 -q start
 svea_ina226 -I -b 2 -a 0x4F -r 0.005 -q start
 
+# SVEA INA3221 current monitors on the powerboard:
+# 0x41 -> IN1 16 mOhm, IN2 1 mOhm, IN3 16 mOhm
+# 0x40 -> IN1/IN2/IN3 all 16 mOhm
+svea_ina3221 -I -b 2 -a 0x41 -x 0.016 -y 0.001 -z 0.016 -q start
+svea_ina3221 -I -b 2 -a 0x40 -r 0.016 -q start
+
 pca9685_pwm_out start -a 0x61 -b 2
 svea_power_gate start
 
-echo "board sensors mode: auto BQ769x2 + LSM6DSOX + PCAL6524 + INA226(0x4E,0x4F) + PCA9685(0x61)"
+echo "board sensors mode: auto BQ769x2 + LSM6DSOX + PCAL6524 + INA226(0x4E,0x4F) + INA3221(0x40,0x41) + PCA9685(0x61)"
