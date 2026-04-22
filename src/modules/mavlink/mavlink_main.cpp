@@ -3499,6 +3499,7 @@ int Mavlink::uorb_tunnel_command(int argc, char *argv[]) {
         const char *topic_name = nullptr;
         int32_t instance = 0;
         float rate_hz = -1.f;
+        bool force = false;
 
         for (int i = 3; i < argc; i++) {
             if (!strcmp(argv[i], "-t") && (i + 1) < argc) {
@@ -3507,6 +3508,8 @@ int Mavlink::uorb_tunnel_command(int argc, char *argv[]) {
                 instance = strtol(argv[++i], nullptr, 10);
             } else if (!strcmp(argv[i], "-r") && (i + 1) < argc) {
                 rate_hz = strtof(argv[++i], nullptr);
+            } else if (!strcmp(argv[i], "-f")) {
+                force = true;
             } else {
                 PX4_ERR("invalid argument: %s", argv[i]);
                 return PX4_ERROR;
@@ -3547,7 +3550,7 @@ int Mavlink::uorb_tunnel_command(int argc, char *argv[]) {
             return PX4_ERROR;
         }
 
-        if (orb_exists(meta, instance) != PX4_OK) {
+        if (!force && orb_exists(meta, instance) != PX4_OK) {
             PX4_ERR("uorb tunnel add rejected: topic=%s instance=%ld is not advertised", meta->o_name,
                     static_cast<long>(instance));
             return PX4_ERROR;
@@ -3561,8 +3564,8 @@ int Mavlink::uorb_tunnel_command(int argc, char *argv[]) {
             if (cfg.topic_id == topic_id && cfg.instance == static_cast<uint8_t>(instance)) {
                 cfg.rate_hz = rate_hz;
                 pthread_mutex_unlock(&g_uorb_tunnel_mutex);
-                PX4_INFO("uorb tunnel updated: topic=%s id=%d inst=%ld rate=%.3f Hz", topic_name, topic_id,
-                         static_cast<long>(instance), static_cast<double>(rate_hz));
+                PX4_INFO("uorb tunnel updated%s: topic=%s id=%d inst=%ld rate=%.3f Hz", force ? " (forced)" : "",
+                         topic_name, topic_id, static_cast<long>(instance), static_cast<double>(rate_hz));
                 return PX4_OK;
             }
         }
@@ -3581,8 +3584,8 @@ int Mavlink::uorb_tunnel_command(int argc, char *argv[]) {
         g_uorb_tunnel_topics.add(new_entry);
         const unsigned new_index = topic_entry_count_locked();
         pthread_mutex_unlock(&g_uorb_tunnel_mutex);
-        PX4_INFO("uorb tunnel added (%u): topic=%s id=%d inst=%ld rate=%.3f Hz", new_index, topic_name, topic_id,
-                 static_cast<long>(instance), static_cast<double>(rate_hz));
+        PX4_INFO("uorb tunnel added%s (%u): topic=%s id=%d inst=%ld rate=%.3f Hz", force ? " (forced)" : "",
+                 new_index, topic_name, topic_id, static_cast<long>(instance), static_cast<double>(rate_hz));
         return PX4_OK;
     }
 
@@ -3684,7 +3687,8 @@ $ mavlink stream -u 14556 -s HIGHRES_IMU -r 50
 
     PRINT_MODULE_USAGE_COMMAND_DESCR("uorb_tunnel", "Configure PX4_UORB_TUNNEL topic forwarding");
     PRINT_MODULE_USAGE_ARG("list", "List configured tunnel entries", true);
-    PRINT_MODULE_USAGE_ARG("add -t <topic> -i <instance> -r <hz>", "Add or update a topic entry", true);
+    PRINT_MODULE_USAGE_ARG("add -t <topic> -i <instance> -r <hz> [-f]",
+                           "Add or update a topic entry (use -f to allow non-advertised instances)", true);
     PRINT_MODULE_USAGE_ARG("remove -s <entry>", "Remove an entry from list output", true);
 
     PRINT_MODULE_USAGE_COMMAND_DESCR("boot_complete",
