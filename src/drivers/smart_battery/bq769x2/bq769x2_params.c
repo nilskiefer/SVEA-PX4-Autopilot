@@ -96,6 +96,18 @@ PARAM_DEFINE_INT32(BQ769X2_CFG, 1);
 PARAM_DEFINE_FLOAT(BQ769X2_SHUNT, 1000.f);
 
 /**
+ * Invert measured pack current sign.
+ *
+ * Set to 1 when shunt polarity/wiring makes charging current positive in telemetry.
+ * The driver convention is positive = discharge, negative = charge.
+ *
+ * @group Sensors
+ * @boolean
+ * @reboot_required true
+ */
+PARAM_DEFINE_INT32(BQ769X2_CURR_INV, 0);
+
+/**
  * Enable autonomous balancing in BQ769x2 (CB_CHG + CB_RLX).
  *
  * @group Sensors

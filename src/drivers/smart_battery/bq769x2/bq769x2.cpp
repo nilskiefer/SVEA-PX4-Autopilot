@@ -61,6 +61,7 @@ BQ769x2::BQ769x2(const I2CSPIDriverConfig &config, int battery_index) :
 	_param_v_empty = param_find("BAT1_V_EMPTY");
 	_param_v_charged = param_find("BAT1_V_CHARGED");
 	_param_shunt_uohm = param_find("BQ769X2_SHUNT");
+	_param_current_invert = param_find("BQ769X2_CURR_INV");
 	_param_capacity = param_find("BAT1_CAPACITY");
 	_param_bal_auto_enable = param_find("BQ769X2_BAL_EN");
 	_param_bal_cell_voltage_min_v = param_find("BQ769X2_BAL_VMIN");
@@ -196,6 +197,10 @@ int BQ769x2::init()
 
 		if (_protocol.directReadI2(BQ769X2_CMD_CURRENT_CC2, raw_current_cc2) == PX4_OK) {
 			current_a = static_cast<float>(raw_current_cc2) * 1e-2f;
+
+			if (_current_invert) {
+				current_a = -current_a;
+			}
 		}
 
 		pf_valid = (_protocol.directReadU1(BQ769X2_CMD_PF_STATUS_A, pf_a) == PX4_OK)
@@ -758,6 +763,10 @@ void BQ769x2::updateParamsFromStore()
 		_shunt_uohm = math::max(val_f, 1.f);
 	}
 
+	if (_param_current_invert != PARAM_INVALID && param_get(_param_current_invert, &val_i32) == PX4_OK) {
+		_current_invert = val_i32 != 0;
+	}
+
 	if (_param_capacity != PARAM_INVALID && param_get(_param_capacity, &val_f) == PX4_OK) {
 		_capacity_mah = math::max(val_f, 0.f);
 	}
@@ -936,6 +945,11 @@ int BQ769x2::collectAndPublish()
 	}
 
 	report.current_a = static_cast<float>(raw_i16) * 1e-2f;
+
+	if (_current_invert) {
+		report.current_a = -report.current_a;
+	}
+
 	report.current_average_a = report.current_a;
 
 	// Coulomb counter integration (LibreSolar-style): integrate signed current
@@ -1012,7 +1026,8 @@ int BQ769x2::collectAndPublish()
 
 	if (valid_cells > 0) {
 		report.max_cell_voltage_delta = max_cell_v - min_cell_v;
-		const float remaining_voltage_based = estimateRemaining(sum_cell_v / valid_cells);
+		const float avg_cell_v = sum_cell_v / valid_cells;
+		const float remaining_voltage_based = estimateRemaining(avg_cell_v);
 		report.remaining = remaining_voltage_based;
 
 		// Initialize consumed capacity from voltage once at startup, then track SoC by coulomb counting.
@@ -1025,6 +1040,22 @@ int BQ769x2::collectAndPublish()
 
 			if (_soc_seeded_from_voltage && PX4_ISFINITE(_discharged_mah) && _discharged_mah >= 0.f) {
 				report.remaining = math::constrain(1.f - (_discharged_mah / _capacity_mah), 0.f, 1.f);
+			}
+
+			// Recenter SoC/coulomb counter at full charge to prevent long-term drift.
+			// A "full" condition is defined by near-full cell voltage and low absolute current.
+			const float near_full_margin_v = 0.02f;
+			const float recenter_idle_current_a = math::max(_bal_idle_current_a, 0.2f);
+			const bool near_full_voltage = PX4_ISFINITE(_cell_voltage_charged)
+						       && avg_cell_v >= (_cell_voltage_charged - near_full_margin_v);
+			const bool near_idle_current = fabsf(report.current_a) <= recenter_idle_current_a;
+
+			if (near_full_voltage && near_idle_current) {
+				_discharged_mah = 0.f;
+				_discharged_wh = 0.f;
+				_soc_seeded_from_voltage = true;
+				report.discharged_mah = 0.f;
+				report.remaining = 1.f;
 			}
 		}
 	}
@@ -1084,6 +1115,10 @@ int BQ769x2::collectAndPublish()
 	}
 
 	report.warning = computeWarning(report.remaining, report.faults);
+
+	if (report.warning == battery_status_s::WARNING_NONE && report.current_a < -0.1f) {
+		report.warning = battery_status_s::STATE_CHARGING;
+	}
 
 	// Telemetry only: log if chip raised a new safety bit (so we know why FETs went off).
 	if (_protocol.directReadU2(BQ769X2_CMD_BATTERY_STATUS, battery_status) == PX4_OK) {
@@ -1447,6 +1482,7 @@ void BQ769x2::print_status()
 	perf_print_counter(_collection_errors);
 	PX4_INFO("connected: %s, switches initialized: %s", _connected ? "yes" : "no",
 		 _switches_initialized ? "yes" : "no");
+	PX4_INFO("current sign invert: %s", _current_invert ? "on" : "off");
 	PX4_INFO("FET policy: chip auto (HW auto-PDSG=on, FET_OPTIONS=0x1D, PDSG_TIMEOUT=%u ms, PDSG_STOP_DV=%u mV)",
 		 static_cast<unsigned>(_pdsg_timeout_ms), static_cast<unsigned>(_pdsg_stop_dv_mv));
 
