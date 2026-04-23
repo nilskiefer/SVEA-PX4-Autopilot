@@ -2360,6 +2360,15 @@ MavlinkReceiver::handle_message_rc_channels_override(mavlink_message_t *msg)
 		return;
 	}
 
+	// Hard gate MAVLink RC override by RC mode slot:
+	// only accept in MODE_SLOT_1 (intended as low switch position).
+	manual_control_switches_s manual_switches{};
+
+	if (!_manual_control_switches_sub.copy(&manual_switches)
+	    || manual_switches.mode_slot != manual_control_switches_s::MODE_SLOT_1) {
+		return;
+	}
+
 	// fill uORB message
 	input_rc_s rc{};
 	// metadata
@@ -2444,6 +2453,17 @@ MavlinkReceiver::handle_message_manual_control(mavlink_message_t *msg)
 
 	// Check target
 	if (mavlink_manual_control.target != 0 && mavlink_manual_control.target != _mavlink.get_system_id()) {
+		return;
+	}
+
+	// Hard gate MAVLink manual control by RC mode slot:
+	// only accept in MODE_SLOT_1 (intended as low switch position).
+	// This allows one 3-way RC switch to act as source authority
+	// (low=MAVLink manual control, middle=RC only, high=kill).
+	manual_control_switches_s manual_switches{};
+
+	if (!_manual_control_switches_sub.copy(&manual_switches)
+	    || manual_switches.mode_slot != manual_control_switches_s::MODE_SLOT_1) {
 		return;
 	}
 
