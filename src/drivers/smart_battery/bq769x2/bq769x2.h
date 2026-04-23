@@ -161,6 +161,7 @@ private:
 	float _bal_cell_voltage_min_v{3.8f};
 	float _bal_cell_voltage_diff_v{0.01f};
 	float _bal_idle_current_a{0.1f};
+	bool _current_invert{false};
 	bool _openwire_check{false};
 	bool _bal_auto_enable{true};
 	bool _temp_prot_enable{false};
@@ -191,6 +192,7 @@ private:
 	param_t _param_v_empty{PARAM_INVALID};
 	param_t _param_v_charged{PARAM_INVALID};
 	param_t _param_shunt_uohm{PARAM_INVALID};
+	param_t _param_current_invert{PARAM_INVALID};
 	param_t _param_capacity{PARAM_INVALID};
 	param_t _param_bal_auto_enable{PARAM_INVALID};
 	param_t _param_bal_cell_voltage_min_v{PARAM_INVALID};
