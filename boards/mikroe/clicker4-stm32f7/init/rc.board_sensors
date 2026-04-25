@@ -24,4 +24,15 @@ svea_ina3221 -I -b 2 -a 0x40 -r 0.016 -q start
 pca9685_pwm_out start -a 0x61 -b 2
 svea_power_gate start
 
+# Keep 12V buck enabled after startup; delay to allow BQ precharge phase to settle.
+(
+    sleep 5
+    echo "rc.board_sensors: setting /dev/gpio13 high"
+    if gpio write /dev/gpio13 1; then
+        echo "rc.board_sensors: /dev/gpio13 set high"
+    else
+        echo "rc.board_sensors: failed to set /dev/gpio13 high"
+    fi
+) &
+
 echo "board sensors mode: auto BQ769x2 + LSM6DSOX + PCAL6524 + INA226(0x4E,0x4F) + INA3221(0x40,0x41) + PCA9685(0x61)"
