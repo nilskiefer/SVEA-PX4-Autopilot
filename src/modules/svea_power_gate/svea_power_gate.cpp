@@ -68,6 +68,7 @@ private:
     static constexpr useconds_t kRailStaggerUsOFF = 50000;
     static constexpr uint32_t kPollIntervalUs = 200000;
     static constexpr hrt_abstime kReassertIntervalUs = 200000;
+    static constexpr hrt_abstime kHeartbeatIntervalUs = 2000000;
 
     int write_gpio(const char *dev, bool high);
     void apply_power(bool on);
@@ -76,11 +77,14 @@ private:
     bool _requested_on{false};
     bool _rails_on{false};
     hrt_abstime _last_apply{0};
+    hrt_abstime _last_heartbeat{0};
+    uint32_t _run_count{0};
 };
 
 ModuleBase::Descriptor SveaPowerGate::desc{task_spawn, custom_command, print_usage};
 
 int SveaPowerGate::write_gpio(const char *dev, bool high) {
+    PX4_INFO("gpio write begin: dev=%s target=%d", dev, high ? 1 : 0);
     int fd = open(dev, O_RDWR);
 
     if (fd < 0) {
@@ -107,10 +111,13 @@ int SveaPowerGate::write_gpio(const char *dev, bool high) {
     }
 
     close(fd);
+    PX4_INFO("gpio write ok: dev=%s value=%d", dev, high ? 1 : 0);
     return PX4_OK;
 }
 
 void SveaPowerGate::apply_power(bool on) {
+    PX4_INFO("apply_power begin: request=%d prev_requested=%d rails_on=%d",
+             on ? 1 : 0, _requested_on ? 1 : 0, _rails_on ? 1 : 0);
     _requested_on = on;
     _last_apply = hrt_absolute_time();
 
@@ -133,11 +140,18 @@ void SveaPowerGate::apply_power(bool on) {
     if (esc == PX4_OK && servo == PX4_OK) {
         _rails_on = on;
         PX4_INFO("power rails: ESC=%d ServoTPS=%d", on ? 1 : 0, on ? 1 : 0);
+
+    } else {
+        PX4_WARN("apply_power incomplete: request=%d esc_ret=%d servo_ret=%d",
+                 on ? 1 : 0, esc, servo);
     }
 }
 
 void SveaPowerGate::Run() {
+    _run_count++;
+
     if (should_exit()) {
+        PX4_INFO("Run: should_exit=1, forcing rails off");
         ScheduleClear();
         apply_power(false);
         exit_and_cleanup(desc);
@@ -150,8 +164,21 @@ void SveaPowerGate::Run() {
         if (_actuator_armed_sub.copy(&actuator_armed)) {
             // Rails may only stay enabled while fully armed and not killed/locked down.
             const bool should_enable = actuator_armed.armed && !actuator_armed.kill && !actuator_armed.lockdown && !actuator_armed.termination;
+            PX4_INFO("armed update: armed=%d prearmed=%d ready=%d lockdown=%d manual_lockdown=%d force_failsafe=%d in_esc_cal=%d soft_stop=%d kill=%d term=%d -> should_enable=%d",
+                     actuator_armed.armed ? 1 : 0,
+                     actuator_armed.prearmed ? 1 : 0,
+                     actuator_armed.ready_to_arm ? 1 : 0,
+                     actuator_armed.lockdown ? 1 : 0,
+                     actuator_armed.manual_lockdown ? 1 : 0,
+                     actuator_armed.force_failsafe ? 1 : 0,
+                     actuator_armed.in_esc_calibration_mode ? 1 : 0,
+                     actuator_armed.soft_stop ? 1 : 0,
+                     actuator_armed.kill ? 1 : 0,
+                     actuator_armed.termination ? 1 : 0,
+                     should_enable ? 1 : 0);
 
             if (should_enable != _requested_on) {
+                PX4_INFO("state change: requested_on %d -> %d", _requested_on ? 1 : 0, should_enable ? 1 : 0);
                 apply_power(should_enable);
             }
         }
@@ -159,13 +186,24 @@ void SveaPowerGate::Run() {
 
     // If any GPIO write failed earlier, keep re-asserting the requested state.
     if (_requested_on != _rails_on && hrt_elapsed_time(&_last_apply) >= kReassertIntervalUs) {
+        PX4_WARN("reasserting rails: requested_on=%d rails_on=%d elapsed_us=%llu",
+                 _requested_on ? 1 : 0, _rails_on ? 1 : 0,
+                 (unsigned long long)hrt_elapsed_time(&_last_apply));
         apply_power(_requested_on);
+    }
+
+    if ((_last_heartbeat == 0) || (hrt_elapsed_time(&_last_heartbeat) >= kHeartbeatIntervalUs)) {
+        _last_heartbeat = hrt_absolute_time();
+        PX4_INFO("heartbeat: run_count=%u requested_on=%d rails_on=%d last_apply_us_ago=%llu",
+                 _run_count, _requested_on ? 1 : 0, _rails_on ? 1 : 0,
+                 (unsigned long long)hrt_elapsed_time(&_last_apply));
     }
 
     ScheduleDelayed(kPollIntervalUs);
 }
 
 int SveaPowerGate::task_spawn(int argc, char *argv[]) {
+    PX4_INFO("task_spawn: argc=%d", argc);
     SveaPowerGate *instance = instantiate(argc, argv);
 
     if (instance == nullptr) {
@@ -176,6 +214,7 @@ int SveaPowerGate::task_spawn(int argc, char *argv[]) {
     desc.task_id = task_id_is_work_queue;
 
     // Initialize to safe state until we observe arming.
+    PX4_INFO("task_spawn: initialize safe state (rails off), schedule now");
     instance->apply_power(false);
     instance->ScheduleNow();
     return PX4_OK;
@@ -188,8 +227,8 @@ SveaPowerGate *SveaPowerGate::instantiate(int argc, char *argv[]) {
 }
 
 int SveaPowerGate::print_status() {
-    PX4_INFO("requested_on=%d rails_on=%d esc_dev=%s servo_dev=%s",
-             _requested_on ? 1 : 0, _rails_on ? 1 : 0, kEscEnDev, kServoEnDev);
+    PX4_INFO("requested_on=%d rails_on=%d run_count=%u esc_dev=%s servo_dev=%s",
+             _requested_on ? 1 : 0, _rails_on ? 1 : 0, _run_count, kEscEnDev, kServoEnDev);
     return PX4_OK;
 }
 
