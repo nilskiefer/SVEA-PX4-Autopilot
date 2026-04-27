@@ -193,10 +193,11 @@ MavlinkReceiver::handle_message(mavlink_message_t *msg)
 
 #if defined(MAVLINK_MSG_ID_WHEEL_DISTANCE)
 	case MAVLINK_MSG_ID_WHEEL_DISTANCE:
-		/* Re-emit wheel encoder MAVLink frames on this link so GCS/ROS can
-		 * consume them without a separate endpoint.
+		/* Re-emit wheel encoder MAVLink frame on the same link so downstream
+		 * endpoint (via ESP bridge) can inspect/consume it without a second
+		 * PX4 MAVLink instance.
 		 */
-		_mavlink.pass_message(msg);
+		_mavlink.resend_message(msg);
 		break;
 #endif
 
