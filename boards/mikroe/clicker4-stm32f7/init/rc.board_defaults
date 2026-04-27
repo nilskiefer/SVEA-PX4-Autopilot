@@ -43,7 +43,7 @@ param set-default SER_TEL1_BAUD 57600
 param set-default MAV_1_CONFIG 0
 param set-default MAV_2_CONFIG 0
 
-# RC receiver defaults: SBUS on the dedicated RC port (/dev/ttyS1).
+# RC receiver defaults: SBUS on the dedicated RC port (/dev/ttyS2).
 param set-default RC_PORT_CONFIG 300
 param set-default RC_INPUT_PROTO 2
 param set-default RC_CHAN_CNT 7
