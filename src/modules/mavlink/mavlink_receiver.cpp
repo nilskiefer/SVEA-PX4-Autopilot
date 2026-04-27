@@ -192,6 +192,15 @@ MavlinkReceiver::handle_message(mavlink_message_t *msg)
 		handle_message_odometry(msg);
 		break;
 
+#if defined(MAVLINK_MSG_ID_WHEEL_DISTANCE)
+	case MAVLINK_MSG_ID_WHEEL_DISTANCE:
+		/* Re-emit wheel encoder MAVLink frames on this link so GCS/ROS can
+		 * consume them without a separate endpoint.
+		 */
+		_mavlink.pass_message(msg);
+		break;
+#endif
+
 	case MAVLINK_MSG_ID_SET_GPS_GLOBAL_ORIGIN:
 		handle_message_set_gps_global_origin(msg);
 		break;
