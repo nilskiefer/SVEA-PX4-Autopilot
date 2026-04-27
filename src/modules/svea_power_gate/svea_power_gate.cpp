@@ -39,6 +39,7 @@
 #include <drivers/drv_hrt.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <inttypes.h>
 #include <nuttx/ioexpander/gpio.h>
 #include <uORB/Subscription.hpp>
 #include <uORB/topics/actuator_armed.h>
@@ -164,15 +165,12 @@ void SveaPowerGate::Run() {
         if (_actuator_armed_sub.copy(&actuator_armed)) {
             // Rails may only stay enabled while fully armed and not killed/locked down.
             const bool should_enable = actuator_armed.armed && !actuator_armed.kill && !actuator_armed.lockdown && !actuator_armed.termination;
-            PX4_INFO("armed update: armed=%d prearmed=%d ready=%d lockdown=%d manual_lockdown=%d force_failsafe=%d in_esc_cal=%d soft_stop=%d kill=%d term=%d -> should_enable=%d",
+            PX4_INFO("armed update: armed=%d prearmed=%d ready=%d lockdown=%d in_esc_cal=%d kill=%d term=%d -> should_enable=%d",
                      actuator_armed.armed ? 1 : 0,
                      actuator_armed.prearmed ? 1 : 0,
                      actuator_armed.ready_to_arm ? 1 : 0,
                      actuator_armed.lockdown ? 1 : 0,
-                     actuator_armed.manual_lockdown ? 1 : 0,
-                     actuator_armed.force_failsafe ? 1 : 0,
                      actuator_armed.in_esc_calibration_mode ? 1 : 0,
-                     actuator_armed.soft_stop ? 1 : 0,
                      actuator_armed.kill ? 1 : 0,
                      actuator_armed.termination ? 1 : 0,
                      should_enable ? 1 : 0);
@@ -194,7 +192,7 @@ void SveaPowerGate::Run() {
 
     if ((_last_heartbeat == 0) || (hrt_elapsed_time(&_last_heartbeat) >= kHeartbeatIntervalUs)) {
         _last_heartbeat = hrt_absolute_time();
-        PX4_INFO("heartbeat: run_count=%u requested_on=%d rails_on=%d last_apply_us_ago=%llu",
+        PX4_INFO("heartbeat: run_count=%" PRIu32 " requested_on=%d rails_on=%d last_apply_us_ago=%llu",
                  _run_count, _requested_on ? 1 : 0, _rails_on ? 1 : 0,
                  (unsigned long long)hrt_elapsed_time(&_last_apply));
     }
@@ -227,7 +225,7 @@ SveaPowerGate *SveaPowerGate::instantiate(int argc, char *argv[]) {
 }
 
 int SveaPowerGate::print_status() {
-    PX4_INFO("requested_on=%d rails_on=%d run_count=%u esc_dev=%s servo_dev=%s",
+    PX4_INFO("requested_on=%d rails_on=%d run_count=%" PRIu32 " esc_dev=%s servo_dev=%s",
              _requested_on ? 1 : 0, _rails_on ? 1 : 0, _run_count, kEscEnDev, kServoEnDev);
     return PX4_OK;
 }
