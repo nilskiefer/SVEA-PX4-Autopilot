@@ -1,5 +1,6 @@
 menuconfig MODULES_SVEA_POWER_GATE
 	bool "svea_power_gate"
 	default n
+	depends on PLATFORM_NUTTX
 	---help---
 		Enable support for SVEA power-gate arming helper.
