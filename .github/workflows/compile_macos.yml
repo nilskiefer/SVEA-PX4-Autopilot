@@ -1,15 +1,22 @@
 name: MacOS build
 
 on:
-  workflow_dispatch:
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  push:
+    branches:
+    - 'main'
+    paths-ignore:
+      - 'docs/**'
+      - '.github/**'
+  pull_request:
+    branches:
+      - '**'
+    paths-ignore:
+      - 'docs/**'
+      - '.github/**'
 
 jobs:
   build:
-    runs-on: macos-latest
+    runs-on: macos-14
     strategy:
       matrix:
         config: [
@@ -22,9 +29,7 @@ jobs:
       with:
         python-version: "3.10"
 
-    - uses: actions/checkout@v5
-      with:
-        fetch-depth: 0
+    - uses: actions/checkout@v4
 
     - name: setup
       run: |
@@ -35,13 +40,15 @@ jobs:
       shell: cmake -P {0}
       run: |
         string(TIMESTAMP current_date "%Y-%m-%d-%H;%M;%S" UTC)
-        file(APPEND "$ENV{GITHUB_OUTPUT}" "timestamp=${current_date}\n")
+        message("::set-output name=timestamp::${current_date}")
+
     - name: ccache cache files
       uses: actions/cache@v4
       with:
         path: ~/.ccache
         key: macos_${{matrix.config}}-ccache-${{steps.ccache_cache_timestamp.outputs.timestamp}}
         restore-keys: macos_${{matrix.config}}-ccache-
+
     - name: setup ccache
       run: |
           mkdir -p ~/.ccache
@@ -50,15 +57,11 @@ jobs:
           echo "compression_level = 6" >> ~/.ccache/ccache.conf
           echo "max_size = 40M" >> ~/.ccache/ccache.conf
           echo "hash_dir = false" >> ~/.ccache/ccache.conf
-          if command -v ccache >/dev/null 2>&1; then
-              ccache -s
-              ccache -z
-          else
-              echo "ccache not found; proceeding without ccache stats"
-          fi
+          ccache -s
+          ccache -z
 
     - name: make ${{matrix.config}}
       run: |
-          if command -v ccache >/dev/null 2>&1; then ccache -z; fi
+          ccache -z
           make ${{matrix.config}}
-          if command -v ccache >/dev/null 2>&1; then ccache -s; fi
+          ccache -s

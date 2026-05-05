@@ -1,6 +1,7 @@
-name: Docs - Deploy PX4 User Guide to Github pages (Manual)
+name: Docs - Deploy PX4 User Guide
 
 on:
+  # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
 # Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
@@ -20,11 +21,11 @@ env:
 
 jobs:
   build:
-    runs-on: [runs-on,runner=4cpu-linux-x64,image=ubuntu24-full-x64,"run-id=${{ github.run_id }}",extras=s3-cache,spot=false]
+    runs-on: [runs-on,runner=8cpu-linux-x64,image=ubuntu24-full-x64,"run-id=${{ github.run_id }}",spot=false,extras=s3-cache]
     steps:
       - uses: runs-on/action@v1
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -55,7 +56,7 @@ jobs:
   deploy:
     if: ${{ github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.merged) || github.event_name == 'workflow_dispatch' }}
     needs: build
-    runs-on: [runs-on,runner=4cpu-linux-x64,image=ubuntu24-full-x64,"run-id=${{ github.run_id }}",spot=false]
+    runs-on: [runs-on,runner=8cpu-linux-x64,image=ubuntu24-full-x64,"run-id=${{ github.run_id }}",spot=false]
 
     steps:
       - name: Download Artifact
