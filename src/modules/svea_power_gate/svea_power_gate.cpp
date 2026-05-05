@@ -87,7 +87,7 @@ ModuleBase::Descriptor SveaPowerGate::desc{task_spawn, custom_command, print_usa
 
 int SveaPowerGate::write_gpio(const char *dev, bool high)
 {
-	PX4_INFO("gpio write begin: dev=%s target=%d", dev, high ? 1 : 0);
+	PX4_DEBUG("gpio write begin: dev=%s target=%d", dev, high ? 1 : 0);
 	int fd = open(dev, O_RDWR);
 
 	if (fd < 0) {
@@ -114,14 +114,14 @@ int SveaPowerGate::write_gpio(const char *dev, bool high)
 	}
 
 	close(fd);
-	PX4_INFO("gpio write ok: dev=%s value=%d", dev, high ? 1 : 0);
+	PX4_DEBUG("gpio write ok: dev=%s value=%d", dev, high ? 1 : 0);
 	return PX4_OK;
 }
 
 void SveaPowerGate::apply_power(bool on)
 {
-	PX4_INFO("apply_power begin: request=%d prev_requested=%d rails_on=%d",
-		 on ? 1 : 0, _requested_on ? 1 : 0, _rails_on ? 1 : 0);
+	PX4_DEBUG("apply_power begin: request=%d prev_requested=%d rails_on=%d",
+		  on ? 1 : 0, _requested_on ? 1 : 0, _rails_on ? 1 : 0);
 	_requested_on = on;
 	_last_apply = hrt_absolute_time();
 
@@ -143,7 +143,7 @@ void SveaPowerGate::apply_power(bool on)
 
 	if (esc == PX4_OK && servo == PX4_OK) {
 		_rails_on = on;
-		PX4_INFO("power rails: ESC=%d ServoTPS=%d", on ? 1 : 0, on ? 1 : 0);
+		PX4_DEBUG("power rails: ESC=%d ServoTPS=%d", on ? 1 : 0, on ? 1 : 0);
 
 	} else {
 		PX4_WARN("apply_power incomplete: request=%d esc_ret=%d servo_ret=%d",
@@ -156,7 +156,7 @@ void SveaPowerGate::Run()
 	_run_count++;
 
 	if (should_exit()) {
-		PX4_INFO("Run: should_exit=1, forcing rails off");
+		PX4_DEBUG("Run: should_exit=1, forcing rails off");
 		ScheduleClear();
 		apply_power(false);
 		exit_and_cleanup(desc);
@@ -169,18 +169,18 @@ void SveaPowerGate::Run()
 		if (_actuator_armed_sub.copy(&actuator_armed)) {
 			// Rails may only stay enabled while fully armed and not killed/locked down.
 			const bool should_enable = actuator_armed.armed && !actuator_armed.kill && !actuator_armed.lockdown && !actuator_armed.termination;
-			PX4_INFO("armed update: armed=%d prearmed=%d ready=%d lockdown=%d in_esc_cal=%d kill=%d term=%d -> should_enable=%d",
-				 actuator_armed.armed ? 1 : 0,
-				 actuator_armed.prearmed ? 1 : 0,
-				 actuator_armed.ready_to_arm ? 1 : 0,
-				 actuator_armed.lockdown ? 1 : 0,
-				 actuator_armed.in_esc_calibration_mode ? 1 : 0,
-				 actuator_armed.kill ? 1 : 0,
-				 actuator_armed.termination ? 1 : 0,
-				 should_enable ? 1 : 0);
+			PX4_DEBUG("armed update: armed=%d prearmed=%d ready=%d lockdown=%d in_esc_cal=%d kill=%d term=%d -> should_enable=%d",
+				  actuator_armed.armed ? 1 : 0,
+				  actuator_armed.prearmed ? 1 : 0,
+				  actuator_armed.ready_to_arm ? 1 : 0,
+				  actuator_armed.lockdown ? 1 : 0,
+				  actuator_armed.in_esc_calibration_mode ? 1 : 0,
+				  actuator_armed.kill ? 1 : 0,
+				  actuator_armed.termination ? 1 : 0,
+				  should_enable ? 1 : 0);
 
 			if (should_enable != _requested_on) {
-				PX4_INFO("state change: requested_on %d -> %d", _requested_on ? 1 : 0, should_enable ? 1 : 0);
+				PX4_DEBUG("state change: requested_on %d -> %d", _requested_on ? 1 : 0, should_enable ? 1 : 0);
 				apply_power(should_enable);
 			}
 		}
@@ -196,9 +196,6 @@ void SveaPowerGate::Run()
 
 	if ((_last_heartbeat == 0) || (hrt_elapsed_time(&_last_heartbeat) >= kHeartbeatIntervalUs)) {
 		_last_heartbeat = hrt_absolute_time();
-		PX4_INFO("heartbeat: run_count=%" PRIu32 " requested_on=%d rails_on=%d last_apply_us_ago=%llu",
-			 _run_count, _requested_on ? 1 : 0, _rails_on ? 1 : 0,
-			 (unsigned long long)hrt_elapsed_time(&_last_apply));
 	}
 
 	ScheduleDelayed(kPollIntervalUs);
@@ -206,7 +203,7 @@ void SveaPowerGate::Run()
 
 int SveaPowerGate::task_spawn(int argc, char *argv[])
 {
-	PX4_INFO("task_spawn: argc=%d", argc);
+	PX4_DEBUG("task_spawn: argc=%d", argc);
 	SveaPowerGate *instance = instantiate(argc, argv);
 
 	if (instance == nullptr) {
@@ -217,7 +214,7 @@ int SveaPowerGate::task_spawn(int argc, char *argv[])
 	desc.task_id = task_id_is_work_queue;
 
 	// Initialize to safe state until we observe arming.
-	PX4_INFO("task_spawn: initialize safe state (rails off), schedule now");
+	PX4_DEBUG("task_spawn: initialize safe state (rails off), schedule now");
 	instance->apply_power(false);
 	instance->ScheduleNow();
 	return PX4_OK;
