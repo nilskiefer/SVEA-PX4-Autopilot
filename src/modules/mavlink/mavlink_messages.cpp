@@ -118,6 +118,7 @@
 #include "streams/TIMESYNC.hpp"
 #include "streams/VFR_HUD.hpp"
 #include "streams/VIBRATION.hpp"
+#include "streams/WHEEL_DISTANCE.hpp"
 #include "streams/WIND_COV.hpp"
 #include "streams/PX4_UORB_TUNNEL.hpp"
 #if defined(MAVLINK_MSG_ID_FIGURE_EIGHT_EXECUTION_STATUS)
@@ -496,6 +497,9 @@ static const StreamListItem streams_list[] = {
 #if defined(RAW_RPM_HPP)
 	create_stream_list_item<MavlinkStreamRawRpm>(),
 #endif // RAW_RPM_HPP
+#if defined(WHEEL_DISTANCE_HPP)
+	create_stream_list_item<MavlinkStreamWheelDistance>(),
+#endif // WHEEL_DISTANCE_HPP
 #if defined(EFI_STATUS_HPP)
 	create_stream_list_item<MavlinkStreamEfiStatus>(),
 #endif // EFI_STATUS_HPP
