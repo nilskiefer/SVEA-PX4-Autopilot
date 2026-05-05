@@ -9,10 +9,10 @@ then
 	pwm_out start
 fi
 
-# Start dedicated encoder UART peripheral ingest on USART1 (PB6/PB7, /dev/ttyS0).
-if ! svea_encoder_uart status > /dev/null 2>&1
+# Start dedicated peripheral MCU UART ingest on USART1 (PB6/PB7, /dev/ttyS0).
+if ! svea_peripheral_mcu status > /dev/null 2>&1
 then
-	svea_encoder_uart start -d /dev/ttyS0 -b 115200
+	svea_peripheral_mcu start -d /dev/ttyS0 -b 115200
 fi
 
 # Configure PX4_UORB_TUNNEL power_monitor forwarding deterministically.

@@ -1,5 +1,0 @@
-menuconfig MODULES_SVEA_ENCODER_UART
-	bool "svea_encoder_uart"
-	default n
-	---help---
-		Enable support for SVEA encoder UART peripheral ingest.
