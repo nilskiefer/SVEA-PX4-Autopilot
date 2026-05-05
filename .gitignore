@@ -122,10 +122,6 @@ _emscripten_sdk/
 venv/
 *.code-workspace
 
-# local devcontainer shell customizations
-.devcontainer/root-shell.sh
-.devcontainer/root-zshrc.zsh
-
 # Digilent WaveForms local session/capture files
 *.dwf3work
 *.dwf3scope
