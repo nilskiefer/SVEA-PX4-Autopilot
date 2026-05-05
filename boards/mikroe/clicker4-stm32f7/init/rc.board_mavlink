@@ -3,6 +3,5 @@
 # Clicker 4 STM32F7 board MAVLink startup script.
 #------------------------------------------------------------------------------
 
-# ESP32 bridge link on USART2 (PA2/PA3 <-> /dev/ttyS1).
-# This instance is required for SVEA-PX4-MODULE-ENCODER MAVLink bridging.
-mavlink start -d /dev/ttyS1 -b 921600 -m onboard -f
+# Keep USART1 (/dev/ttyS0, PB6/PB7) reserved for svea_encoder_uart.
+# USART2 (PA2/PA3) remains the NSH serial console.
