@@ -87,6 +87,7 @@ private:
 				} else {
 					bat_msg.energy_consumed = -1;
 				}
+
 				// MAVLink extension: 0 is unsupported, in uORB it's NAN
 				bat_msg.time_remaining = (battery_status.connected && (PX4_ISFINITE(battery_status.time_remaining_s))) ?
 							 math::max((int)battery_status.time_remaining_s, 1) : 0;

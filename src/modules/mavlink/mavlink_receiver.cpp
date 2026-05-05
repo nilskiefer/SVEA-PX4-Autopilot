@@ -192,6 +192,7 @@ MavlinkReceiver::handle_message(mavlink_message_t *msg)
 		break;
 
 #if defined(MAVLINK_MSG_ID_WHEEL_DISTANCE)
+
 	case MAVLINK_MSG_ID_WHEEL_DISTANCE:
 		/* Re-emit wheel encoder MAVLink frame on the same link so downstream
 		 * endpoint (via ESP bridge) can inspect/consume it without a second
@@ -2227,7 +2228,7 @@ MavlinkReceiver::handle_px4_uorb_tunnel_message(const mavlink_tunnel_t &mavlink_
 		return false;
 	}
 
-	char topic_name[kPx4UorbTunnelTopicNameMaxLen + 1]{};
+	char topic_name[kPx4UorbTunnelTopicNameMaxLen + 1] {};
 	memcpy(topic_name, &frame[kPx4UorbTunnelHeaderLen], topic_name_len);
 	topic_name[topic_name_len] = '\0';
 

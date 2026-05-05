@@ -165,6 +165,7 @@ int BQ769x2::init()
 		PX4_ERR("initial enableMainFets failed");
 		return PX4_ERROR;
 	}
+
 	_switches_initialized = true;
 
 	// Immediate post-init snapshot for cases where power/FETs oscillate before first scheduled sample.
@@ -208,16 +209,16 @@ int BQ769x2::init()
 			   && (_protocol.directReadU1(BQ769X2_CMD_PF_STATUS_C, pf_c) == PX4_OK)
 			   && (_protocol.directReadU1(BQ769X2_CMD_PF_STATUS_D, pf_d) == PX4_OK);
 
-			mfg_valid = (_protocol.subcommandReadU2(BQ769X2_SUBCMD_MFG_STATUS, mfg_status) == PX4_OK);
+		mfg_valid = (_protocol.subcommandReadU2(BQ769X2_SUBCMD_MFG_STATUS, mfg_status) == PX4_OK);
 
-			PX4_INFO("init snapshot: FET_STATUS=0x%02x (mask=0x%02x) SAFETY_A/B/C=0x%02x/0x%02x/0x%02x PF_A/B/C/D=%s0x%02x/0x%02x/0x%02x/0x%02x BAT_STATUS=%s0x%04x MFG_STATUS=%s0x%04x Vstack=%.3fV Vpack=%.3fV I=%.2fA",
-				 fet_status, static_cast<unsigned>(fet_status & 0x0F),
-				 safety_a, safety_b, safety_c,
-				 pf_valid ? "" : "n/a:", pf_a, pf_b, pf_c, pf_d,
-				 battery_status_valid ? "" : "n/a:", static_cast<unsigned>(battery_status),
-				 mfg_valid ? "" : "n/a:", static_cast<unsigned>(mfg_status),
-				 (double)vstack, (double)vpack, (double)current_a);
-		}
+		PX4_INFO("init snapshot: FET_STATUS=0x%02x (mask=0x%02x) SAFETY_A/B/C=0x%02x/0x%02x/0x%02x PF_A/B/C/D=%s0x%02x/0x%02x/0x%02x/0x%02x BAT_STATUS=%s0x%04x MFG_STATUS=%s0x%04x Vstack=%.3fV Vpack=%.3fV I=%.2fA",
+			 fet_status, static_cast<unsigned>(fet_status & 0x0F),
+			 safety_a, safety_b, safety_c,
+			 pf_valid ? "" : "n/a:", pf_a, pf_b, pf_c, pf_d,
+			 battery_status_valid ? "" : "n/a:", static_cast<unsigned>(battery_status),
+			 mfg_valid ? "" : "n/a:", static_cast<unsigned>(mfg_status),
+			 (double)vstack, (double)vpack, (double)current_a);
+	}
 
 	ScheduleOnInterval(SAMPLE_INTERVAL_US);
 	return PX4_OK;
@@ -237,7 +238,8 @@ int BQ769x2::probe()
 		ret_hw = PX4_ERROR;
 		bool device_ok = false;
 
-		for (int attempt = 0; attempt < kProbeAttempts; attempt++) {
+		for (int attempt = 0; attempt < kProbeAttempts; attempt++)
+		{
 			ret_device = _protocol.subcommandReadU2(BQ769X2_SUBCMD_DEVICE_NUMBER, _device_number);
 
 			if (ret_device == PX4_OK) {
@@ -281,7 +283,8 @@ int BQ769x2::probe()
 
 		// Accept partial probe if device number is readable. Some parts can
 		// transiently fail FW/HW metadata reads at boot while core commands work.
-		if (device_ok) {
+		if (device_ok)
+		{
 			if (ret_fw != PX4_OK) {
 				_fw_version = 0;
 			}
@@ -384,10 +387,10 @@ bool BQ769x2::configMatchesDesired()
 	}
 
 	uint8_t expected_prot_enabled_a = static_cast<uint8_t>(BQ769X2_PROT_EN_A_CUV | BQ769X2_PROT_EN_A_COV
-					       | BQ769X2_PROT_EN_A_OCC | BQ769X2_PROT_EN_A_OCD1
-					       | BQ769X2_PROT_EN_A_SCD);
+					  | BQ769X2_PROT_EN_A_OCC | BQ769X2_PROT_EN_A_OCD1
+					  | BQ769X2_PROT_EN_A_SCD);
 	const uint8_t temp_bits = static_cast<uint8_t>(BQ769X2_PROT_EN_B_UTC | BQ769X2_PROT_EN_B_UTD
-				| BQ769X2_PROT_EN_B_OTC | BQ769X2_PROT_EN_B_OTD);
+				  | BQ769X2_PROT_EN_B_OTC | BQ769X2_PROT_EN_B_OTD);
 	uint8_t expected_prot_enabled_b = _temp_prot_enable ? temp_bits : 0;
 	const uint8_t cbal_conf_expected = _bal_auto_enable ? 0x03u : 0x00u;
 	const uint16_t bal_min_cell_mv = static_cast<uint16_t>(math::constrain(lroundf(_bal_cell_voltage_min_v * 1000.f), 0l, 5000l));
@@ -442,6 +445,7 @@ int BQ769x2::configure()
 
 	if (_shunt_uohm < 1.f) {
 		ret = PX4_ERROR;
+
 	} else {
 		// LibreSolar convention: calibration gain derived from shunt resistance in uOhm.
 		ret |= _protocol.datamemWriteF4(BQ769X2_CAL_CURR_CC_GAIN, 7568.4f / _shunt_uohm);
@@ -627,7 +631,8 @@ int BQ769x2::configureProtections()
 	static constexpr uint16_t scd_thresholds_mv[] {10, 20, 40, 60, 80, 100, 125, 150, 175, 200, 250, 300, 350, 400, 450, 500};
 	const float scd_shunt_mv = _scd_limit_a * _shunt_uohm / 1000.f;
 	const float min_scd_a = static_cast<float>(scd_thresholds_mv[0]) * 1000.f / _shunt_uohm;
-	const float max_scd_a = static_cast<float>(scd_thresholds_mv[(sizeof(scd_thresholds_mv) / sizeof(scd_thresholds_mv[0])) - 1]) * 1000.f / _shunt_uohm;
+	const float max_scd_a = static_cast<float>(scd_thresholds_mv[(sizeof(scd_thresholds_mv) / sizeof(scd_thresholds_mv[0])) - 1]) * 1000.f /
+				_shunt_uohm;
 
 	if (_scd_limit_a < min_scd_a || _scd_limit_a > max_scd_a) {
 		PX4_ERR("SCD_A not representable for shunt %.1f uohm (%.1f..%.1f A)", (double)_shunt_uohm, (double)min_scd_a,
@@ -695,7 +700,7 @@ int BQ769x2::configureProtections()
 	uint8_t prot_enabled_b{0};
 	ret |= _protocol.datamemReadU1(BQ769X2_SET_PROT_ENABLED_B, prot_enabled_b);
 	const uint8_t temp_bits = static_cast<uint8_t>(BQ769X2_PROT_EN_B_UTC | BQ769X2_PROT_EN_B_UTD | BQ769X2_PROT_EN_B_OTC
-				| BQ769X2_PROT_EN_B_OTD);
+				  | BQ769X2_PROT_EN_B_OTD);
 
 	if (_temp_prot_enable) {
 		prot_enabled_b |= temp_bits;
@@ -1324,25 +1329,41 @@ void BQ769x2::logFaultChange(uint8_t safety_a, uint8_t safety_b, uint8_t safety_
 
 		// Decode the most relevant bits so the operator immediately sees the cause.
 		if (new_a & BQ769X2_SAFETY_A_CUV)  { PX4_WARN(" -> cell undervoltage (CUV)"); }
+
 		if (new_a & BQ769X2_SAFETY_A_COV)  { PX4_WARN(" -> cell overvoltage (COV)"); }
+
 		if (new_a & BQ769X2_SAFETY_A_OCC)  { PX4_WARN(" -> charge overcurrent (OCC)"); }
+
 		if (new_a & BQ769X2_SAFETY_A_OCD1) { PX4_WARN(" -> discharge overcurrent (OCD1)"); }
+
 		if (new_a & BQ769X2_SAFETY_A_OCD2) { PX4_WARN(" -> discharge overcurrent (OCD2)"); }
+
 		if (new_a & BQ769X2_SAFETY_A_SCD)  { PX4_WARN(" -> short circuit discharge (SCD)"); }
 
 		if (new_b & BQ769X2_SAFETY_B_UTC)   { PX4_WARN(" -> charge undertemperature (UTC)"); }
+
 		if (new_b & BQ769X2_SAFETY_B_UTD)   { PX4_WARN(" -> discharge undertemperature (UTD)"); }
+
 		if (new_b & BQ769X2_SAFETY_B_UTINT) { PX4_WARN(" -> internal undertemperature (UTINT)"); }
+
 		if (new_b & BQ769X2_SAFETY_B_OTC)   { PX4_WARN(" -> charge overtemperature (OTC)"); }
+
 		if (new_b & BQ769X2_SAFETY_B_OTD)   { PX4_WARN(" -> discharge overtemperature (OTD)"); }
+
 		if (new_b & BQ769X2_SAFETY_B_OTINT) { PX4_WARN(" -> internal overtemperature (OTINT)"); }
+
 		if (new_b & BQ769X2_SAFETY_B_OTF)   { PX4_WARN(" -> FET overtemperature (OTF)"); }
 
 		if (new_c & BQ769X2_SAFETY_C_HWDF) { PX4_WARN(" -> host watchdog fault (HWDF)"); }
+
 		if (new_c & BQ769X2_SAFETY_C_PTO)  { PX4_WARN(" -> precharge timeout (PTO)"); }
+
 		if (new_c & BQ769X2_SAFETY_C_COVL) { PX4_WARN(" -> cell overvoltage latch (COVL)"); }
+
 		if (new_c & BQ769X2_SAFETY_C_OCDL) { PX4_WARN(" -> overcurrent discharge latch (OCDL)"); }
+
 		if (new_c & BQ769X2_SAFETY_C_SCDL) { PX4_WARN(" -> short-circuit discharge latch (SCDL)"); }
+
 		if (new_c & BQ769X2_SAFETY_C_OCD3) { PX4_WARN(" -> overcurrent discharge tier 3 (OCD3)"); }
 
 		if ((fet_lo & DEFAULT_FET_MASK) != DEFAULT_FET_MASK) {

@@ -341,7 +341,8 @@ bool LSM6DSOX::ReadAndPublish()
 	const hrt_abstime now = hrt_absolute_time();
 
 	auto accel_to_si = [this](int16_t raw) -> float {
-		switch (_accel_fs) {
+		switch (_accel_fs)
+		{
 		case LSM6DSOX_2g:
 			return (lsm6dsox_from_fs2_to_mg(raw) / 1000.f) * CONSTANTS_ONE_G;
 
@@ -359,7 +360,8 @@ bool LSM6DSOX::ReadAndPublish()
 	};
 
 	auto gyro_to_si = [this](int16_t raw) -> float {
-		switch (_gyro_fs) {
+		switch (_gyro_fs)
+		{
 		case LSM6DSOX_125dps:
 			return math::radians(lsm6dsox_from_fs125_to_mdps(raw) / 1000.f);
 

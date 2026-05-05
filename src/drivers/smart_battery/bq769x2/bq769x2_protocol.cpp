@@ -378,7 +378,7 @@ int BQ769x2Protocol::dataWrite(uint16_t addr, uint32_t value, size_t num_bytes)
 		uint8_t checksum{static_cast<uint8_t>(addr_bytes[0] + addr_bytes[1])};
 
 		for (size_t i = 0; i < num_bytes; i++) {
-			payload[i] = static_cast<uint8_t>((value >> (8 * i)) & 0xFF);
+			payload[i] = static_cast<uint8_t>((value >>(8 * i)) & 0xFF);
 			checksum = static_cast<uint8_t>(checksum + payload[i]);
 		}
 

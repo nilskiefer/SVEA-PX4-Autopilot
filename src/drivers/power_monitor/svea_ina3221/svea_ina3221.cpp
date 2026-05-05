@@ -284,6 +284,7 @@ void SVEA_INA3221::print_status()
 
 	if (read_reg(INA3221_REG_MASKENABLE, mask_enable) == PX4_OK) {
 		PX4_INFO("mask_enable=0x%04x", (unsigned)mask_enable);
+
 	} else {
 		PX4_WARN("failed to read mask_enable");
 	}

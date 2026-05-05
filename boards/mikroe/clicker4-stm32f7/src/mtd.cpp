@@ -62,7 +62,7 @@ static const px4_mtd_manifest_t board_mtd_config = {
 
 static const px4_mft_entry_s mtd_mft = {
 	.type = MTD,
-	.pmft = (void *)&board_mtd_config,
+	.pmft = (void *) &board_mtd_config,
 };
 
 static const px4_mft_s mft = {
