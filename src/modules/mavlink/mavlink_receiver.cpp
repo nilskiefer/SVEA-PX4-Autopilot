@@ -192,16 +192,6 @@ MavlinkReceiver::handle_message(mavlink_message_t *msg)
 		handle_message_odometry(msg);
 		break;
 
-#if defined(MAVLINK_MSG_ID_WHEEL_DISTANCE)
-	case MAVLINK_MSG_ID_WHEEL_DISTANCE:
-		/* Re-emit wheel encoder MAVLink frame on the same link so downstream
-		 * endpoint (via ESP bridge) can inspect/consume it without a second
-		 * PX4 MAVLink instance.
-		 */
-		_mavlink.resend_message(msg);
-		break;
-#endif
-
 	case MAVLINK_MSG_ID_SET_GPS_GLOBAL_ORIGIN:
 		handle_message_set_gps_global_origin(msg);
 		break;
