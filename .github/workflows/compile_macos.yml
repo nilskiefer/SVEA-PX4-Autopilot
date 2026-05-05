@@ -57,11 +57,15 @@ jobs:
           echo "compression_level = 6" >> ~/.ccache/ccache.conf
           echo "max_size = 40M" >> ~/.ccache/ccache.conf
           echo "hash_dir = false" >> ~/.ccache/ccache.conf
-          ccache -s
-          ccache -z
+          if command -v ccache >/dev/null 2>&1; then
+              ccache -s
+              ccache -z
+          else
+              echo "ccache not found; proceeding without ccache stats"
+          fi
 
     - name: make ${{matrix.config}}
       run: |
-          ccache -z
+          if command -v ccache >/dev/null 2>&1; then ccache -z; fi
           make ${{matrix.config}}
-          ccache -s
+          if command -v ccache >/dev/null 2>&1; then ccache -s; fi
