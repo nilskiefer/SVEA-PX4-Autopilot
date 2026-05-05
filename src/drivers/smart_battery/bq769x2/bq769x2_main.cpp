@@ -56,7 +56,7 @@ it probes the IC and optionally applies data-memory configuration before schedul
 	PRINT_MODULE_USAGE_NAME("bq769x2", "driver");
 	PRINT_MODULE_USAGE_COMMAND("start");
 	PRINT_MODULE_USAGE_PARAMS_I2C_SPI_DRIVER(true, false);
-	PRINT_MODULE_USAGE_PARAMS_I2C_ADDRESS(BQ769X2_DEFAULT_I2C_ADDR);
+	PRINT_MODULE_USAGE_PARAMS_I2C_ADDRESS(0x08);
 	PRINT_MODULE_USAGE_PARAM_INT('t', 1, 1, 3, "battery index (1..3)", true);
 	PRINT_MODULE_USAGE_DEFAULT_COMMANDS();
 }
