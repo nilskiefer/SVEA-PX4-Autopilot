@@ -252,7 +252,7 @@ Toggles ESC and servo power rails from arming state:
 - disarm -> disable /dev/gpio9 and /dev/gpio10
 )DESCR_STR");
 
-    PRINT_MODULE_USAGE_NAME("svea_power_gate", "module");
+    PRINT_MODULE_USAGE_NAME("svea_power_gate", "system");
     PRINT_MODULE_USAGE_DEFAULT_COMMANDS();
     return PX4_OK;
 }
