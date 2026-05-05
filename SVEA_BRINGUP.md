@@ -6,75 +6,45 @@ This document captures the working bringup flow for:
 - PX4 target: `mikroe_clicker4-stm32f7`
 - Probe: CODEGRIP (`CMSIS-DAP`)
 
+This bringup uses the `noboot` firmware target only.
+
 ## 1) Prerequisites
 
 - You are in repo root: `/workspaces/SVEA-PX4-Autopilot`
 - Probe is visible in `lsusb` as `MikroElektronika CODEGRIP-OneMcu [CMSIS-DAP]`
 - `openocd` is installed
 - Use **USB-C CN2** (debug/CMSIS-DAP path) for OpenOCD flashing
-- Use **USB-C CN1** (target USB CDC path) for `make ... upload`
 - UART debug console is on **MB1** header: **PA2 (TX)** / **PA3 (RX)** (`ttyS0`)
 
-## 2) Build and flash bootloader (OpenOCD)
+## 2) Build `noboot` firmware
 
 Build:
 
 ```bash
-make mikroe_clicker4-stm32f7_bootloader
+make mikroe_clicker4-stm32f7_noboot
 ```
 
-Flash bootloader at flash base `0x08000000`:
+## 3) Flash firmware with OpenOCD (CN2)
+
+Flash app at flash base `0x08000000`:
 
 ```bash
 openocd \
   -f interface/cmsis-dap.cfg \
   -f target/stm32f7x.cfg \
-  -c "init; reset halt; program build/mikroe_clicker4-stm32f7_bootloader/mikroe_clicker4-stm32f7_bootloader.bin 0x08000000 verify; reset run; shutdown"
+  -c "init; reset halt; program build/mikroe_clicker4-stm32f7_noboot/mikroe_clicker4-stm32f7_noboot.bin 0x08000000 verify; reset run; shutdown"
 ```
 
 This is via the usb c port marked CN2
 
-## 3) Build and flash PX4 app
-
-Build app:
-
-```bash
-make mikroe_clicker4-stm32f7_default
-```
-
-Preferred flash path (through PX4 bootloader over USB CDC):
-
-```bash
-make mikroe_clicker4-stm32f7_default upload
-```
-
-This is via the usb c port marked CN1
-Expected success line:
-
-```text
-Found board 7454,0 protocol v5 ...
-Uploaded in <N>s
-```
-
-## 4) Fallback: flash app with OpenOCD
-
-If `upload` cannot find bootloader, program app directly at `0x08020000`:
-
-```bash
-openocd \
-  -f interface/cmsis-dap.cfg \
-  -f target/stm32f7x.cfg \
-  -c "init; reset halt; program build/mikroe_clicker4-stm32f7_default/mikroe_clicker4-stm32f7_default.bin 0x08020000 verify; reset run; shutdown"
-```
-
-## 5) USB behavior notes
+## 4) USB behavior notes
 
 - This setup has two USB paths in practice:
   - CODEGRIP debug interface (`2dbc:*`)
-  - PX4 bootloader/app CDC (`26ac:0050` during bootloader)
-- Seeing the bootloader enumerate briefly, then disappear, is normal if app starts.
+  - PX4 app CDC
+- `noboot` flow does not use PX4 bootloader USB upload.
 
-## 6) Console + MAVLink split
+## 5) Console + MAVLink split
 
 - Keep UART (`PA2/PA3`, `ttyS0`) for readable NSH/debug text
 - Keep MAVLink on USB CDC (`/dev/ttyACM0`)
@@ -96,7 +66,7 @@ Check:
 mavlink status
 ```
 
-## 7) LED/Button test modules
+## 6) LED/Button test modules
 
 Current board startup launches:
 
@@ -113,7 +83,7 @@ button_led_mirror status
 led_bus_worker status
 ```
 
-## 7.1) Neopixel (WS2815F on PC9 / MB4PWM)
+## 6.1) Neopixel (WS2815F on PC9 / MB4PWM)
 
 Start neopixel driver and run basic color checks:
 
@@ -136,7 +106,7 @@ led_control off -l 0
 neopixel stop
 ```
 
-## 7.2) Neopixel FX module (`neopixel_fx`)
+## 6.2) Neopixel FX module (`neopixel_fx`)
 
 `neopixel_fx` is a small effect module that publishes animated `led_control` patterns.
 
@@ -167,7 +137,7 @@ neopixel_fx stop
 led_control off -l 0
 ```
 
-## 8) GNSS on mikroBUS 2/3
+## 7) GNSS on mikroBUS 2/3
 
 - You can connect a GNSS module on **mikroBUS 2** or **mikroBUS 3**.
 - Start GNSS manually from `nsh>` with:
@@ -179,7 +149,7 @@ gps status
 listener sensor_gps 1
 ```
 
-## 9) PCAL6524 GPIO common commands and mapping
+## 8) PCAL6524 GPIO common commands and mapping
 
 The PCAL6524 driver registers each pin as a NuttX GPIO device node, and `gpio` systemcmd talks directly to these nodes.
 
@@ -292,11 +262,11 @@ gpio read /dev/gpio9
 gpio read /dev/gpio10
 ```
 
-## 10) SVEA firmware defaults (battery and BMS specs)
+## 9) SVEA firmware baseline (battery and BMS specs)
 
-These are the defaults set in `boards/mikroe/clicker4-stm32f7/init/rc.board_defaults`.
+These are the baseline values set in `boards/mikroe/clicker4-stm32f7/init/rc.board_defaults`.
 
-### Pack-level battery defaults
+### Pack-level battery baseline
 
 | Parameter | Default | Meaning |
 | --- | --- | --- |
@@ -306,7 +276,7 @@ These are the defaults set in `boards/mikroe/clicker4-stm32f7/init/rc.board_defa
 | `BAT1_V_CHARGED` | `4.2` | Full per-cell voltage (V) |
 | `BAT1_V_EMPTY` | `3.2` | Empty per-cell voltage (V) |
 
-### BQ769x2 defaults
+### BQ769x2 baseline
 
 | Parameter | Default | Meaning |
 | --- | --- | --- |
@@ -333,7 +303,7 @@ These are the defaults set in `boards/mikroe/clicker4-stm32f7/init/rc.board_defa
 | `BQ769X2_OTD_C` | `60` | Discharge over-temp trip (C) |
 | `BQ769X2_UTD_C` | `-20` | Discharge under-temp trip (C) |
 | `BQ769X2_T_HYST_C` | `5` | Temperature hysteresis (C) |
-| `BQ769X2_TPROT_EN` | `0` | Temperature protection off by default |
+| `BQ769X2_TPROT_EN` | `0` | Temperature protection off in baseline config |
 | `BQ769X2_PWR_CFG` | `10370` | Power configuration raw value |
 | `BQ769X2_DIODEMA` | `500` | Body diode current threshold (mA) |
 | `BQ769X2_FETOPT` | `29` | FET options raw value |
@@ -466,7 +436,7 @@ Expected address hit in `i2cdetect`: `61`.
 - CH5 (`PCA9685_FUNC6`) = misc servo (`205`)
 - CH6 (`PCA9685_FUNC7`) = misc servo (`206`)
 
-Driveline neutral/arming defaults (from SVEA LLI Zephyr behavior):
+Driveline neutral/arming baseline (from SVEA LLI Zephyr behavior):
 
 - CH2 front differential trim = `1900` us (engaged)
 - CH3 rear differential trim = `1100` us (engaged)
