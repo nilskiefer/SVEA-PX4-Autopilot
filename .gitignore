@@ -129,5 +129,5 @@ venv/
 
 # board bringup helper binaries (generated artifacts)
 boards/mikroe/clicker4-stm32f7/extras/*.bin
-artifacts/mikroe_clicker4-stm32f7_bootloader/mikroe_clicker4-stm32f7_bootloader.bin
+/artifacts
 .codex
