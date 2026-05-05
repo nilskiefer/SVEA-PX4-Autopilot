@@ -1,16 +1,7 @@
 name: MacOS build
 
 on:
-  push:
-    branches:
-    - 'main'
-    paths-ignore:
-      - 'docs/**'
-  pull_request:
-    branches:
-      - '**'
-    paths-ignore:
-      - 'docs/**'
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
