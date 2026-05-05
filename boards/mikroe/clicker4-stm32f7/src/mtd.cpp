@@ -76,4 +76,3 @@ const px4_mft_s *board_get_manifest(void)
 {
 	return &mft;
 }
-

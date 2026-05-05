@@ -404,7 +404,7 @@ This module writes directly to the neopixel backend (true RGB frames).
 
 )DESCR_STR");
 
-	PRINT_MODULE_USAGE_NAME("neopixel_fx", "example");
+	PRINT_MODULE_USAGE_NAME("neopixel_fx", "template");
 	PRINT_MODULE_USAGE_COMMAND("start");
 	PRINT_MODULE_USAGE_PARAM_STRING('m', "rainbow", "rainbow|police|breathe", "Effect mode", true);
 	PRINT_MODULE_USAGE_PARAM_INT('t', 1200, 100, 10000, "Effect period in milliseconds", true);
