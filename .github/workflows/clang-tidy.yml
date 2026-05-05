@@ -23,7 +23,7 @@ jobs:
       image: px4io/px4-dev:v1.17.0-beta1
     steps:
     - uses: runs-on/action@v2
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         fetch-depth: 0
         fetch-tags: true
