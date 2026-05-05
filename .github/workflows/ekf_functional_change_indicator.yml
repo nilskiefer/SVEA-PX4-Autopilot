@@ -23,6 +23,17 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          fetch-tags: true
+
+      - name: Configure git safe directory
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Fetch release tags
+        run: |
+          git fetch --force origin 'refs/tags/v*:refs/tags/v*'
+          if ! git tag -l 'v[0-9]*' | grep -q .; then
+            git fetch --force https://github.com/PX4/PX4-Autopilot.git 'refs/tags/v*:refs/tags/v*'
+          fi
 
       - name: main test
         run: |

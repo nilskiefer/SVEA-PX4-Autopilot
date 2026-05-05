@@ -2,22 +2,37 @@
 #
 # Clicker 4 STM32F7 specific board sensors init
 #------------------------------------------------------------------------------
-#
-# The rev3 SVEA powerboard wiring from the Zephyr firmware uses peripherals
-# that are not available as PX4 drivers in this tree yet:
-# - ST ISM330DLC IMU on I2C2
-# - TI INA3221 power monitor on I2C2
-# - TI BQ769x0 battery monitor on I2C1
-#
-# Leave board startup transport-only for now. Follow-up work can either add
-# PX4 drivers for those devices or remap the hardware to already-supported
-# PX4 sensor drivers.
 
-# Single LED hardware writer (arbitrates multiple LED producers).
-led_bus_worker start -t 5
+# Auto-start board I2C peripherals.
+# BQ769x2 starts first so pack power path policy is initialized before other devices.
+bq769x2 -I -b 2 -a 0x08 -t 1 -q start
+lsm6dsox -I -b 2 -a 0x6b -q start
+pcal6524 -I -b 2 -a 0x22 -M 0 -D 0x00ffffff -q start
+pcal6524 -I -b 2 -a 0x23 -M 24 -D 0x00ffffff -q start
 
-# Bringup LED animation module for board verification.
-led_pattern start -t 120 -n 6
+# SVEA INA226 current monitors on the powerboard:
+# 0x4E ESC current shunt: 1 mOhm, 0x4F servo buck shunt: 5 mOhm.
+svea_ina226 -I -b 2 -a 0x4E -r 0.001 -q start
+svea_ina226 -I -b 2 -a 0x4F -r 0.005 -q start
 
-# Mirror BTN1..BTN6 to LED1..LED6 while held (runs in parallel).
-button_led_mirror start -t 20
+# SVEA INA3221 current monitors on the powerboard:
+# 0x41 -> IN1 16 mOhm, IN2 1 mOhm, IN3 16 mOhm
+# 0x40 -> IN1/IN2/IN3 all 16 mOhm
+svea_ina3221 -I -b 2 -a 0x41 -x 0.016 -y 0.001 -z 0.016 -q start
+svea_ina3221 -I -b 2 -a 0x40 -r 0.016 -q start
+
+pca9685_pwm_out start -a 0x61 -b 2
+svea_power_gate start
+
+# Keep 12V buck enabled after startup; delay to allow BQ precharge phase to settle.
+(
+    sleep 5
+    echo "rc.board_sensors: setting /dev/gpio13 high"
+    if gpio write /dev/gpio13 1; then
+        echo "rc.board_sensors: /dev/gpio13 set high"
+    else
+        echo "rc.board_sensors: failed to set /dev/gpio13 high"
+    fi
+) &
+
+echo "board sensors mode: auto BQ769x2 + LSM6DSOX + PCAL6524 + INA226(0x4E,0x4F) + INA3221(0x40,0x41) + PCA9685(0x61)"

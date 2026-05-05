@@ -1,0 +1,5 @@
+menuconfig MODULES_SVEA_POWER_GATE
+	bool "svea_power_gate"
+	default n
+	---help---
+		Enable support for SVEA power-gate arming helper.

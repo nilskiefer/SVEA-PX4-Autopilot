@@ -1,0 +1,5 @@
+menuconfig DRIVERS_IMU_ST_ISM330DLC
+	bool "ism330dlc"
+	default n
+	---help---
+		Enable support for ST ISM330DLC IMU

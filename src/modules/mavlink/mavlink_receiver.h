@@ -60,6 +60,8 @@
 #include <uORB/Publication.hpp>
 #include <uORB/PublicationMulti.hpp>
 #include <uORB/SubscriptionInterval.hpp>
+#include <uORB/uORB.h>
+#include <uORB/topics/uORBTopics.hpp>
 #include <uORB/topics/actuator_armed.h>
 #include <uORB/topics/actuator_outputs.h>
 #include <uORB/topics/airspeed.h>
@@ -81,6 +83,7 @@
 #include <uORB/topics/irlock_report.h>
 #include <uORB/topics/landing_target_pose.h>
 #include <uORB/topics/log_message.h>
+#include <uORB/topics/manual_control_switches.h>
 #include <uORB/topics/manual_control_setpoint.h>
 #include <uORB/topics/mavlink_tunnel.h>
 #include <uORB/topics/obstacle_distance.h>
@@ -200,6 +203,10 @@ private:
 	void handle_message_set_position_target_local_ned(mavlink_message_t *msg);
 	void handle_message_statustext(mavlink_message_t *msg);
 	void handle_message_tunnel(mavlink_message_t *msg);
+	bool handle_px4_uorb_tunnel_message(const mavlink_tunnel_t &mavlink_tunnel);
+	void clear_stale_px4_uorb_tunnel_fragments();
+	const orb_metadata *find_uorb_topic_by_name(const char *topic_name);
+	bool publish_px4_uorb_topic(const orb_metadata *meta, uint8_t instance, const uint8_t *payload, uint16_t payload_len);
 	void handle_message_utm_global_position(mavlink_message_t *msg);
 #if defined(MAVLINK_MSG_ID_SET_VELOCITY_LIMITS) // For now only defined if development.xml is used
 	void handle_message_set_velocity_limits(mavlink_message_t *msg);
@@ -361,9 +368,48 @@ private:
 	uORB::Subscription	_vehicle_local_position_sub{ORB_ID(vehicle_local_position)};
 	uORB::Subscription	_vehicle_global_position_sub{ORB_ID(vehicle_global_position)};
 	uORB::Subscription	_vehicle_status_sub{ORB_ID(vehicle_status)};
+	uORB::Subscription	_manual_control_switches_sub{ORB_ID(manual_control_switches)};
 	uORB::Subscription	_autotune_attitude_control_status_sub{ORB_ID(autotune_attitude_control_status)};
 
 	uORB::SubscriptionInterval _parameter_update_sub{ORB_ID(parameter_update), 1_s};
+
+	static constexpr uint16_t kPx4UorbTunnelPayloadType = 0xE001;
+	static constexpr uint8_t kPx4UorbTunnelProtocolVersion = 2;
+	static constexpr size_t kPx4UorbTunnelHeaderLen = 14;
+	static constexpr size_t kPx4UorbTunnelTopicNameMaxLen = MAVLINK_MSG_TUNNEL_FIELD_PAYLOAD_LEN - kPx4UorbTunnelHeaderLen - 1;
+	static constexpr hrt_abstime kPx4UorbTunnelFragmentTimeoutUs = 2_s;
+	static constexpr unsigned kMaxPx4UorbTunnelPendingFragments = 4;
+	static constexpr unsigned kMaxPx4UorbTopicMetaCache = 16;
+	static constexpr unsigned kMaxPx4UorbAdvertisers = 24;
+
+	struct Px4UorbTopicMetaCacheEntry {
+		bool valid{false};
+		char topic_name[kPx4UorbTunnelTopicNameMaxLen + 1]{};
+		const orb_metadata *meta{nullptr};
+	};
+
+	struct Px4UorbAdvertiserEntry {
+		bool valid{false};
+		const orb_metadata *meta{nullptr};
+		uint8_t instance{0};
+		orb_advert_t handle{nullptr};
+	};
+
+	struct Px4UorbPendingFragment {
+		bool valid{false};
+		char topic_name[kPx4UorbTunnelTopicNameMaxLen + 1]{};
+		uint8_t instance{0};
+		uint8_t sequence{0};
+		uint32_t message_hash{0};
+		uint16_t total_len{0};
+		uint16_t next_offset{0};
+		uint8_t *buffer{nullptr};
+		hrt_abstime last_update{0};
+	};
+
+	Px4UorbTopicMetaCacheEntry _px4_uorb_topic_meta_cache[kMaxPx4UorbTopicMetaCache]{};
+	Px4UorbAdvertiserEntry _px4_uorb_advertisers[kMaxPx4UorbAdvertisers]{};
+	Px4UorbPendingFragment _px4_uorb_pending_fragments[kMaxPx4UorbTunnelPendingFragments]{};
 
 	// hil_sensor and hil_state_quaternion
 	enum SensorSource {

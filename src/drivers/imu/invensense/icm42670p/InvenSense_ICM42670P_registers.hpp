@@ -56,6 +56,8 @@ static constexpr uint8_t Bit6 = (1 << 6);
 static constexpr uint8_t Bit7 = (1 << 7);
 
 static constexpr uint32_t SPI_SPEED = 24 * 1000 * 1000; // 24 MHz SPI
+static constexpr uint32_t I2C_SPEED = 400 * 1000; // 400 kHz I2C
+static constexpr uint8_t I2C_ADDRESS_DEFAULT = 0x68;
 static constexpr uint8_t DIR_READ = 0x80;
 
 static constexpr uint8_t WHOAMI = 0x67;
@@ -84,6 +86,7 @@ enum class BANK_0 : uint8_t {
 	FIFO_CONFIG2      = 0x29,
 	FIFO_CONFIG3      = 0x2A,
 	INT_SOURCE0       = 0x2B,
+	INTF_CONFIG1      = 0x36,
 
 	INT_STATUS        = 0x3A,
 	FIFO_COUNTH       = 0x3D,
@@ -170,6 +173,12 @@ enum FIFO_CONFIG1_BIT : uint8_t {
 	// FIFO_MODE
 	FIFO_MODE_STOP_ON_FULL = Bit1, // 1: STOP-on-FULL Mode
 	FIFO_BYPASS            = Bit0, // 0: FIFO is not bypassed
+};
+
+// INTF_CONFIG1
+enum INTF_CONFIG1_BIT : uint8_t {
+	I3C_SDR_EN = Bit3,
+	I3C_DDR_EN = Bit2,
 };
 
 // INT_STATUS

@@ -40,6 +40,7 @@
  */
 
 #include <string.h>
+#include <errno.h>
 #include <px4_platform_common/px4_config.h>
 
 #include <lib/led/led.h>
@@ -87,6 +88,8 @@ private:
 };
 
 ModuleBase::Descriptor NEOPIXEL::desc{task_spawn, custom_command, print_usage};
+static NEOPIXEL *g_neopixel_instance{nullptr};
+static bool g_led_control_enabled{true};
 
 NEOPIXEL::NEOPIXEL(unsigned int number_of_packages) :
 	ScheduledWorkItem(MODULE_NAME, px4::wq_configurations::lp_default),
@@ -96,6 +99,8 @@ NEOPIXEL::NEOPIXEL(unsigned int number_of_packages) :
 
 NEOPIXEL::~NEOPIXEL()
 {
+	g_led_control_enabled = true;
+	g_neopixel_instance = nullptr;
 	neopixel_deinit();
 }
 
@@ -109,6 +114,8 @@ int NEOPIXEL::init()
 
 	neopixel_init(_leds, _number_of_packages);
 	neopixel_write(_leds, _number_of_packages);
+	g_neopixel_instance = this;
+	g_led_control_enabled = true;
 	ScheduleNow();
 	return OK;
 }
@@ -156,6 +163,7 @@ int NEOPIXEL::print_status()
 {
 
 	PX4_INFO("Controlling %i LEDs", _number_of_packages);
+	PX4_INFO("led_control input: %s", g_led_control_enabled ? "enabled" : "disabled (owned by neopixel_fx)");
 
 	return 0;
 }
@@ -198,9 +206,10 @@ void NEOPIXEL::Run()
       return;
     }
 
-	LedControlData led_control_data;
+	if (g_led_control_enabled) {
+		LedControlData led_control_data;
 
-	if (_led_controller.update(led_control_data) == 1) {
+		if (_led_controller.update(led_control_data) == 1) {
 
 	    for (unsigned int led = 0; led < math::min(_number_of_packages, arraySize(led_control_data.leds)); led++) {
 
@@ -241,7 +250,8 @@ void NEOPIXEL::Run()
             break;
         }
 	    }
-      neopixel_write(_leds, _number_of_packages);
+			neopixel_write(_leds, _number_of_packages);
+		}
 	}
 
 	/* re-queue ourselves to run again later */
@@ -251,4 +261,14 @@ void NEOPIXEL::Run()
 extern "C" __EXPORT int neopixel_main(int argc, char *argv[])
 {
   return ModuleBase::main(NEOPIXEL::desc, argc, argv);
+}
+
+extern "C" __EXPORT int neopixel_set_led_control_enabled(bool enabled)
+{
+	if (g_neopixel_instance == nullptr) {
+		return -ENODEV;
+	}
+
+	g_led_control_enabled = enabled;
+	return PX4_OK;
 }

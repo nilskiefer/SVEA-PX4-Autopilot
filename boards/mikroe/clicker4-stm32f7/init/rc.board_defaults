@@ -3,16 +3,270 @@
 # board specific defaults
 #------------------------------------------------------------------------------
 
+# Board omits these modules; skip generic rcS starts to avoid hard "command not found" noise.
+set BOARD_SKIP_TONE_ALARM yes
+set BOARD_SKIP_RGBLED yes
+set BOARD_SKIP_PX4IO yes
+set BOARD_SKIP_PAYLOAD_DELIVERER yes
+set BOARD_SKIP_COMMON_RC_SENSORS yes
+
+# Ensure board root path exists for file-backed modules (params/dataman/logger).
+if [ ! -d /fs ]
+then
+	mkdir /fs
+fi
+
 # rev3 powerboard support in this first step does not wire system_power yet.
 param set-default CBRK_SUPPLY_CHK 894281
 
 # No onboard magnetometer is described for this target.
 param set-default SYS_HAS_MAG 0
+param set-default SYS_HAS_BARO 0
+param set-default COM_ARM_SDCARD 0
 
-# Keep UART debug console (PA2/PA3) free from MAVLink traffic by default.
+# Default to the SVEA TRX4 profile on fresh parameter storage.
+param set-default SYS_AUTOSTART 51003
+
+# If params are present but airframe is unset, recover to SVEA default.
+if param compare SYS_AUTOSTART 0
+then
+	echo "Configuring default SVEA airframe (51003)"
+	param set SYS_AUTOSTART 51003
+	param set SYS_AUTOCONFIG 1
+fi
+
+# Use USB CDC as default MAVLink transport (QGroundControl/autostart path).
 param set-default MAV_0_CONFIG 0
+param set-default MAV_0_MODE 0
+param set-default MAV_0_RATE 1200
+param set-default SER_TEL1_BAUD 57600
 param set-default MAV_1_CONFIG 0
 param set-default MAV_2_CONFIG 0
 
-# Keep USB CDC auto-management enabled so app-side USB comes up after bootloader handoff.
-param set SYS_USB_AUTO 2
+# RC receiver defaults: SBUS on the dedicated RC port (/dev/ttyS2).
+param set-default RC_PORT_CONFIG 300
+param set-default RC_INPUT_PROTO 2
+param set-default RC_CHAN_CNT 7
+# Manual input source policy:
+#  - MAVLink manual input has priority when valid
+#  - RC is fallback when MAVLink input is stale/lost
+#
+# Combined with firmware-side gating in mavlink_receiver (MODE_SLOT_1 only),
+# this yields: low switch=ROS MANUAL_CONTROL, mid switch=RC only.
+param set-default COM_RC_IN_MODE 6
+
+# RC channel mapping aligned with SVEA LLI Zephyr semantics:
+# CH1 steer, CH2 throttle, CH3 extra-servo2, CH4 gear button, CH5 mode/kill, CH6 diff master toggle.
+param set-default RC_MAP_ROLL 1
+param set-default RC_MAP_THROTTLE 2
+# Extra servo 2 passthrough in RC manual mode (PCA9685 CH6 via RC_AUX5).
+param set-default RC_MAP_AUX5 3
+# Diff master on CH6: drive both front+rear diff outputs from one RC toggle.
+param set-default RC_MAP_AUX1 6
+param set-default RC_MAP_AUX2 6
+# Gear on CH4: route directly through RC_AUX3 (PCA9685 CH4).
+param set-default RC_MAP_AUX3 4
+param set-default RC_MAP_FLTMODE 5
+# Disable landing-gear semantic switch mapping for this rover profile.
+param set-default RC_MAP_GEAR_SW 0
+
+# Minimal RC calibration baseline for rover use without QGC full radio wizard.
+# Channels used: CH1 steer, CH2 throttle, CH3 extra-servo2, CH4 gear, CH5 mode/kill, CH6 diff master.
+param set-default RC1_MIN 1000
+param set-default RC1_TRIM 1500
+param set-default RC1_MAX 2000
+param set-default RC2_MIN 1000
+param set-default RC2_TRIM 1500
+param set-default RC2_MAX 2000
+param set-default RC3_MIN 1000
+param set-default RC3_TRIM 1500
+param set-default RC3_MAX 2000
+param set-default RC5_MIN 1000
+param set-default RC5_TRIM 1500
+param set-default RC5_MAX 2000
+param set-default RC4_MIN 1000
+param set-default RC4_TRIM 1500
+param set-default RC4_MAX 2000
+param set-default RC6_MIN 1000
+param set-default RC6_TRIM 1500
+param set-default RC6_MAX 2000
+param set-default RC7_MIN 1000
+param set-default RC7_TRIM 1500
+param set-default RC7_MAX 2000
+
+# Map the 3-position CH5 switch to manual-drive-only operation:
+# low  (~1000, MODE_SLOT_1): Manual + MAVLink MANUAL_CONTROL accepted.
+# mid  (~1500, MODE_SLOT_2): Manual + MAVLink MANUAL_CONTROL rejected (RC-only).
+# high (~2000, MODE_SLOT_3): Manual + kill asserted.
+#
+# Keep all slots Manual so mode selection cannot enter Offboard/Mission/Return.
+param set-default COM_FLTMODE1 0
+param set-default COM_FLTMODE2 0
+param set-default COM_FLTMODE3 0
+param set-default COM_FLTMODE4 0
+param set-default COM_FLTMODE5 0
+param set-default COM_FLTMODE6 0
+
+# Offboard switch mapping intentionally disabled (not used in this control model).
+param set-default RC_MAP_OFFB_SW 0
+
+# NOTE:
+# - The switch gate above currently applies to MAVLink MANUAL_CONTROL.
+# - MAVLink RC_CHANNELS_OVERRIDE is a separate path and is not gated by mode slot.
+
+# CH5 high position engages kill switch. Kill drives disarmed PWM values.
+param set-default RC_MAP_KILL_SW 5
+param set-default RC_KILLSWITCH_TH 0.75
+
+# CH7 momentary button arms/disarms without QGroundControl interaction.
+param set-default RC_MAP_ARM_SW 7
+param set-default COM_ARM_SWISBTN 1
+
+# Native RC-loss safety policy:
+# - detect RC loss quickly
+# - disarm on RC loss (forces disarmed outputs)
+# - no mode exceptions
+# - auto-disarm shortly after kill engagement
+param set-default COM_RC_LOSS_T 0.5
+param set-default NAV_RCL_ACT 6
+param set-default COM_RCL_EXCEPT 0
+param set-default COM_KILL_DISARM 5
+
+# Mute behavior (kill/disarmed): force all active outputs to 0 duty.
+param set-default PWM_MAIN_DIS1 0
+param set-default PWM_MAIN_DIS2 0
+param set-default PWM_MAIN_DIS3 0
+param set-default PWM_MAIN_DIS4 0
+param set-default PWM_MAIN_DIS5 0
+
+# SVEA actuator function mapping (matches timer_config.cpp channel order).
+param set-default PWM_MAIN_FUNC1 201  # Servo1: steering
+param set-default PWM_MAIN_FUNC2 101  # Motor1: throttle
+param set-default PWM_MAIN_FUNC3 202  # Servo2: gear
+param set-default PWM_MAIN_FUNC4 203  # Servo3: front diff
+param set-default PWM_MAIN_FUNC5 204  # Servo4: rear diff
+
+# Keep all output timer groups at 100 Hz to match the Zephyr loop.
+param set-default PWM_MAIN_TIM0 100
+param set-default PWM_MAIN_TIM1 100
+param set-default PWM_MAIN_TIM2 100
+param set-default PWM_MAIN_TIM3 100
+
+# Enable USB CDC auto-management and MAVLink on USB by default.
+param set-default SYS_USB_AUTO 2
+param set-default USB_MAV_MODE 2
+
+# GPS driver is not part of this board target by default.
+# Do not touch GPS_*_CONFIG params here (they may not exist in this build).
+
+# Use RAM-backed dataman. This board has no flash filesystem for /fs/dataman
+# and navigator/missions are not used, so RAM is sufficient.
+param set-default SYS_DM_BACKEND 1
+
+# Disable generic external I2C probe fanout from rc.sensors (we start explicit sensors in rc.board_sensors).
+param set-default SENS_EXT_I2C_PRB 0
+
+# Battery status is provided by BQ769x2 driver topic publication.
+param set-default BAT1_SOURCE 1
+
+# SVEA LSM6DSOX defaults tuned for rover dynamics and 100 Hz-class control loops.
+param set-default LSM6DSOX_ACC_FS 4
+param set-default LSM6DSOX_GYR_FS 500
+param set-default LSM6DSOX_ACC_ODR 104
+param set-default LSM6DSOX_GYR_ODR 104
+
+# Temporary calibration defaults (replace with full per-unit calibration set).
+param set-default CAL_ACC0_ID 3173137
+param set-default CAL_ACC0_XOFF 0
+param set-default CAL_ACC0_YOFF 0
+param set-default CAL_ACC0_ZOFF 0
+param set-default CAL_ACC0_XSCALE 1
+param set-default CAL_ACC0_YSCALE 1
+param set-default CAL_ACC0_ZSCALE 1
+
+# BQ769x2 smart battery defaults (powerboard 3S setup).
+param set-default SENS_EN_BQ769X2 1
+param set-default BAT1_CAPACITY 9000
+param set-default BAT1_N_CELLS 3
+param set-default BAT1_V_CHARGED 4.2
+param set-default BAT1_V_EMPTY 3.2
+param set-default BQ769X2_ADDR 8
+param set-default BQ769X2_CELLS 3
+param set-default BQ769X2_CRC 1
+param set-default BQ769X2_CFG 1
+param set-default BQ769X2_SHUNT 1000
+param set-default BQ769X2_COV_V 4.25
+param set-default BQ769X2_COV_RV 4.10
+param set-default BQ769X2_COV_DLY 1000
+param set-default BQ769X2_CUV_V 3.20
+param set-default BQ769X2_CUV_RV 3.31
+param set-default BQ769X2_CUV_DLY 1000
+param set-default BQ769X2_OCC_A 6
+param set-default BQ769X2_OCC_DLY 100
+param set-default BQ769X2_OCD_A 25
+param set-default BQ769X2_OCD_DLY 425
+param set-default BQ769X2_SCD_A 200
+param set-default BQ769X2_SCD_DLY 60
+param set-default BQ769X2_OTC_C 45
+param set-default BQ769X2_UTC_C 0
+param set-default BQ769X2_OTD_C 60
+param set-default BQ769X2_UTD_C -20
+param set-default BQ769X2_T_HYST_C 5
+# TS thermistors not populated on current powerboard revision.
+param set-default BQ769X2_TPROT_EN 0
+param set-default BQ769X2_OW_CHK 1
+param set-default BQ769X2_OW_TIME 10
+param set-default BQ769X2_OWTOL 50
+# 3S with VC2-VC9 shorted: use channels VC1, VC2, VC10.
+param set-default BQ769X2_VCMODE 515
+# Chip auto-PDSG behavior: enforce timeout so predischarge resistor is never held indefinitely.
+param set-default BQ769X2_PDSG_TO 2000
+param set-default BQ769X2_PDSG_DV 500
+
+# PCA9685 PWM driver defaults (I2C2 @ 0x61).
+# Channel map (0-based physical channels):
+#  0 throttle, 1 steering, 2 front diff, 3 rear diff, 4 gear, 5 misc servo, 6 misc servo.
+param set-default PCA9685_EN_BUS 2
+param set-default PCA9685_I2C_ADDR 97
+# Board-tuned target for ~17 ms physical period on this hardware.
+param set-default PCA9685_PWM_FREQ 60.9
+param set-default PCA9685_SCHD_HZ 100
+param set-default PCA9685_DUTY_EN 0
+
+# PCA9685 output functions (driver uses 1-based channel params for HW channels 0..15).
+# CH0/CH1 remain rover drive controls. CH2..CH6 are mapped to Manual RC aux passthrough
+# so ROS MAVLink MANUAL_CONTROL aux1..aux5 can drive these outputs directly.
+param set-default PCA9685_FUNC1 101  # CH0: throttle (Motor1)
+param set-default PCA9685_FUNC2 201  # CH1: steering (Servo1)
+param set-default PCA9685_FUNC3 407  # CH2: front differential (RC_AUX1)
+param set-default PCA9685_FUNC4 408  # CH3: rear differential (RC_AUX2)
+param set-default PCA9685_FUNC5 409  # CH4: gear (RC_AUX3)
+param set-default PCA9685_FUNC6 410  # CH5: misc servo (RC_AUX4)
+param set-default PCA9685_FUNC7 411  # CH6: misc servo (RC_AUX5)
+# Reverse CH3 (index 3, mask bit 3) so one diff master command drives
+# front/rear differential actuators in opposite physical directions.
+param set-default PCA9685_REV 8
+
+# PCA9685 signal ranges for channels 0..6.
+# Diff/gear outputs are intentionally binary (1200/1800) for actuator on/off behavior.
+param set-default PCA9685_MIN1 1000
+param set-default PCA9685_MAX1 2000
+param set-default PCA9685_DIS1 0
+param set-default PCA9685_MIN2 1000
+param set-default PCA9685_MAX2 2000
+param set-default PCA9685_DIS2 0
+param set-default PCA9685_MIN3 1200
+param set-default PCA9685_MAX3 1800
+param set-default PCA9685_DIS3 0
+param set-default PCA9685_MIN4 1200
+param set-default PCA9685_MAX4 1800
+param set-default PCA9685_DIS4 0
+param set-default PCA9685_MIN5 1200
+param set-default PCA9685_MAX5 1800
+param set-default PCA9685_DIS5 0
+param set-default PCA9685_MIN6 1000
+param set-default PCA9685_MAX6 2000
+param set-default PCA9685_DIS6 0
+param set-default PCA9685_MIN7 1000
+param set-default PCA9685_MAX7 2000
+param set-default PCA9685_DIS7 0

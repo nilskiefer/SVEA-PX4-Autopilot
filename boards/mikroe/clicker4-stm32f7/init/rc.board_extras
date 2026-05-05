@@ -1,0 +1,28 @@
+#!/bin/sh
+#
+# Clicker 4 STM32F7 board extras
+#------------------------------------------------------------------------------
+
+# Start actuator output driver.
+if ! pwm_out status > /dev/null 2>&1
+then
+	pwm_out start
+fi
+
+# Configure PX4_UORB_TUNNEL power_monitor forwarding deterministically.
+# -f allows registration before the uORB instance is advertised.
+# Expected instances:
+#  - 0..1: two SVEA INA226 devices
+#  - 2..7: two INA3221 devices x 3 channels each
+mavlink uorb_tunnel add -t power_monitor -i 0 -r 4 -f
+mavlink uorb_tunnel add -t power_monitor -i 1 -r 4 -f
+mavlink uorb_tunnel add -t power_monitor -i 2 -r 4 -f
+mavlink uorb_tunnel add -t power_monitor -i 3 -r 4 -f
+mavlink uorb_tunnel add -t power_monitor -i 4 -r 4 -f
+mavlink uorb_tunnel add -t power_monitor -i 5 -r 4 -f
+mavlink uorb_tunnel add -t power_monitor -i 6 -r 4 -f
+mavlink uorb_tunnel add -t power_monitor -i 7 -r 4 -f
+
+# WS281x/WS2815 on PC9 is available, but do not auto-start at boot.
+# Start manually when needed:
+#   neopixel start -n 1

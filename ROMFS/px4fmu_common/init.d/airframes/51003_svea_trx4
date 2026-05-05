@@ -1,0 +1,70 @@
+#!/bin/sh
+#
+# @name SVEA TRX4
+#
+# @type Rover
+# @class Rover
+#
+
+# Keep SVEA airframe self-contained. Upstream ackermann defaults reference
+# params not present in this constrained build (EKF2/GF options).
+set VEHICLE_TYPE rover_ackermann
+param set-default MAV_TYPE 10           # MAV_TYPE_GROUND_ROVER
+param set-default CA_AIRFRAME 5         # Rover (Ackermann)
+param set-default CA_R_REV 1            # Motor is reversible
+# SVEA rover profile does not use barometer/SD card on FMU.
+param set-default SYS_HAS_BARO 0
+param set-default COM_ARM_SDCARD 0
+param set-default NAV_ACC_RAD 0.5
+
+# Ackermann Parameters
+param set-default RA_WHEEL_BASE 0.312
+param set-default RA_ACC_RAD_GAIN 2
+param set-default RA_ACC_RAD_MAX 3
+param set-default RA_MAX_STR_ANG 0.5236
+param set-default RA_STR_RATE_LIM 270
+
+# Rover Control Parameters
+param set-default RO_ACCEL_LIM 1.5
+param set-default RO_DECEL_LIM 10
+param set-default RO_JERK_LIM 20
+param set-default RO_MAX_THR_SPEED 2.8
+
+# Rover Rate Control Parameters
+param set-default RO_YAW_RATE_I 0.1
+param set-default RO_YAW_RATE_P 0.1
+param set-default RO_YAW_RATE_LIM 120
+param set-default RO_YAW_RATE_CORR 1
+
+# Rover Attitude Control Parameters
+param set-default RO_YAW_P 2.5
+
+# Rover Velocity Control Parameters
+param set-default RO_SPEED_LIM 2.5
+param set-default RO_SPEED_I 0.01
+param set-default RO_SPEED_P 0.1
+param set-default RO_SPEED_RED 1
+
+# Pure pursuit parameters
+param set-default PP_LOOKAHD_GAIN 1
+param set-default PP_LOOKAHD_MAX 10
+param set-default PP_LOOKAHD_MIN 1.5
+
+# Dev calibration defaults (Clicker4 + LSM6DSOX)
+# Keep these as defaults only; runtime calibration can still override.
+param set-default CAL_ACC0_ID 3173137
+param set-default CAL_ACC0_PRIO 50
+param set-default CAL_ACC0_ROT -1
+param set-default CAL_ACC0_XOFF 0.0334
+param set-default CAL_ACC0_XSCALE 1.0
+param set-default CAL_ACC0_YOFF -0.0964
+param set-default CAL_ACC0_YSCALE 1.0
+param set-default CAL_ACC0_ZOFF 0.1396
+param set-default CAL_ACC0_ZSCALE 1.0
+
+param set-default CAL_GYRO0_ID 3173137
+param set-default CAL_GYRO0_PRIO 50
+param set-default CAL_GYRO0_ROT -1
+param set-default CAL_GYRO0_XOFF -0.0107
+param set-default CAL_GYRO0_YOFF -0.0040
+param set-default CAL_GYRO0_ZOFF -0.0134

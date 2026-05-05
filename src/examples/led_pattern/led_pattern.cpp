@@ -219,7 +219,7 @@ still map to separate LED indices in the bus worker.
 
 )DESCR_STR");
 
-	PRINT_MODULE_USAGE_NAME("led_pattern", "example");
+	PRINT_MODULE_USAGE_NAME("led_pattern", "template");
 	PRINT_MODULE_USAGE_COMMAND("start");
 	PRINT_MODULE_USAGE_PARAM_INT('t', 120, 20, 2000, "Step interval in milliseconds", true);
 	PRINT_MODULE_USAGE_PARAM_INT('n', 6, 1, 6, "How many LED indices to animate", true);

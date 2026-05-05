@@ -49,6 +49,7 @@ else()
 		i2c.cpp
 		init.c
 		led.c
+		mtd.cpp
 		spi.cpp
 		timer_config.cpp
 		usb.c
@@ -63,4 +64,8 @@ else()
 			nuttx_drivers # sdio
 			px4_layer
 	)
+
+	if("${PX4_BOARD_LABEL}" STREQUAL "noboot")
+		target_compile_definitions(drivers_board PRIVATE BOARD_NO_PX4_BOOTLOADER=1)
+	endif()
 endif()

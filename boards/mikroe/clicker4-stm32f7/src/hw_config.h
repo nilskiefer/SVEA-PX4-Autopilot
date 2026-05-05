@@ -15,7 +15,7 @@
  * Application starts on sector 4 boundary for erase/program safety.
  */
 #define APP_LOAD_ADDRESS               0x08020000
-#define BOOTLOADER_DELAY               3000
+#define BOOTLOADER_DELAY               500
 
 #define INTERFACE_USB                  1
 #define INTERFACE_USB_CONFIG           "/dev/ttyACM0"
@@ -32,8 +32,8 @@
 #define BOARD_LED_ON                   1
 #define BOARD_LED_OFF                  0
 
-#define USBMFGSTRING                   "MikroElektronika"
-#define USBDEVICESTRING                "PX4 BL Clicker4 STM32F7"
+#define USBMFGSTRING                   "SVEA"
+#define USBDEVICESTRING                "PX4 BOOTLOADER"
 #define USBPRODUCTID                   0x0050
 
 #ifndef STM32_CPUCLK_FREQUENCY
