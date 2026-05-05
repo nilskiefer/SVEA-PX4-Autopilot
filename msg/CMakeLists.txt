@@ -241,6 +241,7 @@ set(msg_files
 	VehicleTorqueSetpoint.msg
 	VelocityLimits.msg
 	Vtx.msg
+	WheelDistance.msg
 	WheelEncoders.msg
 	YawEstimatorStatus.msg
 	versioned/ActuatorMotors.msg
