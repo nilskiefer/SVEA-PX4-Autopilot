@@ -88,7 +88,7 @@ private:
 			state = next;
 		}
 
-		_topic_states = List<TopicState *>{};
+		_topic_states = List<TopicState *> {};
 	}
 
 	void refresh_topics(bool force = false)
@@ -266,6 +266,7 @@ private:
 		}
 
 		const size_t topic_name_len = bounded_strlen(meta->o_name, kMaxTopicNameLen + 1);
+
 		if (topic_name_len == 0 || topic_name_len > kMaxTopicNameLen) {
 			return false;
 		}

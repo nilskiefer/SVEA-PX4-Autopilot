@@ -384,7 +384,7 @@ private:
 
 	struct Px4UorbTopicMetaCacheEntry {
 		bool valid{false};
-		char topic_name[kPx4UorbTunnelTopicNameMaxLen + 1]{};
+		char topic_name[kPx4UorbTunnelTopicNameMaxLen + 1] {};
 		const orb_metadata *meta{nullptr};
 	};
 
@@ -397,7 +397,7 @@ private:
 
 	struct Px4UorbPendingFragment {
 		bool valid{false};
-		char topic_name[kPx4UorbTunnelTopicNameMaxLen + 1]{};
+		char topic_name[kPx4UorbTunnelTopicNameMaxLen + 1] {};
 		uint8_t instance{0};
 		uint8_t sequence{0};
 		uint32_t message_hash{0};
@@ -407,9 +407,9 @@ private:
 		hrt_abstime last_update{0};
 	};
 
-	Px4UorbTopicMetaCacheEntry _px4_uorb_topic_meta_cache[kMaxPx4UorbTopicMetaCache]{};
-	Px4UorbAdvertiserEntry _px4_uorb_advertisers[kMaxPx4UorbAdvertisers]{};
-	Px4UorbPendingFragment _px4_uorb_pending_fragments[kMaxPx4UorbTunnelPendingFragments]{};
+	Px4UorbTopicMetaCacheEntry _px4_uorb_topic_meta_cache[kMaxPx4UorbTopicMetaCache] {};
+	Px4UorbAdvertiserEntry _px4_uorb_advertisers[kMaxPx4UorbAdvertisers] {};
+	Px4UorbPendingFragment _px4_uorb_pending_fragments[kMaxPx4UorbTunnelPendingFragments] {};
 
 	// hil_sensor and hil_state_quaternion
 	enum SensorSource {

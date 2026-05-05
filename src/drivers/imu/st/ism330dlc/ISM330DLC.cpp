@@ -241,6 +241,7 @@ void ISM330DLC::RunImpl()
 			ScheduleDelayed(20_ms);
 			return;
 		}
+
 	} else {
 		_failure_count = 0;
 	}

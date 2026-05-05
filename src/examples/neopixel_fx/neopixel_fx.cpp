@@ -94,7 +94,7 @@ private:
 	uint8_t _base_r{0};
 	uint8_t _base_g{0};
 	uint8_t _base_b{255};
-	neopixel::NeoLEDData _led_data[1]{};
+	neopixel::NeoLEDData _led_data[1] {};
 };
 
 ModuleBase::Descriptor NeopixelFx::desc{task_spawn, custom_command, print_usage};
@@ -105,7 +105,9 @@ int NeopixelFx::print_status()
 
 	switch (_effect) {
 	case Effect::Rainbow: mode = "rainbow"; break;
+
 	case Effect::Police:  mode = "police"; break;
+
 	case Effect::Breathe: mode = "breathe"; break;
 	}
 
@@ -210,11 +212,16 @@ void NeopixelFx::hsv_to_rgb(uint16_t h, uint8_t s, uint8_t v, uint8_t &r, uint8_
 
 	switch (region % 6U) {
 	case 0: r = v;           g = (uint8_t)t; b = (uint8_t)p; break;
+
 	case 1: r = (uint8_t)q;  g = v;          b = (uint8_t)p; break;
+
 	case 2: r = (uint8_t)p;  g = v;          b = (uint8_t)t; break;
+
 	case 3: r = (uint8_t)p;  g = (uint8_t)q; b = v;          break;
+
 	case 4: r = (uint8_t)t;  g = (uint8_t)p; b = v;          break;
-	default:r = v;           g = (uint8_t)p; b = (uint8_t)q; break;
+
+	default: r = v;           g = (uint8_t)p; b = (uint8_t)q; break;
 	}
 }
 
@@ -239,6 +246,7 @@ NeopixelFx *NeopixelFx::instantiate(int argc, char *argv[])
 				PX4_ERR("invalid -m %s (rainbow|police|breathe)", myoptarg);
 				return nullptr;
 			}
+
 			break;
 
 		case 't': {
@@ -282,6 +290,7 @@ NeopixelFx *NeopixelFx::instantiate(int argc, char *argv[])
 				PX4_ERR("invalid -c %s (red|green|blue|cyan|yellow|purple|white)", myoptarg);
 				return nullptr;
 			}
+
 			break;
 
 		default:
@@ -340,12 +349,17 @@ void NeopixelFx::run()
 				// 4 phases: red on, off, blue on, off
 				const uint32_t quarter = period / 4U;
 				const uint32_t p = (quarter > 0) ? (phase_us / quarter) : 0U;
+
 				switch (p % 4U) {
 				case 0: write_rgb(255, 0, 0); break;
+
 				case 1: write_off(); break;
+
 				case 2: write_rgb(0, 0, 255); break;
+
 				default: write_off(); break;
 				}
+
 				break;
 			}
 

@@ -42,10 +42,10 @@ static uORB::PublicationMulti<gpio_config_s> g_gpio_config_pub{ORB_ID(gpio_confi
 
 static const struct gpio_operations_s g_gpio_ops {
 	PCAL6524::gpio_read,
-	PCAL6524::gpio_write,
-	nullptr,
-	nullptr,
-	PCAL6524::gpio_setpintype,
+		 PCAL6524::gpio_write,
+		 nullptr,
+		 nullptr,
+		 PCAL6524::gpio_setpintype,
 };
 
 PCAL6524::PCAL6524(const I2CSPIDriverConfig &config_in) :
@@ -142,7 +142,7 @@ int PCAL6524::write(uint32_t mask_set, uint32_t mask_clear)
 	int ret = PX4_OK;
 
 	for (uint8_t bank = 0; bank < config.num_banks; bank++) {
-		const uint8_t bank_val = static_cast<uint8_t>((_olat >> (8 * bank)) & 0xFF);
+		const uint8_t bank_val = static_cast<uint8_t>((_olat >>(8 * bank)) & 0xFF);
 		uint8_t verify{0};
 		ret |= write_reg(bank_output_reg(bank), bank_val);
 		ret |= read_reg(bank_output_reg(bank), verify);
@@ -185,9 +185,9 @@ int PCAL6524::configure(uint32_t mask, PCAL6524PinType type)
 	int ret = PX4_OK;
 
 	for (uint8_t bank = 0; bank < config.num_banks; bank++) {
-		const uint8_t iodir = static_cast<uint8_t>((_iodir >> (8 * bank)) & 0xFF);
-		const uint8_t pull_en = static_cast<uint8_t>((_pull_enable >> (8 * bank)) & 0xFF);
-		const uint8_t pull_sel = static_cast<uint8_t>((_pull_select >> (8 * bank)) & 0xFF);
+		const uint8_t iodir = static_cast<uint8_t>((_iodir >>(8 * bank)) & 0xFF);
+		const uint8_t pull_en = static_cast<uint8_t>((_pull_enable >>(8 * bank)) & 0xFF);
+		const uint8_t pull_sel = static_cast<uint8_t>((_pull_select >>(8 * bank)) & 0xFF);
 
 		ret |= write_reg(bank_config_reg(bank), iodir);
 		ret |= write_reg(bank_pull_enable_reg(bank), pull_en);
@@ -258,10 +258,10 @@ int PCAL6524::sanity_check()
 	int ret = PX4_OK;
 
 	for (uint8_t bank = 0; bank < config.num_banks; bank++) {
-		const uint8_t exp_iodir = static_cast<uint8_t>((_iodir >> (8 * bank)) & 0xFF);
-		const uint8_t exp_olat = static_cast<uint8_t>((_olat >> (8 * bank)) & 0xFF);
-		const uint8_t exp_pull_en = static_cast<uint8_t>((_pull_enable >> (8 * bank)) & 0xFF);
-		const uint8_t exp_pull_sel = static_cast<uint8_t>((_pull_select >> (8 * bank)) & 0xFF);
+		const uint8_t exp_iodir = static_cast<uint8_t>((_iodir >>(8 * bank)) & 0xFF);
+		const uint8_t exp_olat = static_cast<uint8_t>((_olat >>(8 * bank)) & 0xFF);
+		const uint8_t exp_pull_en = static_cast<uint8_t>((_pull_enable >>(8 * bank)) & 0xFF);
+		const uint8_t exp_pull_sel = static_cast<uint8_t>((_pull_select >>(8 * bank)) & 0xFF);
 		uint8_t got_iodir{0};
 		uint8_t got_olat{0};
 		uint8_t got_pull_en{0};

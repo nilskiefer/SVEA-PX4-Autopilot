@@ -198,7 +198,7 @@ private:
 	uint32_t _iodir{0x00FFFFFF};
 	uint32_t _pull_enable{0};
 	uint32_t _pull_select{0};
-	pcal6524_gpio_dev_s _gpio_handle[24]{};
+	pcal6524_gpio_dev_s _gpio_handle[24] {};
 
 	uint16_t _check_every{10};
 	uint16_t _run_counter{0};
