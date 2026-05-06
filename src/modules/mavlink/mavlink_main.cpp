@@ -940,7 +940,8 @@ void Mavlink::find_broadcast_address()
 	     // On Mac, to get to next entry in buffer, jump by the size of
 	     // the interface name size plus whatever is greater, either the
 	     // sizeof sockaddr or ifr_addr.sa_len.
-	     offset += IF_NAMESIZE + (sizeof(struct sockaddr) > cur_ifreq->ifr_addr.sa_len ? sizeof(struct sockaddr) : cur_ifreq->ifr_addr.sa_len)
+	     offset += IF_NAMESIZE + (sizeof(struct sockaddr) > cur_ifreq->ifr_addr.sa_len ? sizeof(
+					      struct sockaddr) : cur_ifreq->ifr_addr.sa_len)
 #else
 	     // On Linux, it's much easier to traverse the buffer, every entry
 	     // has the constant length.
@@ -2600,7 +2601,8 @@ void Mavlink::handleStatus()
 					events::send<int8_t>(events::ID("mavlink_iridium_disable"), events::Log::Info,
 							     "Disabling transmitting with IRIDIUM mavlink on instance {1}", _instance_id);
 
-				} else if (!_transmitting_enabled && vehicle_status.gcs_connection_lost && !vehicle_status.high_latency_data_link_lost) {
+				} else if (!_transmitting_enabled && vehicle_status.gcs_connection_lost
+					   && !vehicle_status.high_latency_data_link_lost) {
 					_transmitting_enabled = true;
 					mavlink_log_info(&_mavlink_log_pub, "Enable transmitting with IRIDIUM mavlink on device %s\t", _device_name);
 					events::send<int8_t>(events::ID("mavlink_iridium_enable"), events::Log::Info,
@@ -2736,7 +2738,8 @@ void Mavlink::handleAndGetCurrentCommandAck()
 
 				const bool is_target_known = _receiver.component_was_seen(command_ack.target_system, command_ack.target_component);
 
-				if (!command_ack.from_external && command_ack.command < vehicle_command_s::VEHICLE_CMD_PX4_INTERNAL_START && is_target_known
+				if (!command_ack.from_external && command_ack.command < vehicle_command_s::VEHICLE_CMD_PX4_INTERNAL_START
+				    && is_target_known
 				    && command_ack.target_component < vehicle_command_s::COMPONENT_MODE_EXECUTOR_START) {
 
 					mavlink_command_ack_t msg{};

@@ -50,7 +50,8 @@ BQ769x2::BQ769x2(const I2CSPIDriverConfig &config, int battery_index) :
 	I2CSPIDriver(config),
 	_protocol(*this, config.i2c_address, false)
 {
-	_battery_id = static_cast<uint8_t>(math::constrain(battery_index, 1, static_cast<int>(battery_status_s::MAX_INSTANCES)));
+	_battery_id = static_cast<uint8_t>(math::constrain(battery_index, 1,
+					   static_cast<int>(battery_status_s::MAX_INSTANCES)));
 
 	_param_cells = param_find("BQ769X2_CELLS");
 	_param_crc = param_find("BQ769X2_CRC");
@@ -98,7 +99,6 @@ BQ769x2::~BQ769x2()
 {
 	ScheduleClear();
 	orb_unadvertise(_battery_status_topic);
-	orb_unadvertise(_battery_info_topic);
 	perf_free(_sample_perf);
 	perf_free(_comms_errors);
 	perf_free(_collection_errors);
@@ -393,10 +393,13 @@ bool BQ769x2::configMatchesDesired()
 				  | BQ769X2_PROT_EN_B_OTC | BQ769X2_PROT_EN_B_OTD);
 	uint8_t expected_prot_enabled_b = _temp_prot_enable ? temp_bits : 0;
 	const uint8_t cbal_conf_expected = _bal_auto_enable ? 0x03u : 0x00u;
-	const uint16_t bal_min_cell_mv = static_cast<uint16_t>(math::constrain(lroundf(_bal_cell_voltage_min_v * 1000.f), 0l, 5000l));
-	const uint8_t bal_delta_mv = static_cast<uint8_t>(math::constrain(lroundf(_bal_cell_voltage_diff_v * 1000.f), 1l, 127l));
+	const uint16_t bal_min_cell_mv = static_cast<uint16_t>(math::constrain(lroundf(_bal_cell_voltage_min_v * 1000.f), 0l,
+					 5000l));
+	const uint8_t bal_delta_mv = static_cast<uint8_t>(math::constrain(lroundf(_bal_cell_voltage_diff_v * 1000.f), 1l,
+				     127l));
 	const int16_t bal_idle_ma = static_cast<int16_t>(math::constrain(lroundf(_bal_idle_current_a * 1000.f), 0l, 30000l));
-	const uint8_t bal_max_cells = static_cast<uint8_t>(math::constrain(_bal_max_cells, static_cast<uint8_t>(1), static_cast<uint8_t>(16)));
+	const uint8_t bal_max_cells = static_cast<uint8_t>(math::constrain(_bal_max_cells, static_cast<uint8_t>(1),
+				      static_cast<uint8_t>(16)));
 	const int8_t bal_min_temp_c = static_cast<int8_t>(math::constrain(lroundf(_dis_ut_limit_c), -40l, 120l));
 	const int8_t bal_max_temp_c = static_cast<int8_t>(math::constrain(lroundf(_dis_ot_limit_c), -40l, 120l));
 
@@ -506,10 +509,13 @@ int BQ769x2::configureBalancing()
 
 	int ret = PX4_OK;
 
-	const uint16_t bal_min_cell_mv = static_cast<uint16_t>(math::constrain(lroundf(_bal_cell_voltage_min_v * 1000.f), 0l, 5000l));
-	const uint8_t bal_delta_mv = static_cast<uint8_t>(math::constrain(lroundf(_bal_cell_voltage_diff_v * 1000.f), 1l, 127l));
+	const uint16_t bal_min_cell_mv = static_cast<uint16_t>(math::constrain(lroundf(_bal_cell_voltage_min_v * 1000.f), 0l,
+					 5000l));
+	const uint8_t bal_delta_mv = static_cast<uint8_t>(math::constrain(lroundf(_bal_cell_voltage_diff_v * 1000.f), 1l,
+				     127l));
 	const int16_t bal_idle_ma = static_cast<int16_t>(math::constrain(lroundf(_bal_idle_current_a * 1000.f), 0l, 30000l));
-	const uint8_t bal_max_cells = static_cast<uint8_t>(math::constrain(_bal_max_cells, static_cast<uint8_t>(1), static_cast<uint8_t>(16)));
+	const uint8_t bal_max_cells = static_cast<uint8_t>(math::constrain(_bal_max_cells, static_cast<uint8_t>(1),
+				      static_cast<uint8_t>(16)));
 	const int8_t bal_min_temp_c = static_cast<int8_t>(math::constrain(lroundf(_dis_ut_limit_c), -40l, 120l));
 	const int8_t bal_max_temp_c = static_cast<int8_t>(math::constrain(lroundf(_dis_ot_limit_c), -40l, 120l));
 
@@ -631,7 +637,8 @@ int BQ769x2::configureProtections()
 	static constexpr uint16_t scd_thresholds_mv[] {10, 20, 40, 60, 80, 100, 125, 150, 175, 200, 250, 300, 350, 400, 450, 500};
 	const float scd_shunt_mv = _scd_limit_a * _shunt_uohm / 1000.f;
 	const float min_scd_a = static_cast<float>(scd_thresholds_mv[0]) * 1000.f / _shunt_uohm;
-	const float max_scd_a = static_cast<float>(scd_thresholds_mv[(sizeof(scd_thresholds_mv) / sizeof(scd_thresholds_mv[0])) - 1]) * 1000.f /
+	const float max_scd_a = static_cast<float>(scd_thresholds_mv[(sizeof(scd_thresholds_mv) / sizeof(
+								   scd_thresholds_mv[0])) - 1]) * 1000.f /
 				_shunt_uohm;
 
 	if (_scd_limit_a < min_scd_a || _scd_limit_a > max_scd_a) {
@@ -732,7 +739,8 @@ void BQ769x2::updateParamsFromStore()
 	float val_f{0.f};
 
 	if (_param_cells != PARAM_INVALID && param_get(_param_cells, &val_i32) == PX4_OK) {
-		_cell_count = static_cast<uint8_t>(math::constrain(val_i32, static_cast<int32_t>(1), static_cast<int32_t>(MAX_CELL_COUNT)));
+		_cell_count = static_cast<uint8_t>(math::constrain(val_i32, static_cast<int32_t>(1),
+						   static_cast<int32_t>(MAX_CELL_COUNT)));
 	}
 
 	if (_param_crc != PARAM_INVALID && param_get(_param_crc, &val_i32) == PX4_OK) {
@@ -873,7 +881,8 @@ void BQ769x2::updateParamsFromStore()
 	}
 
 	if (_param_openwire_check_time_s != PARAM_INVALID && param_get(_param_openwire_check_time_s, &val_i32) == PX4_OK) {
-		_openwire_check_time_s = static_cast<uint8_t>(math::constrain(val_i32, static_cast<int32_t>(0), static_cast<int32_t>(255)));
+		_openwire_check_time_s = static_cast<uint8_t>(math::constrain(val_i32, static_cast<int32_t>(0),
+					 static_cast<int32_t>(255)));
 	}
 
 	if (_param_openwire_tol_mv_per_cell != PARAM_INVALID && param_get(_param_openwire_tol_mv_per_cell, &val_f) == PX4_OK) {
@@ -881,11 +890,13 @@ void BQ769x2::updateParamsFromStore()
 	}
 
 	if (_param_vcell_mode != PARAM_INVALID && param_get(_param_vcell_mode, &val_i32) == PX4_OK) {
-		_vcell_mode_mask = static_cast<uint16_t>(math::constrain(val_i32, static_cast<int32_t>(0), static_cast<int32_t>(0xFFFF)));
+		_vcell_mode_mask = static_cast<uint16_t>(math::constrain(val_i32, static_cast<int32_t>(0),
+				   static_cast<int32_t>(0xFFFF)));
 	}
 
 	if (_param_pdsg_timeout_ms != PARAM_INVALID && param_get(_param_pdsg_timeout_ms, &val_i32) == PX4_OK) {
-		_pdsg_timeout_ms = static_cast<uint16_t>(math::constrain(val_i32, static_cast<int32_t>(10), static_cast<int32_t>(2550)));
+		_pdsg_timeout_ms = static_cast<uint16_t>(math::constrain(val_i32, static_cast<int32_t>(10),
+				   static_cast<int32_t>(2550)));
 	}
 
 	if (_param_pdsg_stop_dv_mv != PARAM_INVALID && param_get(_param_pdsg_stop_dv_mv, &val_i32) == PX4_OK) {
@@ -1007,7 +1018,8 @@ int BQ769x2::collectAndPublish()
 	uint8_t out_cell_index = 0;
 	const uint16_t vcell_mode = activeVcellModeMask();
 
-	for (uint8_t channel = 0; channel < 16 && out_cell_index < sizeof(report.voltage_cell_v) / sizeof(report.voltage_cell_v[0]); channel++) {
+	for (uint8_t channel = 0; channel < 16
+	     && out_cell_index < sizeof(report.voltage_cell_v) / sizeof(report.voltage_cell_v[0]); channel++) {
 		if ((vcell_mode & (1u << channel)) == 0) {
 			continue;
 		}
@@ -1136,12 +1148,6 @@ int BQ769x2::collectAndPublish()
 
 	int instance = 0;
 	orb_publish_auto(ORB_ID(battery_status), &_battery_status_topic, &report, &instance);
-
-	battery_info_s info{};
-	info.timestamp = report.timestamp;
-	info.id = report.id;
-	snprintf(info.serial_number, sizeof(info.serial_number), "BQ769x2:%u", _device_number);
-	orb_publish_auto(ORB_ID(battery_info), &_battery_info_topic, &info, &instance);
 
 	_connected = true;
 	perf_end(_sample_perf);
@@ -1492,7 +1498,8 @@ float BQ769x2::estimateRemaining(float avg_cell_voltage) const
 		return -1.f;
 	}
 
-	return math::constrain((avg_cell_voltage - _cell_voltage_empty) / (_cell_voltage_charged - _cell_voltage_empty), 0.f, 1.f);
+	return math::constrain((avg_cell_voltage - _cell_voltage_empty) / (_cell_voltage_charged - _cell_voltage_empty), 0.f,
+			       1.f);
 }
 
 void BQ769x2::print_status()

@@ -42,6 +42,7 @@
 #include <px4_platform_common/i2c_spi_buses.h>
 #include <uORB/PublicationMulti.hpp>
 #include <uORB/SubscriptionCallback.hpp>
+#include <uORB/uORB.h>
 #include <uORB/topics/gpio_config.h>
 #include <uORB/topics/gpio_in.h>
 #include <uORB/topics/gpio_out.h>
@@ -62,7 +63,7 @@ public:
 	{
 		px4::msg::GpioIn new_input{};
 
-		for (int i = 0; i < new_input.MAX_INSTANCES; i++) {
+		for (int i = 0; i < ORB_MULTI_MAX_INSTANCES; i++) {
 			ChangeInstance(i);
 
 			if (update(&new_input) && new_input.device_id == dev_id) {

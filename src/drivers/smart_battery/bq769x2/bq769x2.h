@@ -45,7 +45,6 @@
 #include <px4_platform_common/param.h>
 #include <px4_platform_common/px4_work_queue/ScheduledWorkItem.hpp>
 #include <uORB/SubscriptionInterval.hpp>
-#include <uORB/topics/battery_info.h>
 #include <uORB/topics/battery_status.h>
 #include <uORB/topics/parameter_update.h>
 
@@ -115,7 +114,6 @@ private:
 
 	uORB::SubscriptionInterval _parameter_update_sub{ORB_ID(parameter_update), 1_s};
 	orb_advert_t _battery_status_topic{nullptr};
-	orb_advert_t _battery_info_topic{nullptr};
 
 	// All tunable fields below are populated from the parameter store in
 	// updateParamsFromStore(), which is called at the top of init() before

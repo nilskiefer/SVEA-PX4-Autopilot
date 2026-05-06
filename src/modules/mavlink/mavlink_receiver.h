@@ -372,7 +372,8 @@ private:
 	static constexpr uint16_t kPx4UorbTunnelPayloadType = 0xE001;
 	static constexpr uint8_t kPx4UorbTunnelProtocolVersion = 2;
 	static constexpr size_t kPx4UorbTunnelHeaderLen = 14;
-	static constexpr size_t kPx4UorbTunnelTopicNameMaxLen = MAVLINK_MSG_TUNNEL_FIELD_PAYLOAD_LEN - kPx4UorbTunnelHeaderLen - 1;
+	static constexpr size_t kPx4UorbTunnelTopicNameMaxLen = MAVLINK_MSG_TUNNEL_FIELD_PAYLOAD_LEN - kPx4UorbTunnelHeaderLen -
+			1;
 	static constexpr hrt_abstime kPx4UorbTunnelFragmentTimeoutUs = 2_s;
 	static constexpr unsigned kMaxPx4UorbTunnelPendingFragments = 4;
 	static constexpr unsigned kMaxPx4UorbTopicMetaCache = 16;

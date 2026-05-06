@@ -2079,7 +2079,8 @@ MavlinkReceiver::find_uorb_topic_by_name(const char *topic_name)
 }
 
 bool
-MavlinkReceiver::publish_px4_uorb_topic(const orb_metadata *meta, uint8_t instance, const uint8_t *payload, uint16_t payload_len)
+MavlinkReceiver::publish_px4_uorb_topic(const orb_metadata *meta, uint8_t instance, const uint8_t *payload,
+					uint16_t payload_len)
 {
 	if (meta == nullptr || payload == nullptr) {
 		return false;
@@ -3582,7 +3583,7 @@ MavlinkReceiver::run()
 						/* check if we received version 2 and request a switch. */
 						if (!(_mavlink.get_status()->flags & MAVLINK_STATUS_FLAG_IN_MAVLINK1)) {
 							/* this will only switch to proto version 2 if allowed in settings */
-							_mavlink.set_proto_version(2);
+							_mavlink.setProtocolVersion(2);
 						}
 
 						switch (_mavlink.get_mode()) {

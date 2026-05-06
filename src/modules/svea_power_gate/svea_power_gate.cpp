@@ -47,11 +47,9 @@
 
 extern "C" __EXPORT int svea_power_gate_main(int argc, char *argv[]);
 
-class SveaPowerGate : public ModuleBase, public px4::ScheduledWorkItem
+class SveaPowerGate : public ModuleBase<SveaPowerGate>, public px4::ScheduledWorkItem
 {
 public:
-	static Descriptor desc;
-
 	SveaPowerGate() : ScheduledWorkItem(MODULE_NAME, px4::wq_configurations::hp_default) {}
 	~SveaPowerGate() override = default;
 
@@ -82,8 +80,6 @@ private:
 	hrt_abstime _last_heartbeat{0};
 	uint32_t _run_count{0};
 };
-
-ModuleBase::Descriptor SveaPowerGate::desc{task_spawn, custom_command, print_usage};
 
 int SveaPowerGate::write_gpio(const char *dev, bool high)
 {
@@ -159,7 +155,7 @@ void SveaPowerGate::Run()
 		PX4_DEBUG("Run: should_exit=1, forcing rails off");
 		ScheduleClear();
 		apply_power(false);
-		exit_and_cleanup(desc);
+		exit_and_cleanup();
 		return;
 	}
 
@@ -167,20 +163,22 @@ void SveaPowerGate::Run()
 		actuator_armed_s actuator_armed{};
 
 		if (_actuator_armed_sub.copy(&actuator_armed)) {
-			// Rails may only stay enabled while fully armed and not killed/locked down.
-			const bool should_enable = actuator_armed.armed && !actuator_armed.kill && !actuator_armed.lockdown && !actuator_armed.termination;
-			PX4_DEBUG("armed update: armed=%d prearmed=%d ready=%d lockdown=%d in_esc_cal=%d kill=%d term=%d -> should_enable=%d",
-				  actuator_armed.armed ? 1 : 0,
-				  actuator_armed.prearmed ? 1 : 0,
-				  actuator_armed.ready_to_arm ? 1 : 0,
-				  actuator_armed.lockdown ? 1 : 0,
-				  actuator_armed.in_esc_calibration_mode ? 1 : 0,
-				  actuator_armed.kill ? 1 : 0,
-				  actuator_armed.termination ? 1 : 0,
-				  should_enable ? 1 : 0);
+			// Rails may only stay enabled while fully armed and not locked down.
+			const bool should_enable = actuator_armed.armed && !actuator_armed.lockdown
+						   && !actuator_armed.manual_lockdown && !actuator_armed.force_failsafe;
+			PX4_DEBUG("armed update: armed=%d prearmed=%d ready=%d lockdown=%d manual_lockdown=%d in_esc_cal=%d force_failsafe=%d -> should_enable=%d",
+			  actuator_armed.armed ? 1 : 0,
+			  actuator_armed.prearmed ? 1 : 0,
+			  actuator_armed.ready_to_arm ? 1 : 0,
+			  actuator_armed.lockdown ? 1 : 0,
+			  actuator_armed.manual_lockdown ? 1 : 0,
+			  actuator_armed.in_esc_calibration_mode ? 1 : 0,
+			  actuator_armed.force_failsafe ? 1 : 0,
+			  should_enable ? 1 : 0);
 
 			if (should_enable != _requested_on) {
 				PX4_DEBUG("state change: requested_on %d -> %d", _requested_on ? 1 : 0, should_enable ? 1 : 0);
+				_requested_on = should_enable;
 				apply_power(should_enable);
 			}
 		}
@@ -210,8 +208,8 @@ int SveaPowerGate::task_spawn(int argc, char *argv[])
 		return PX4_ERROR;
 	}
 
-	desc.object.store(instance);
-	desc.task_id = task_id_is_work_queue;
+	_object.store(instance);
+	_task_id = task_id_is_work_queue;
 
 	// Initialize to safe state until we observe arming.
 	PX4_DEBUG("task_spawn: initialize safe state (rails off), schedule now");
@@ -254,6 +252,7 @@ Toggles ESC and servo power rails from arming state:
     return PX4_OK;
 }
 
-int svea_power_gate_main(int argc, char *argv[]) {
-    return ModuleBase::main(SveaPowerGate::desc, argc, argv);
+int svea_power_gate_main(int argc, char *argv[])
+{
+	return SveaPowerGate::main(argc, argv);
 }

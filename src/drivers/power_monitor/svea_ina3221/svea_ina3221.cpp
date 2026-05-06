@@ -173,7 +173,8 @@ int SVEA_INA3221::force_init()
 	return ret;
 }
 
-void SVEA_INA3221::publish_channel(unsigned channel, int16_t bus_raw, int16_t shunt_raw, int16_t mask_enable, bool valid)
+void SVEA_INA3221::publish_channel(unsigned channel, int16_t bus_raw, int16_t shunt_raw, int16_t mask_enable,
+				   bool valid)
 {
 	const int16_t bus_code = static_cast<int16_t>(bus_raw) >> 3;
 	const int16_t shunt_code = static_cast<int16_t>(shunt_raw) >> 3;
