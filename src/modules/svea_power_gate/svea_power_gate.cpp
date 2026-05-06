@@ -167,14 +167,14 @@ void SveaPowerGate::Run()
 			const bool should_enable = actuator_armed.armed && !actuator_armed.lockdown
 						   && !actuator_armed.manual_lockdown && !actuator_armed.force_failsafe;
 			PX4_DEBUG("armed update: armed=%d prearmed=%d ready=%d lockdown=%d manual_lockdown=%d in_esc_cal=%d force_failsafe=%d -> should_enable=%d",
-			  actuator_armed.armed ? 1 : 0,
-			  actuator_armed.prearmed ? 1 : 0,
-			  actuator_armed.ready_to_arm ? 1 : 0,
-			  actuator_armed.lockdown ? 1 : 0,
-			  actuator_armed.manual_lockdown ? 1 : 0,
-			  actuator_armed.in_esc_calibration_mode ? 1 : 0,
-			  actuator_armed.force_failsafe ? 1 : 0,
-			  should_enable ? 1 : 0);
+				  actuator_armed.armed ? 1 : 0,
+				  actuator_armed.prearmed ? 1 : 0,
+				  actuator_armed.ready_to_arm ? 1 : 0,
+				  actuator_armed.lockdown ? 1 : 0,
+				  actuator_armed.manual_lockdown ? 1 : 0,
+				  actuator_armed.in_esc_calibration_mode ? 1 : 0,
+				  actuator_armed.force_failsafe ? 1 : 0,
+				  should_enable ? 1 : 0);
 
 			if (should_enable != _requested_on) {
 				PX4_DEBUG("state change: requested_on %d -> %d", _requested_on ? 1 : 0, should_enable ? 1 : 0);

@@ -436,7 +436,7 @@ void SveaPeripheralMcu::Run()
 		}
 
 		ScheduleClear();
-	exit_and_cleanup();
+		exit_and_cleanup();
 		_open_attempts++;
 
 		if (open_serial() != PX4_OK) {
