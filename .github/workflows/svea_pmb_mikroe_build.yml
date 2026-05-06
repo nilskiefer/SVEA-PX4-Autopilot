@@ -17,24 +17,35 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
+          submodules: recursive
 
-      - name: Build mikroe noboot firmware
-        uses: addnab/docker-run-action@v3
-        with:
-          image: px4io/px4-dev-nuttx-focal:2022-08-12
-          options: -v ${{ github.workspace }}:/workspace
-          run: |
-            cd /workspace
-            git config --global --add safe.directory /workspace
-            make mikroe_clicker4-stm32f7_noboot -j$(nproc)
+      - name: Build Devcontainer Image
+        run: |
+          cd "$GITHUB_WORKSPACE"
+          docker build -t svea-devcontainer-ci -f .devcontainer/Dockerfile .devcontainer
+
+      - name: Build mikroe noboot firmware in devcontainer
+        run: |
+          cd "$GITHUB_WORKSPACE"
+          docker run --rm \
+            -v "$GITHUB_WORKSPACE":/workspaces/SVEA-PX4-Autopilot \
+            -w /workspaces/SVEA-PX4-Autopilot \
+            svea-devcontainer-ci \
+            /bin/bash -lc "git config --global --add safe.directory /workspaces/SVEA-PX4-Autopilot && make mikroe_clicker4-stm32f7_noboot -j\$(nproc)"
 
       - name: Collect artifacts
         run: |
+          cd "$GITHUB_WORKSPACE"
           mkdir -p artifacts/svea-pmb-mikroe
-          cp build/mikroe_clicker4-stm32f7_noboot/*.{bin,hex,px4,elf} artifacts/svea-pmb-mikroe/ 2>/dev/null || true
+          mapfile -t fw_files < <(find build/mikroe_clicker4-stm32f7_noboot -maxdepth 1 -type f \( -name '*.bin' -o -name '*.hex' -o -name '*.px4' -o -name '*.elf' \))
+          if [ "${#fw_files[@]}" -eq 0 ]; then
+            echo "No firmware artifacts were produced"
+            exit 1
+          fi
+          cp "${fw_files[@]}" artifacts/svea-pmb-mikroe/
           ls -la artifacts/svea-pmb-mikroe
 
       - name: Upload artifact
