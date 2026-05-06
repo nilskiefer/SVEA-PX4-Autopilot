@@ -10,8 +10,6 @@
 
 extern "C" __EXPORT int svea_peripheral_mcu_main(int argc, char *argv[]);
 
-ModuleBase::Descriptor SveaPeripheralMcu::desc{task_spawn, custom_command, print_usage};
-
 SveaPeripheralMcu::SveaPeripheralMcu(const char *device, int baudrate) :
 	ScheduledWorkItem(MODULE_NAME, px4::wq_configurations::lp_default),
 	_baudrate(baudrate)
@@ -47,13 +45,13 @@ int SveaPeripheralMcu::task_spawn(int argc, char *argv[])
 		return PX4_ERROR;
 	}
 
-	desc.object.store(instance);
-	desc.task_id = task_id_is_work_queue;
+	_object.store(instance);
+	_task_id = task_id_is_work_queue;
 
 	if (!instance->init()) {
 		delete instance;
-		desc.object.store(nullptr);
-		desc.task_id = -1;
+		_object.store(nullptr);
+		_task_id = -1;
 		return PX4_ERROR;
 	}
 
@@ -172,5 +170,5 @@ To add support for a new uORB topic, add a payload struct + handler + route entr
 
 extern "C" __EXPORT int svea_peripheral_mcu_main(int argc, char *argv[])
 {
-	return ModuleBase::main(SveaPeripheralMcu::desc, argc, argv);
+	return SveaPeripheralMcu::main(argc, argv);
 }

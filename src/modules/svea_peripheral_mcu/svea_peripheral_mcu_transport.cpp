@@ -124,7 +124,7 @@ void SveaPeripheralMcu::Run()
 	if (should_exit()) {
 		close_serial();
 		ScheduleClear();
-		exit_and_cleanup(desc);
+		exit_and_cleanup();
 		return;
 	}
 

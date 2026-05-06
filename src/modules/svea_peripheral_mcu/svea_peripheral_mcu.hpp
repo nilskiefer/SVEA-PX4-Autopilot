@@ -9,11 +9,9 @@
 #include <uORB/topics/wheel_distance.h>
 #include <uORB/topics/wheel_encoders.h>
 
-class SveaPeripheralMcu : public ModuleBase, public px4::ScheduledWorkItem
+class SveaPeripheralMcu : public ModuleBase<SveaPeripheralMcu>, public px4::ScheduledWorkItem
 {
 public:
-	static Descriptor desc;
-
 	SveaPeripheralMcu(const char *device, int baudrate);
 	~SveaPeripheralMcu() override;
 
