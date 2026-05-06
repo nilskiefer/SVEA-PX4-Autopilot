@@ -29,9 +29,6 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
 
-      - name: Configure git safe directory
-        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
-
       - name: Fetch release tags
         run: |
           git fetch --force origin 'refs/tags/v*:refs/tags/v*'
