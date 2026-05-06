@@ -145,13 +145,12 @@ endif()
 
 	if(CONFIG_MODULES_ROVER_ACKERMANN)
 		px4_add_romfs_files(
-			# [51000, 51999] Ackermann rovers
-			51000_generic_rover_ackermann
-			51001_axial_scx10_2_trail_honcho
-			51002_nxp_b3rb
-			51003_svea_trx4
-		)
-	endif()
+		# [51000, 51999] Ackermann rovers
+		51000_generic_rover_ackermann
+		51001_axial_scx10_2_trail_honcho
+		51003_svea_trx4
+	)
+endif()
 
 if(CONFIG_MODULES_ROVER_MECANUM)
 	px4_add_romfs_files(
