@@ -6,41 +6,26 @@ on:
       - '**'
     paths-ignore:
       - 'docs/**'
-
-# If two events are triggered within a short time in the same PR, cancel the run of the oldest event
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
+      - '.github/**'
 
 jobs:
   unit_tests:
     runs-on: ubuntu-latest
-
-    container:
-      image: px4io/px4-dev:v1.16.0-rc1-258-g0369abd556
-
     steps:
-      - uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-          fetch-tags: true
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
 
-      - name: Configure git safe directory
-        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
-
-      - name: Fetch release tags
+    - name: main test
+      uses: addnab/docker-run-action@v3
+      with:
+        image: px4io/px4-dev-base-focal:2021-09-08
+        options: -v ${{ github.workspace }}:/workspace
         run: |
-          git fetch --force origin 'refs/tags/v*:refs/tags/v*'
-          if ! git tag -l 'v[0-9]*' | grep -q .; then
-            git fetch --force https://github.com/PX4/PX4-Autopilot.git 'refs/tags/v*:refs/tags/v*'
-          fi
-
-      - name: main test
-        run: |
-          cd "$GITHUB_WORKSPACE"
-          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          cd /workspace
+          git config --global --add safe.directory /workspace
           make tests TESTFILTER=EKF
 
-      - name: Check if there is a functional change
-        run: git diff --exit-code
-        working-directory: src/modules/ekf2/test/change_indication
+    - name: Check if there is a functional change
+      run: git diff --exit-code
+      working-directory: src/modules/ekf2/test/change_indication
