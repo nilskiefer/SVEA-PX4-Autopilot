@@ -5,9 +5,6 @@ on:
   push:
     branches:
       - main
-    paths:
-      - "boards/mikroe/**"
-      - ".github/workflows/svea_pmb_mikroe_build.yml"
 
 permissions:
   contents: write
