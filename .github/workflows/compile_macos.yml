@@ -6,19 +6,17 @@ on:
     - 'main'
     paths-ignore:
       - 'docs/**'
+      - '.github/**'
   pull_request:
     branches:
       - '**'
     paths-ignore:
       - 'docs/**'
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+      - '.github/**'
 
 jobs:
   build:
-    runs-on: macos-latest
+    runs-on: macos-14
     strategy:
       matrix:
         config: [
@@ -42,13 +40,15 @@ jobs:
       shell: cmake -P {0}
       run: |
         string(TIMESTAMP current_date "%Y-%m-%d-%H;%M;%S" UTC)
-        file(APPEND "$ENV{GITHUB_OUTPUT}" "timestamp=${current_date}\n")
+        message("::set-output name=timestamp::${current_date}")
+
     - name: ccache cache files
       uses: actions/cache@v4
       with:
         path: ~/.ccache
         key: macos_${{matrix.config}}-ccache-${{steps.ccache_cache_timestamp.outputs.timestamp}}
         restore-keys: macos_${{matrix.config}}-ccache-
+
     - name: setup ccache
       run: |
           mkdir -p ~/.ccache
