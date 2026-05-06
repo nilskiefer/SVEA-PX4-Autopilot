@@ -24,7 +24,7 @@ jobs:
         run: |
           git config --global --add safe.directory $(realpath .)
 
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
           fetch-tags: true
