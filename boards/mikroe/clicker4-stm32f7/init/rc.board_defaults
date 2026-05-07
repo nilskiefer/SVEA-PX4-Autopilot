@@ -48,12 +48,19 @@ param set-default RC_PORT_CONFIG 300
 param set-default RC_INPUT_PROTO 2
 param set-default RC_CHAN_CNT 7
 # Manual input source policy:
-#  - MAVLink manual input has priority when valid
-#  - RC is fallback when MAVLink input is stale/lost
-#
-# Combined with firmware-side gating in mavlink_receiver (MODE_SLOT_1 only),
-# this yields: low switch=ROS MANUAL_CONTROL, mid switch=RC only.
-param set-default COM_RC_IN_MODE 6
+#  - Allow RC and MAVLink manual input with fallback (upstream mode 2)
+#  - Combined with mavlink_receiver MODE_SLOT_1 gating:
+#      low switch: MAVLink MANUAL_CONTROL allowed (ROS-priority, RC fallback)
+#      mid switch: MAVLink MANUAL_CONTROL blocked (RC-only)
+#      high switch: kill engaged
+param set-default COM_RC_IN_MODE 2
+# One-time migration for known legacy SVEA value:
+# earlier firmware revisions used COM_RC_IN_MODE=6 (invalid in upstream enum 0..4).
+if param compare COM_RC_IN_MODE 6
+then
+	echo "Migrating legacy COM_RC_IN_MODE=6 to 2 for SVEA profile"
+	param set COM_RC_IN_MODE 2
+fi
 
 # RC channel mapping aligned with SVEA LLI Zephyr semantics:
 # CH1 steer, CH2 throttle, CH3 extra-servo2, CH4 gear button, CH5 mode/kill, CH6 diff master toggle.
@@ -145,6 +152,8 @@ param set-default PWM_MAIN_FUNC2 101  # Motor1: throttle
 param set-default PWM_MAIN_FUNC3 202  # Servo2: gear
 param set-default PWM_MAIN_FUNC4 203  # Servo3: front diff
 param set-default PWM_MAIN_FUNC5 204  # Servo4: rear diff
+# Invert MAIN2 throttle output range at actuation layer.
+param set-default PWM_MAIN_REV 2
 
 # Keep all output timer groups at 100 Hz to match the Zephyr loop.
 param set-default PWM_MAIN_TIM0 100
@@ -243,9 +252,9 @@ param set-default PCA9685_FUNC4 408  # CH3: rear differential (RC_AUX2)
 param set-default PCA9685_FUNC5 409  # CH4: gear (RC_AUX3)
 param set-default PCA9685_FUNC6 410  # CH5: misc servo (RC_AUX4)
 param set-default PCA9685_FUNC7 411  # CH6: misc servo (RC_AUX5)
-# Reverse CH3 (index 3, mask bit 3) so one diff master command drives
-# front/rear differential actuators in opposite physical directions.
-param set-default PCA9685_REV 8
+# Reverse CH0 throttle (bit0) and CH3 diff (bit3) at actuation layer.
+# bit0 -> CH0 throttle, bit3 -> CH3 rear diff.
+param set-default PCA9685_REV 9
 
 # PCA9685 signal ranges for channels 0..6.
 # Diff/gear outputs are intentionally binary (1200/1800) for actuator on/off behavior.
