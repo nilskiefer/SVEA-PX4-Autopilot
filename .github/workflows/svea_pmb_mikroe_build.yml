@@ -52,11 +52,37 @@ jobs:
           path: artifacts/svea-pmb-mikroe/
           if-no-files-found: error
 
+      - name: Prepare release metadata
+        run: |
+          set -euo pipefail
+          short_sha="${GITHUB_SHA::7}"
+          commit_subject="$(git log -1 --pretty=%s)"
+          commit_body="$(git log -1 --pretty=%b)"
+
+          echo "RELEASE_NAME=SVEA PMB Mikroe Build (noboot) - ${short_sha}" >> "$GITHUB_ENV"
+
+          {
+            echo "Latest successful Mikroe noboot build for \`$GITHUB_REF_NAME\`."
+            echo
+            echo "- Commit: \`$short_sha\` - $commit_subject"
+            echo "- Workflow run: https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            echo "- Trigger: \`$GITHUB_EVENT_NAME\`"
+            echo
+            if [ -n "$commit_body" ]; then
+              echo "### Commit details"
+              echo
+              echo "$commit_body"
+              echo
+            fi
+            echo "Assets below are replaced on each successful run."
+          } > release-notes.md
+
       - name: Publish prerelease
         uses: softprops/action-gh-release@v2
         with:
           tag_name: svea-pmb-mikroe-latest
-          name: SVEA PMB Mikroe Build (noboot)
+          name: ${{ env.RELEASE_NAME }}
+          body_path: release-notes.md
           prerelease: true
           make_latest: false
           files: artifacts/svea-pmb-mikroe/*
