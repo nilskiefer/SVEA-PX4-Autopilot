@@ -204,6 +204,7 @@ param set-default BQ769X2_CELLS 3
 param set-default BQ769X2_CRC 1
 param set-default BQ769X2_CFG 1
 param set-default BQ769X2_SHUNT 1000
+param set-default BQ769X2_CURR_INV 1
 param set-default BQ769X2_COV_V 4.25
 param set-default BQ769X2_COV_RV 4.10
 param set-default BQ769X2_COV_DLY 1000
