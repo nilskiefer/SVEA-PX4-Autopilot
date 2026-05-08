@@ -3,12 +3,15 @@
 # Clicker 4 STM32F7 specific board sensors init
 #------------------------------------------------------------------------------
 
+
+
 # Auto-start board I2C peripherals.
-# BQ769x2 starts first so pack power path policy is initialized before other devices.
-bq769x2 -I -b 2 -a 0x08 -t 1 -q start
 lsm6dsox -I -b 2 -a 0x6b -q start
 pcal6524 -I -b 2 -a 0x22 -M 0 -D 0x00ffffff -q start
 pcal6524 -I -b 2 -a 0x23 -M 24 -D 0x00ffffff -q start
+
+# BQ769x2 starts first so pack power path policy is initialized before other devices.
+bq769x2 -I -b 2 -a 0x08 -t 1 -q start
 
 # SVEA INA226 current monitors on the powerboard:
 # 0x4E ESC current shunt: 1 mOhm, 0x4F servo buck shunt: 5 mOhm.
@@ -22,7 +25,21 @@ svea_ina3221 -I -b 2 -a 0x41 -x 0.016 -y 0.001 -z 0.016 -q start
 svea_ina3221 -I -b 2 -a 0x40 -r 0.016 -q start
 
 pca9685_pwm_out start -a 0x61 -b 2
+
+usleep 100000
+# Deterministic reset behavior:
+# - force ESC/servo power gates low before any control modules start
+# - power-cycle receiver rail to recover from stale link state after reset
+gpio write /dev/gpio9 0
+usleep 10000
+gpio write /dev/gpio10 0
+usleep 10000
+gpio write /dev/gpio17 0
+usleep 500000
+gpio write /dev/gpio17 1
+
 svea_power_gate start
+svea_neopixel start -n 1
 
 # Keep 12V buck enabled after startup; delay to allow BQ precharge phase to settle.
 (
