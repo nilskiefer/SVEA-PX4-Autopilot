@@ -74,8 +74,6 @@
 	],
 
 	"containerUser": "root",
-	"remoteUser": "vscode",
-	"updateRemoteUserUID": true,
 	"postCreateCommand": "git config --global --add safe.directory ${containerWorkspaceFolder} && find ${containerWorkspaceFolder} -type d -name .git -prune | sed 's|/.git$||' | while read -r d; do git config --global --add safe.directory \"$d\"; done && git submodule sync --recursive && git submodule update --init --recursive && python3 -m pip install --break-system-packages pyserial lxml platformio && if [ ! -d \"$HOME/.oh-my-zsh\" ]; then export RUNZSH=no CHSH=no KEEP_ZSHRC=yes; curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh | sh; fi && mkdir -p \"$HOME/.oh-my-zsh/custom/plugins\" && [ -d \"$HOME/.oh-my-zsh/custom/plugins/zsh-autosuggestions\" ] || git clone --depth=1 https://github.com/zsh-users/zsh-autosuggestions \"$HOME/.oh-my-zsh/custom/plugins/zsh-autosuggestions\" && [ -d \"$HOME/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting\" ] || git clone --depth=1 https://github.com/zsh-users/zsh-syntax-highlighting \"$HOME/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting\"",
 	"postStartCommand": "/bin/bash -lc \"touch \\\"$HOME/.zshrc\\\"; grep -q 'source ${containerWorkspaceFolder}/.devcontainer/root-zshrc.zsh' \\\"$HOME/.zshrc\\\" || printf '\n# PX4_DEVCONTAINER_ZSH\nsource ${containerWorkspaceFolder}/.devcontainer/root-zshrc.zsh\n' >> \\\"$HOME/.zshrc\\\"\"",
 	"containerEnv": {
