@@ -26,7 +26,7 @@ svea_ina3221 -I -b 2 -a 0x40 -r 0.016 -q start
 
 pca9685_pwm_out start -a 0x61 -b 2
 
-usleep 100000
+sleep 1
 # Deterministic reset behavior:
 # - force ESC/servo power gates low before any control modules start
 # - power-cycle receiver rail to recover from stale link state after reset
