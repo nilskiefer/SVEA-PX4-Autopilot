@@ -89,6 +89,7 @@ RUN apt-get update && apt-get -y --quiet --no-install-recommends install \
 	xsltproc \
 	zip \
 	zsh \
+	openocd \
 	zsh-autosuggestions \
 	zsh-syntax-highlighting \
 	&& if [[ "${TARGETARCH}" == "amd64" ]]; then \
@@ -133,7 +134,9 @@ RUN python3 -m pip install --break-system-packages \
 	serial \
 	six \
 	toml \
-	wheel
+	wheel \
+	future \
+	mavproxy
 
 # manual ccache setup
 RUN ln -sf /usr/bin/ccache /usr/lib/ccache/cc \
