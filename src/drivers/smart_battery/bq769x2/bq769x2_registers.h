@@ -61,6 +61,7 @@ static constexpr uint8_t BQ769X2_CMD_FET_STATUS{0x7F};
 static constexpr uint16_t BQ769X2_SUBCMD_DEVICE_NUMBER{0x0001};
 static constexpr uint16_t BQ769X2_SUBCMD_FW_VERSION{0x0002};
 static constexpr uint16_t BQ769X2_SUBCMD_HW_VERSION{0x0003};
+static constexpr uint16_t BQ769X2_SUBCMD_CB_ACTIVE_CELLS{0x0083};
 static constexpr uint16_t BQ769X2_SUBCMD_MFG_STATUS{0x0057};
 static constexpr uint16_t BQ769X2_SUBCMD_FET_ENABLE{0x0022};
 static constexpr uint16_t BQ769X2_SUBCMD_SET_CFGUPDATE{0x0090};

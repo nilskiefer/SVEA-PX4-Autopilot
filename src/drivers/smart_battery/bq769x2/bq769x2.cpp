@@ -1535,6 +1535,8 @@ void BQ769x2::print_status()
 	uint8_t cbal_rlx_min_delta_mv{0};
 	uint16_t dsg_curr_th_ma{0};
 	uint16_t chg_curr_th_ma{0};
+	uint16_t cbal_active_cells_raw{0};
+	bool cbal_active_cells_valid{false};
 
 	if (_protocol.datamemReadU1(BQ769X2_SET_CBAL_CONF, cbal_conf) == PX4_OK
 	    && _protocol.datamemReadU1(BQ769X2_SET_CBAL_MAX_CELLS, cbal_max_cells) == PX4_OK
@@ -1549,6 +1551,19 @@ void BQ769x2::print_status()
 			 static_cast<double>(cbal_chg_min_cell_mv) * 1e-3, cbal_chg_min_delta_mv,
 			 static_cast<double>(cbal_rlx_min_cell_mv) * 1e-3, cbal_rlx_min_delta_mv,
 			 static_cast<int16_t>(dsg_curr_th_ma), static_cast<int16_t>(chg_curr_th_ma));
+
+		cbal_active_cells_valid = (_protocol.subcommandReadU2(BQ769X2_SUBCMD_CB_ACTIVE_CELLS, cbal_active_cells_raw) == PX4_OK);
+		const uint16_t active_mask_used_cells = cbal_active_cells_raw & activeVcellModeMask();
+
+		if (cbal_active_cells_valid) {
+			PX4_INFO("balancing active: raw=0x%04x used_cells=0x%04x active_count=%u",
+				 static_cast<unsigned>(cbal_active_cells_raw),
+				 static_cast<unsigned>(active_mask_used_cells),
+				 __builtin_popcount(static_cast<unsigned>(active_mask_used_cells)));
+
+		} else {
+			PX4_WARN("balancing active: failed to read CB_ACTIVE_CELLS");
+		}
 
 	} else {
 		PX4_WARN("failed to read balancing config");
