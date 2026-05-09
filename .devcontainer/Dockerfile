@@ -75,6 +75,7 @@ RUN apt-get update && apt-get -y --quiet --no-install-recommends install \
 	rsync \
 	screen \
 	shellcheck \
+	sudo \
 	stlink-tools \
 	texinfo \
 	tzdata \
@@ -131,7 +132,6 @@ RUN python3 -m pip install --break-system-packages \
 	pyulog \
 	pyyaml \
 	requests \
-	serial \
 	six \
 	toml \
 	wheel \
@@ -175,7 +175,12 @@ RUN git clone --recursive https://github.com/google/bloaty.git /tmp/bloaty \
 	&& ninja -C build -j"$(nproc)" bloaty && cp build/bloaty /usr/local/bin/ \
 	&& rm -rf /tmp/*
 
-RUN useradd --shell /bin/bash -u 1001 -c "" -m user && usermod -a -G dialout user
+RUN useradd --shell /bin/bash -u 1001 -c "" -m user \
+	&& usermod -a -G dialout user \
+	&& (id -u vscode >/dev/null 2>&1 || useradd --shell /bin/bash -c "" -m vscode) \
+	&& usermod -a -G dialout,sudo vscode \
+	&& echo "vscode ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/99-vscode \
+	&& chmod 0440 /etc/sudoers.d/99-vscode
 
 RUN mkdir -p /tmp/.X11-unix /home/root \
 	&& chmod 1777 /tmp/.X11-unix \
