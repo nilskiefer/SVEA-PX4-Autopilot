@@ -514,3 +514,26 @@ led_control off -l 0
 # stop driver
 neopixel stop
 ```
+
+
+## Connect a SVEA PX4 board from the devcontainer
+
+If you are using the devcontainer and want to connect QGroundControl through MAVProxy, this command prefers the `SVEA` device from `/dev/serial/by-id`, resolves it to the current tty, and forwards the common MAVLink ports:
+
+```bash
+DEV="$(ls -1 /dev/serial/by-id/*SVEA* 2>/dev/null | head -n1)"
+[ -n "$DEV" ] || { echo "No SVEA PX4 serial device found"; exit 1; }
+
+HOST_IP="$(awk '$2=="00000000"{print $3; exit}' /proc/net/route | sed 's/../0x& /g' | awk '{printf "%d.%d.%d.%d\n",$4,$3,$2,$1}')"
+
+echo "Using $DEV -> host $HOST_IP"
+
+mavproxy.py \
+  --master="$DEV" \
+  --baudrate=57600 \
+  --out=udpout:$HOST_IP:14550 \
+  --out=udpout:$HOST_IP:14551
+
+```
+
+Forward port `14550` to QGroundControl, and keep `14551` available if you also want a second MAVLink stream.
