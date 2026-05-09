@@ -29,7 +29,7 @@ make mikroe_clicker4-stm32f7_noboot
 Flash app at flash base `0x08000000`:
 
 ```bash
-sudo openocd \
+openocd \
   -f interface/cmsis-dap.cfg \
   -f target/stm32f7x.cfg \
   -c "init; reset halt; program build/mikroe_clicker4-stm32f7_noboot/mikroe_clicker4-stm32f7_noboot.bin 0x08000000 verify; reset run; shutdown"

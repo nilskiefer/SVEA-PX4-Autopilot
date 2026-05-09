@@ -31,12 +31,14 @@ sleep 1
 # - force ESC/servo power gates low before any control modules start
 # - power-cycle receiver rail to recover from stale link state after reset
 gpio write /dev/gpio9 0
-usleep 10000
+usleep 100000
 gpio write /dev/gpio10 0
-usleep 10000
+usleep 100000
 gpio write /dev/gpio17 0
 usleep 500000
 gpio write /dev/gpio17 1
+usleep 100000
+
 
 svea_power_gate start
 svea_neopixel start -n 1
