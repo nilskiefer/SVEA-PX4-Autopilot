@@ -33,18 +33,21 @@ mavlink uorb_tunnel add -t power_monitor -i 7 -r 4 -f
 # Start manually when needed:
 #   neopixel start -n 1
 
-# Start MAVLink on USB CDC if it is available.
-sleep 1
-if [ ! -e /dev/ttyACM0 ]
+# Start MAVLink on USB CDC as a fallback (avoid duplicate instance).
+if ! mavlink status > /dev/null 2>&1
 then
-	# Fallback if cdcacm_autostart did not connect CDC.
-	sercon
 	sleep 1
-fi
+	if [ ! -e /dev/ttyACM0 ]
+	then
+		# Fallback if cdcacm_autostart did not connect CDC.
+		sercon
+		sleep 1
+	fi
 
-if [ -e /dev/ttyACM0 ]
-then
-	mavlink start -d /dev/ttyACM0
-else
-	echo "USB CDC not ready; skipping MAVLink on /dev/ttyACM0"
+	if [ -e /dev/ttyACM0 ]
+	then
+		mavlink start -d /dev/ttyACM0
+	else
+		echo "USB CDC not ready; skipping MAVLink on /dev/ttyACM0"
+	fi
 fi
