@@ -51,3 +51,12 @@ then
 		echo "USB CDC not ready; skipping MAVLink on /dev/ttyACM0"
 	fi
 fi
+
+# Ensure HIGHRES_IMU is streamed on the USB CDC MAVLink instance.
+if mavlink status > /dev/null 2>&1
+then
+	if [ -e /dev/ttyACM0 ]
+	then
+		mavlink stream -d /dev/ttyACM0 -s HIGHRES_IMU -r 50
+	fi
+fi
