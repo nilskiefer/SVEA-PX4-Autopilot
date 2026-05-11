@@ -42,6 +42,7 @@ This is via the usb c port marked CN2
 - This setup has two USB paths in practice:
   - CODEGRIP debug interface (`2dbc:*`)
   - PX4 app CDC
+- Use a USB 2.0 (or higher) port for stable CDC/MAVLink; older or low-power ports cause dropouts.
 - `noboot` flow does not use PX4 bootloader USB upload.
 
 ## 5) Console + MAVLink split
