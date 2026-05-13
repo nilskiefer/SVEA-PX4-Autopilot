@@ -192,6 +192,7 @@ param set-default BAT1_V_CHARGED 4.2
 param set-default BAT1_V_EMPTY 3.2
 param set-default BQ769X2_ADDR 8
 param set-default BQ769X2_CELLS 3
+param set-default BQ769X2_CURR_INV 1
 param set-default BQ769X2_CRC 1
 param set-default BQ769X2_CFG 1
 param set-default BQ769X2_SHUNT 1000
