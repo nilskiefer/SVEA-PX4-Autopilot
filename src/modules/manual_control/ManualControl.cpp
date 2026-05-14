@@ -228,20 +228,6 @@ void ManualControl::processSwitches(hrt_abstime &now)
 					}
 				}
 
-				if (switches.kill_switch != _previous_switches.kill_switch) {
-					if (switches.kill_switch == manual_control_switches_s::SWITCH_POS_ON) {
-						sendActionRequest(action_request_s::ACTION_KILL, action_request_s::SOURCE_RC_SWITCH);
-
-					} else if (switches.kill_switch == manual_control_switches_s::SWITCH_POS_OFF) {
-						sendActionRequest(action_request_s::ACTION_UNKILL, action_request_s::SOURCE_RC_SWITCH);
-					}
-				}
-
-				if (switches.termination_switch != _previous_switches.termination_switch
-				    && switches.termination_switch == manual_control_switches_s::SWITCH_POS_ON) {
-					sendActionRequest(action_request_s::ACTION_TERMINATION, action_request_s::SOURCE_RC_SWITCH);
-				}
-
 				if (switches.gear_switch != _previous_switches.gear_switch
 				    && _previous_switches.gear_switch != manual_control_switches_s::SWITCH_POS_NONE) {
 
@@ -295,13 +281,32 @@ void ManualControl::processSwitches(hrt_abstime &now)
 				evaluateModeSlot(switches.mode_slot);
 			}
 
-			_previous_switches = switches;
-			_previous_switches_initialized = true;
+		}
+	}
+
+	if (switches_updated) {
+		if (_previous_switches_initialized) {
+			// Keep the physical RC kill switch authoritative even when MAVLink/ROS
+			// is the selected manual input source.
+			if (switches.kill_switch != _previous_switches.kill_switch) {
+				if (switches.kill_switch == manual_control_switches_s::SWITCH_POS_ON) {
+					sendActionRequest(action_request_s::ACTION_KILL, action_request_s::SOURCE_RC_SWITCH);
+
+				} else if (switches.kill_switch == manual_control_switches_s::SWITCH_POS_OFF) {
+					sendActionRequest(action_request_s::ACTION_UNKILL, action_request_s::SOURCE_RC_SWITCH);
+				}
+			}
+
+			if (_selector.setpoint().valid
+			    && _selector.setpoint().data_source == manual_control_setpoint_s::SOURCE_RC
+			    && switches.termination_switch != _previous_switches.termination_switch
+			    && switches.termination_switch == manual_control_switches_s::SWITCH_POS_ON) {
+				sendActionRequest(action_request_s::ACTION_TERMINATION, action_request_s::SOURCE_RC_SWITCH);
+			}
 		}
 
-	} else {
-		// Don't react on switch changes while RC was not in use
-		_previous_switches_initialized = false;
+		_previous_switches = switches;
+		_previous_switches_initialized = true;
 	}
 }
 
