@@ -88,6 +88,7 @@ RUN apt-get update && apt-get -y --quiet --no-install-recommends install \
 	wget \
 	xsltproc \
 	zip \
+	openocd \
 	zsh \
 	zsh-autosuggestions \
 	zsh-syntax-highlighting \
@@ -133,6 +134,8 @@ RUN python3 -m pip install --break-system-packages \
 	serial \
 	six \
 	toml \
+	mavproxy \
+	future \
 	wheel
 
 # manual ccache setup
