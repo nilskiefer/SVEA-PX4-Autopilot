@@ -184,6 +184,7 @@ jobs:
           done
 
       - name: Publish release
+        id: publish_release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.release_channel.outputs.release_tag }}
@@ -193,3 +194,12 @@ jobs:
           files: |
             artifacts/*.tar.gz
             artifacts/*.sha256
+
+      - name: Print release URL
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Release URL: https://github.com/${GITHUB_REPOSITORY}/releases/tag/${{ steps.release_channel.outputs.release_tag }}"
+          if [ -n "${{ steps.publish_release.outputs.url }}" ]; then
+            echo "Release API URL: ${{ steps.publish_release.outputs.url }}"
+          fi
