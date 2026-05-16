@@ -24,7 +24,11 @@ env:
   PX4_SYS_AUTOSTART: "51000"
 
 jobs:
-  build_and_prerelease:
+  build_sitl:
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [amd64, arm64]
     runs-on: ubuntu-latest
 
     steps:
@@ -53,9 +57,10 @@ jobs:
           docker buildx create --use --name svea-buildx || docker buildx use svea-buildx
           docker buildx build \
             --load \
+            --platform linux/${{ matrix.arch }} \
             --cache-from type=gha,scope=svea-devcontainer \
             --cache-to type=gha,mode=max,scope=svea-devcontainer \
-            -t svea-devcontainer-ci \
+            -t svea-devcontainer-ci:${{ matrix.arch }} \
             -f .devcontainer/Dockerfile \
             .devcontainer
 
@@ -64,10 +69,10 @@ jobs:
         run: |
           set -euo pipefail
           cd "$GITHUB_WORKSPACE"
-          docker run --rm \
+          docker run --rm --platform linux/${{ matrix.arch }} \
             -v "$GITHUB_WORKSPACE":/workspaces/SVEA-PX4-Autopilot \
             -w /workspaces/SVEA-PX4-Autopilot \
-            svea-devcontainer-ci \
+            svea-devcontainer-ci:${{ matrix.arch }} \
             /bin/bash -lc "git config --global --add safe.directory '*' && make px4_sitl_default -j\$(nproc)"
 
       - name: Collect SITL runtime bundle
@@ -80,7 +85,7 @@ jobs:
           test -d build/px4_sitl_default/etc
 
           bundle_root="artifacts/svea-sitl"
-          bundle_name="svea-sitl-${GITHUB_SHA::12}"
+          bundle_name="svea-sitl-${GITHUB_SHA::12}-${{ matrix.arch }}"
           bundle_dir="${bundle_root}/${bundle_name}"
 
           mkdir -p "${bundle_dir}"
@@ -106,7 +111,7 @@ jobs:
 
           sha256sum "${tarball}" > "${tarball}.sha256"
 
-          stable_tarball="${bundle_root}/svea-sitl-runtime.tar.gz"
+          stable_tarball="${bundle_root}/svea-sitl-runtime-${{ matrix.arch }}.tar.gz"
           cp "${tarball}" "${stable_tarball}"
           sha256sum "${stable_tarball}" > "${stable_tarball}.sha256"
           ls -la "${bundle_root}"
@@ -114,9 +119,23 @@ jobs:
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v4
         with:
-          name: svea-sitl-runtime
+          name: svea-sitl-runtime-${{ matrix.arch }}
           path: artifacts/svea-sitl/*
           if-no-files-found: error
+
+  publish_release:
+    needs: build_sitl
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Download SITL artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
 
       - name: Resolve release channel
         id: release_channel
@@ -172,5 +191,5 @@ jobs:
           prerelease: ${{ steps.release_channel.outputs.is_prerelease }}
           make_latest: ${{ steps.release_channel.outputs.make_latest }}
           files: |
-            artifacts/svea-sitl/*.tar.gz
-            artifacts/svea-sitl/*.sha256
+            artifacts/*.tar.gz
+            artifacts/*.sha256
