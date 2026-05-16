@@ -34,6 +34,7 @@ RUN apt-get update && apt-get -y --quiet --no-install-recommends install \
 	cmake \
 	cppcheck \
 	curl \
+	cppzmq-dev \
 	dirmngr \
 	doxygen \
 	file \
@@ -50,6 +51,8 @@ RUN apt-get update && apt-get -y --quiet --no-install-recommends install \
 	libexpat-dev \
 	libfreetype6-dev \
 	libgmp-dev \
+	libgstreamer-plugins-base1.0-dev \
+	libgstreamer1.0-dev \
 	libgtest-dev \
 	libisl-dev \
 	libmpc-dev \
@@ -67,11 +70,13 @@ RUN apt-get update && apt-get -y --quiet --no-install-recommends install \
 	openssh-client \
 	openjdk-11-jdk \
 	openjdk-11-jre \
+	libopencv-dev \
 	pkg-config \
 	python3 \
 	python3-dev \
 	python3-pip \
 	python3-venv \
+	python3-apt \
 	rsync \
 	screen \
 	shellcheck \
@@ -89,12 +94,32 @@ RUN apt-get update && apt-get -y --quiet --no-install-recommends install \
 	xsltproc \
 	zip \
 	openocd \
+	kconfig-frontends \
 	zsh \
 	zsh-autosuggestions \
 	zsh-syntax-highlighting \
 	&& if [[ "${TARGETARCH}" == "amd64" ]]; then \
 		apt-get -y --quiet --no-install-recommends install g++-multilib gcc-multilib; \
 	fi \
+	&& apt-get -y autoremove \
+	&& apt-get clean autoclean \
+	&& rm -rf /var/lib/apt/lists/{apt,dpkg,cache,log} /tmp/* /var/tmp/*
+
+# Gazebo Harmonic repository + dependencies required for PX4 gz_* SITL targets.
+RUN mkdir -p /etc/apt/keyrings \
+	&& wget -qO- https://packages.osrfoundation.org/gazebo.gpg \
+	| gpg --dearmor -o /etc/apt/keyrings/gazebo-archive-keyring.gpg \
+	&& echo "deb [signed-by=/etc/apt/keyrings/gazebo-archive-keyring.gpg] http://packages.osrfoundation.org/gazebo/ubuntu-stable noble main" \
+	> /etc/apt/sources.list.d/gazebo-stable.list \
+	&& apt-get update \
+	&& apt-get -y --quiet --no-install-recommends install \
+	gz-harmonic \
+	libgz-transport13-dev \
+	libgz-sim8-dev \
+	libgz-sensors8-dev \
+	libgz-plugin2-dev \
+	libprotobuf-dev \
+	protobuf-compiler \
 	&& apt-get -y autoremove \
 	&& apt-get clean autoclean \
 	&& rm -rf /var/lib/apt/lists/{apt,dpkg,cache,log} /tmp/* /var/tmp/*
@@ -161,19 +186,8 @@ RUN case "${TARGETARCH}" in \
 	| tar -Jx --strip 1 \
 	&& rm -rf /opt/gcc/share/doc
 
-# nuttx tools
-RUN git clone --depth 1 https://bitbucket.org/nuttx/tools.git /tmp/tools \
-	&& cd /tmp/tools/kconfig-frontends \
-	&& autoreconf -f -i \
-	&& ./configure --enable-mconf --disable-nconf --disable-gconf --disable-qconf --prefix=/usr \
-	&& make -j"$(nproc)" && make install \
-	&& rm -rf /tmp/*
-
-# bloaty
-RUN git clone --recursive https://github.com/google/bloaty.git /tmp/bloaty \
-	&& cd /tmp/bloaty && cmake -GNinja -S . -B build \
-	&& ninja -C build -j"$(nproc)" bloaty && cp build/bloaty /usr/local/bin/ \
-	&& rm -rf /tmp/*
+# `kconfig-frontends` and `bloaty` are installed via apt above to avoid
+# clone-time failures in restricted network environments.
 
 RUN useradd --shell /bin/bash -u 1001 -c "" -m user && usermod -a -G dialout user
 
