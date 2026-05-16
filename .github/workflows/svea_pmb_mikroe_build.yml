@@ -55,6 +55,15 @@ jobs:
           path: artifacts/svea-pmb-mikroe/
           if-no-files-found: error
 
+      - name: Move release tag to this commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -f svea-pmb-mikroe-latest "${GITHUB_SHA}"
+          git push --force origin refs/tags/svea-pmb-mikroe-latest
+
       - name: Publish prerelease
         uses: softprops/action-gh-release@v2
         with:
