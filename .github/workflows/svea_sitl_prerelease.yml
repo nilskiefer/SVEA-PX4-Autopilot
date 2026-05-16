@@ -1,0 +1,158 @@
+name: SVEA SITL Prerelease
+
+on:
+  workflow_dispatch:
+    inputs:
+      sitl_target:
+        description: "PX4 Gazebo SITL target (for metadata/reference)"
+        required: true
+        default: "gz_rover_ackermann"
+      px4_sys_autostart:
+        description: "PX4 SYS_AUTOSTART value"
+        required: true
+        default: "51000"
+      release_tag:
+        description: "Prerelease tag to update"
+        required: true
+        default: "svea-sitl-latest"
+  push:
+    branches:
+      - main
+    paths:
+      - "src/**"
+      - "ROMFS/**"
+      - "boards/**"
+      - "platforms/**"
+      - "Tools/**"
+      - ".github/workflows/svea_sitl_prerelease.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  build_and_prerelease:
+    runs-on: ubuntu-latest
+
+    env:
+      DEFAULT_SITL_TARGET: gz_rover_ackermann
+      DEFAULT_SYS_AUTOSTART: "51000"
+      DEFAULT_RELEASE_TAG: svea-sitl-latest
+
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Resolve inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          sitl_target='${{ github.event.inputs.sitl_target }}'
+          px4_sys_autostart='${{ github.event.inputs.px4_sys_autostart }}'
+          release_tag='${{ github.event.inputs.release_tag }}'
+
+          if [ -z "${sitl_target}" ]; then
+            sitl_target='${DEFAULT_SITL_TARGET}'
+          fi
+
+          if [ -z "${px4_sys_autostart}" ]; then
+            px4_sys_autostart='${DEFAULT_SYS_AUTOSTART}'
+          fi
+
+          if [ -z "${release_tag}" ]; then
+            release_tag='${DEFAULT_RELEASE_TAG}'
+          fi
+
+          if ! [[ "${px4_sys_autostart}" =~ ^[0-9]+$ ]]; then
+            echo "px4_sys_autostart must be numeric, got '${px4_sys_autostart}'"
+            exit 1
+          fi
+
+          shopt -s nullglob
+          autostart_matches=(ROMFS/px4fmu_common/init.d-posix/airframes/${px4_sys_autostart}_*)
+          if [ "${#autostart_matches[@]}" -eq 0 ]; then
+            echo "No POSIX SITL airframe found for PX4_SYS_AUTOSTART=${px4_sys_autostart}"
+            echo "Expected file pattern: ROMFS/px4fmu_common/init.d-posix/airframes/${px4_sys_autostart}_*"
+            exit 1
+          fi
+          shopt -u nullglob
+
+          echo "SITL_TARGET=${sitl_target}" >> "$GITHUB_ENV"
+          echo "PX4_SYS_AUTOSTART=${px4_sys_autostart}" >> "$GITHUB_ENV"
+          echo "RELEASE_TAG=${release_tag}" >> "$GITHUB_ENV"
+
+      - name: Build Devcontainer Image
+        run: |
+          cd "$GITHUB_WORKSPACE"
+          docker build -t svea-devcontainer-ci -f .devcontainer/Dockerfile .devcontainer
+
+      - name: Build SITL firmware in devcontainer
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$GITHUB_WORKSPACE"
+
+          docker run --rm \
+            -v "$GITHUB_WORKSPACE":/workspaces/SVEA-PX4-Autopilot \
+            -w /workspaces/SVEA-PX4-Autopilot \
+            svea-devcontainer-ci \
+            /bin/bash -lc "git config --global --add safe.directory /workspaces/SVEA-PX4-Autopilot && make px4_sitl_default -j\$(nproc)"
+
+      - name: Collect SITL runtime bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$GITHUB_WORKSPACE"
+
+          test -f build/px4_sitl_default/bin/px4
+          test -d build/px4_sitl_default/etc
+
+          bundle_root="artifacts/svea-sitl"
+          bundle_name="svea-sitl-${GITHUB_SHA::12}"
+          bundle_dir="${bundle_root}/${bundle_name}"
+
+          mkdir -p "${bundle_dir}"
+
+          cp build/px4_sitl_default/bin/px4 "${bundle_dir}/"
+          cp -R build/px4_sitl_default/etc "${bundle_dir}/"
+
+          cat > "${bundle_dir}/README.txt" << EOF
+SVEA PX4 SITL runtime bundle
+
+Commit: ${GITHUB_SHA}
+SITL target hint: ${SITL_TARGET}
+SYS_AUTOSTART hint: ${PX4_SYS_AUTOSTART}
+
+Typical run command:
+PX4_SYS_AUTOSTART=${PX4_SYS_AUTOSTART} PX4_SIM_MODEL=${SITL_TARGET} ./px4
+EOF
+
+          tarball="${bundle_root}/${bundle_name}.tar.gz"
+          (
+            cd "${bundle_root}"
+            tar -czf "$(basename "${tarball}")" "${bundle_name}"
+          )
+
+          sha256sum "${tarball}" > "${tarball}.sha256"
+
+          ls -la "${bundle_root}"
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: svea-sitl-runtime
+          path: artifacts/svea-sitl/*
+          if-no-files-found: error
+
+      - name: Publish prerelease
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          name: SVEA PX4 SITL Runtime
+          prerelease: true
+          make_latest: false
+          files: |
+            artifacts/svea-sitl/*.tar.gz
+            artifacts/svea-sitl/*.sha256
