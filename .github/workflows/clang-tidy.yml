@@ -24,9 +24,9 @@ jobs:
     - name: Testing (clang-tidy-quiet)
       uses: addnab/docker-run-action@v3
       with:
-        image: px4io/px4-dev-clang:2021-09-08
+        image: ghcr.io/px4/px4-dev:v1.17.0-rc2
         options: -v ${{ github.workspace }}:/workspace
         run: |
           cd /workspace
           git config --global --add safe.directory /workspace
-          make clang-tidy-quiet
+          make clang-tidy
