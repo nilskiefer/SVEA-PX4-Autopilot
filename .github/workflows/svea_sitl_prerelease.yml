@@ -28,8 +28,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        arch: [amd64, arm64]
-    runs-on: ubuntu-latest
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
 
     steps:
       - uses: actions/checkout@v5
@@ -58,8 +62,8 @@ jobs:
           docker buildx build \
             --load \
             --platform linux/${{ matrix.arch }} \
-            --cache-from type=gha,scope=svea-devcontainer \
-            --cache-to type=gha,mode=max,scope=svea-devcontainer \
+            --cache-from type=gha,scope=svea-devcontainer-${{ matrix.arch }} \
+            --cache-to type=gha,mode=max,scope=svea-devcontainer-${{ matrix.arch }} \
             -t svea-devcontainer-ci:${{ matrix.arch }} \
             -f .devcontainer/Dockerfile \
             .devcontainer
