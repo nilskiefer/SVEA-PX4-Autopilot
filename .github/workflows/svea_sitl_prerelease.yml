@@ -95,6 +95,10 @@ jobs:
           )
 
           sha256sum "${tarball}" > "${tarball}.sha256"
+
+          stable_tarball="${bundle_root}/svea-sitl-runtime.tar.gz"
+          cp "${tarball}" "${stable_tarball}"
+          sha256sum "${stable_tarball}" > "${stable_tarball}.sha256"
           ls -la "${bundle_root}"
 
       - name: Upload workflow artifact
