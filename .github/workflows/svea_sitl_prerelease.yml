@@ -86,6 +86,7 @@ jobs:
           cd "$GITHUB_WORKSPACE"
 
           test -f build/px4_sitl_default/bin/px4
+          test -f build/px4_sitl_default/bin/px4-alias.sh
           test -d build/px4_sitl_default/etc
 
           bundle_root="artifacts/svea-sitl"
@@ -94,6 +95,7 @@ jobs:
 
           mkdir -p "${bundle_dir}"
           cp build/px4_sitl_default/bin/px4 "${bundle_dir}/"
+          cp build/px4_sitl_default/bin/px4-alias.sh "${bundle_dir}/"
           cp -R build/px4_sitl_default/etc "${bundle_dir}/"
 
           cat > "${bundle_dir}/README.txt" <<EOF
