@@ -38,14 +38,27 @@ jobs:
 
       - name: Collect artifacts
         run: |
+          set -euo pipefail
           cd "$GITHUB_WORKSPACE"
           mkdir -p artifacts/svea-pmb-mikroe
+          short_sha="${GITHUB_SHA::12}"
           mapfile -t fw_files < <(find build/mikroe_clicker4-stm32f7_noboot -maxdepth 1 -type f \( -name '*.bin' -o -name '*.hex' -o -name '*.px4' -o -name '*.elf' \))
           if [ "${#fw_files[@]}" -eq 0 ]; then
             echo "No firmware artifacts were produced"
             exit 1
           fi
+
+          # Stable rolling aliases (latest)
           cp "${fw_files[@]}" artifacts/svea-pmb-mikroe/
+
+          # Immutable per-commit artifacts
+          for src in "${fw_files[@]}"; do
+            base="$(basename "${src}")"
+            stem="${base%.*}"
+            ext="${base##*.}"
+            cp "${src}" "artifacts/svea-pmb-mikroe/${stem}-${short_sha}.${ext}"
+          done
+
           ls -la artifacts/svea-pmb-mikroe
 
       - name: Upload artifact
