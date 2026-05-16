@@ -5,6 +5,8 @@ on:
   push:
     branches:
       - main
+    tags:
+      - "v*"
     paths:
       - "src/**"
       - "ROMFS/**"
@@ -20,7 +22,6 @@ permissions:
 env:
   SITL_TARGET: gz_rover_ackermann
   PX4_SYS_AUTOSTART: "51000"
-  RELEASE_TAG: svea-sitl-latest
 
 jobs:
   build_and_prerelease:
@@ -108,22 +109,42 @@ jobs:
           path: artifacts/svea-sitl/*
           if-no-files-found: error
 
-      - name: Move release tag to this commit
+      - name: Resolve release channel
+        id: release_channel
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            echo "release_tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+            echo "release_name=SVEA PX4 SITL Runtime ${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+            echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
+            echo "make_latest=true" >> "$GITHUB_OUTPUT"
+            echo "retag_latest=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "release_tag=svea-sitl-latest" >> "$GITHUB_OUTPUT"
+            echo "release_name=SVEA PX4 SITL Runtime" >> "$GITHUB_OUTPUT"
+            echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
+            echo "make_latest=false" >> "$GITHUB_OUTPUT"
+            echo "retag_latest=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Move rolling prerelease tag to this commit
+        if: steps.release_channel.outputs.retag_latest == 'true'
         shell: bash
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git tag -f "${RELEASE_TAG}" "${GITHUB_SHA}"
-          git push --force origin "refs/tags/${RELEASE_TAG}"
+          git tag -f "${{ steps.release_channel.outputs.release_tag }}" "${GITHUB_SHA}"
+          git push --force origin "refs/tags/${{ steps.release_channel.outputs.release_tag }}"
 
-      - name: Publish prerelease
+      - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ env.RELEASE_TAG }}
-          name: SVEA PX4 SITL Runtime
-          prerelease: true
-          make_latest: false
+          tag_name: ${{ steps.release_channel.outputs.release_tag }}
+          name: ${{ steps.release_channel.outputs.release_name }}
+          prerelease: ${{ steps.release_channel.outputs.is_prerelease }}
+          make_latest: ${{ steps.release_channel.outputs.make_latest }}
           files: |
             artifacts/svea-sitl/*.tar.gz
             artifacts/svea-sitl/*.sha256
