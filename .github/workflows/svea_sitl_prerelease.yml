@@ -22,6 +22,7 @@ permissions:
 env:
   SITL_TARGET: gz_rover_ackermann
   PX4_SYS_AUTOSTART: "51000"
+  DEVCONTAINER_IMAGE: ghcr.io/nilskiefer/svea-px4-autopilot-devcontainer:latest
 
 jobs:
   build_and_prerelease:
@@ -45,10 +46,16 @@ jobs:
             exit 1
           fi
 
-      - name: Build Devcontainer Image
+      - name: Pull prebuilt devcontainer image or build fallback
+        shell: bash
         run: |
-          cd "$GITHUB_WORKSPACE"
-          docker build -t svea-devcontainer-ci -f .devcontainer/Dockerfile .devcontainer
+          set -euo pipefail
+          if docker pull "${DEVCONTAINER_IMAGE}"; then
+            docker tag "${DEVCONTAINER_IMAGE}" svea-devcontainer-ci
+          else
+            cd "$GITHUB_WORKSPACE"
+            docker build -t svea-devcontainer-ci -f .devcontainer/Dockerfile .devcontainer
+          fi
 
       - name: Build SITL firmware in devcontainer
         shell: bash
