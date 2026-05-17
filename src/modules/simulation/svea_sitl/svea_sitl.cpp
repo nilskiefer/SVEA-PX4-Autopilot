@@ -12,6 +12,7 @@
 #include <uORB/topics/manual_control_setpoint.h>
 #include <uORB/topics/manual_control_switches.h>
 #include <uORB/topics/parameter_update.h>
+#include <uORB/topics/vehicle_attitude.h>
 #include <uORB/topics/vehicle_local_position.h>
 #include <uORB/topics/wheel_distance.h>
 
@@ -98,6 +99,7 @@ SVEA SITL helper:
 		perf_begin(_loop_perf);
 
 		const hrt_abstime now = hrt_absolute_time();
+		bridge_attitude(now);
 		bridge_local_position(now);
 		publish_rc_fallback_if_mavlink_lost(now);
 		publish_wheel_distance(now);
@@ -176,21 +178,6 @@ private:
 
 		vehicle_local_position_s lpos = lpos_gt;
 
-		// ENU -> NED for rover tf consistency with ROS base_link convention.
-		lpos.x = lpos_gt.y;
-		lpos.y = lpos_gt.x;
-		lpos.z = -lpos_gt.z;
-		lpos.vx = lpos_gt.vy;
-		lpos.vy = lpos_gt.vx;
-		lpos.vz = -lpos_gt.vz;
-		lpos.ax = lpos_gt.ay;
-		lpos.ay = lpos_gt.ax;
-		lpos.az = -lpos_gt.az;
-
-		lpos.heading = matrix::wrap_pi(M_PI_F / 2.f - lpos_gt.heading);
-		lpos.unaided_heading = lpos.heading;
-		lpos.delta_heading = 0.f;
-
 		lpos.xy_valid = true;
 		lpos.z_valid = true;
 		lpos.v_xy_valid = true;
@@ -200,6 +187,19 @@ private:
 		lpos.timestamp = now;
 
 		_lpos_pub.publish(lpos);
+	}
+
+	void bridge_attitude(const hrt_abstime now)
+	{
+		vehicle_attitude_s att_gt{};
+
+		if (!_att_gt_sub.update(&att_gt)) {
+			return;
+		}
+
+		vehicle_attitude_s att = att_gt;
+		att.timestamp = now;
+		_att_pub.publish(att);
 	}
 
 	void publish_wheel_distance(const hrt_abstime now)
@@ -241,11 +241,13 @@ private:
 	}
 
 	uORB::Subscription _lpos_gt_sub{ORB_ID(vehicle_local_position_groundtruth)};
+	uORB::Subscription _att_gt_sub{ORB_ID(vehicle_attitude_groundtruth)};
 	uORB::Subscription _manual_control_mavlink_sub{ORB_ID(manual_control_input), 1};
 	uORB::Subscription _lpos_sub{ORB_ID(vehicle_local_position)};
 
 	uORB::Publication<manual_control_switches_s> _manual_control_switches_pub{ORB_ID(manual_control_switches)};
 	uORB::Publication<manual_control_setpoint_s> _manual_control_input_pub{ORB_ID(manual_control_input)};
+	uORB::Publication<vehicle_attitude_s> _att_pub{ORB_ID(vehicle_attitude)};
 	uORB::Publication<vehicle_local_position_s> _lpos_pub{ORB_ID(vehicle_local_position)};
 	uORB::Publication<wheel_distance_s> _wheel_distance_pub{ORB_ID(wheel_distance)};
 
