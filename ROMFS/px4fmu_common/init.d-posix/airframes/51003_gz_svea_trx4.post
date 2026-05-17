@@ -1,0 +1,24 @@
+#!/bin/sh
+#
+# Post-start hook for 51003. Runs after commander is started.
+#
+
+# Force-arm deterministically for SITL manual testing.
+# Wait for commander readiness with a hard timeout, then fail startup if arming never succeeds.
+i=0
+while true
+do
+	if commander arm -f
+	then
+		break
+	fi
+
+	i=$((i + 1))
+	if [ "$i" -ge 50 ]
+	then
+		echo "ERROR [init] auto-arm failed for SYS_AUTOSTART=51003 after 5s"
+		exit 1
+	fi
+
+	sleep 0.1
+done
