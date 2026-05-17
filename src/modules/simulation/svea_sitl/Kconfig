@@ -1,0 +1,6 @@
+menuconfig MODULES_SIMULATION_SVEA_SITL
+	bool "svea_sitl"
+	default n
+	---help---
+		Enable SVEA SITL helper module for RC fallback and rover frame bridge.
+

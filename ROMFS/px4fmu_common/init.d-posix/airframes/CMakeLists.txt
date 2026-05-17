@@ -113,6 +113,7 @@ px4_add_romfs_files(
 
 	50000_gz_rover_differential
 	51000_gz_rover_ackermann
+	51003_gz_svea_trx4
 	52000_gz_rover_mecanum
 
 	60002_gz_uuv_bluerov2_heavy
