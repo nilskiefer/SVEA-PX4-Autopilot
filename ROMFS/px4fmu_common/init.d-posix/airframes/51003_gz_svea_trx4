@@ -3,15 +3,18 @@
 # @type Rover
 # @class Rover
 
-. ${R}etc/init.d/rc.rover_ackermann_defaults
+# Keep airframe self-contained and explicit.
+set VEHICLE_TYPE rover_ackermann
+param set-default MAV_TYPE 10
+param set-default CA_AIRFRAME 5
+param set-default CA_R_REV 1
 
 PX4_SIMULATOR=${PX4_SIMULATOR:=gz}
 PX4_GZ_WORLD=${PX4_GZ_WORLD:=rover}
 PX4_SIM_MODEL=${PX4_SIM_MODEL:=rover_ackermann}
 
 param set-default SIM_GZ_EN 1
-
-param set-default SYS_MC_EST_GROUP 0
+param set-default SYS_HAS_BARO 0
 param set-default EKF2_EN 0
 
 param set-default NAV_ACC_RAD 0.5
@@ -78,6 +81,7 @@ param set-default NAV_RCL_ACT 6
 
 # Allow auto arming bypass for testing
 param set-default COM_PREARM_MODE 0
+param set-default COM_DISARM_PRFLT -1
 
 # Ensure all mode slots are Manual for offboard control via MAVLink MANUAL_CONTROL
 param set-default COM_FLTMODE1 0
