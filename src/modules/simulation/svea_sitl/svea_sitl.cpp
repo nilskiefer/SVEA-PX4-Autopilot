@@ -98,21 +98,36 @@ SVEA SITL helper:
 		perf_begin(_loop_perf);
 
 		const hrt_abstime now = hrt_absolute_time();
-		publish_rc_fallback(now);
 		bridge_local_position(now);
+		publish_rc_fallback_if_mavlink_lost(now);
 		publish_wheel_distance(now);
 
 		perf_end(_loop_perf);
 	}
 
 private:
-	void publish_rc_fallback(const hrt_abstime now)
+	void publish_rc_fallback_if_mavlink_lost(const hrt_abstime now)
 	{
+		manual_control_setpoint_s mavlink_manual{};
+
+		if (_manual_control_mavlink_sub.copy(&mavlink_manual)
+		    && mavlink_manual.valid
+		    && (mavlink_manual.data_source >= manual_control_setpoint_s::SOURCE_MAVLINK_0)
+		    && (mavlink_manual.data_source <= manual_control_setpoint_s::SOURCE_MAVLINK_5)) {
+			_last_mavlink_manual_input = mavlink_manual.timestamp;
+		}
+
+		if (_last_mavlink_manual_input != 0
+		    && (now - _last_mavlink_manual_input) <= _mavlink_manual_timeout) {
+			// MAVLink manual stream is alive: do not override it with fallback RC.
+			return;
+		}
+
 		manual_control_switches_s sw{};
 		sw.timestamp = now;
 		sw.timestamp_sample = now;
 		sw.mode_slot = manual_control_switches_s::MODE_SLOT_1;
-		sw.arm_switch = manual_control_switches_s::SWITCH_POS_ON;
+		sw.arm_switch = manual_control_switches_s::SWITCH_POS_OFF;
 		sw.return_switch = manual_control_switches_s::SWITCH_POS_OFF;
 		sw.loiter_switch = manual_control_switches_s::SWITCH_POS_OFF;
 		sw.offboard_switch = manual_control_switches_s::SWITCH_POS_OFF;
@@ -152,7 +167,7 @@ private:
 
 		if (!_lpos_gt_sub.update(&lpos_gt)) {
 			if ((now - _last_groundtruth_warn) > 1_s) {
-				PX4_ERR("vehicle_local_position_groundtruth missing; no SVEA SITL outputs");
+				PX4_WARN("vehicle_local_position_groundtruth missing; no SVEA SITL pose bridge");
 				_last_groundtruth_warn = now;
 			}
 
@@ -197,10 +212,18 @@ private:
 		const float dt = (now - _last_wheel_pub) * 1e-6f;
 		_last_wheel_pub = now;
 
-		// Use rover longitudinal speed in local-position frame as encoder speed proxy.
+		// Use EKF local-position speed as encoder proxy; do not override estimator outputs.
 		vehicle_local_position_s lpos{};
 
 		if (!_lpos_sub.copy(&lpos)) {
+			if ((now - _last_groundtruth_warn) > 1_s) {
+				PX4_WARN("vehicle_local_position unavailable; skipping wheel encoder update");
+				_last_groundtruth_warn = now;
+			}
+			return;
+		}
+
+		if (!PX4_ISFINITE(lpos.vx) || !lpos.v_xy_valid) {
 			return;
 		}
 
@@ -218,6 +241,7 @@ private:
 	}
 
 	uORB::Subscription _lpos_gt_sub{ORB_ID(vehicle_local_position_groundtruth)};
+	uORB::Subscription _manual_control_mavlink_sub{ORB_ID(manual_control_input), 1};
 	uORB::Subscription _lpos_sub{ORB_ID(vehicle_local_position)};
 
 	uORB::Publication<manual_control_switches_s> _manual_control_switches_pub{ORB_ID(manual_control_switches)};
@@ -226,6 +250,8 @@ private:
 	uORB::Publication<wheel_distance_s> _wheel_distance_pub{ORB_ID(wheel_distance)};
 
 	hrt_abstime _last_groundtruth_warn{0};
+	hrt_abstime _last_mavlink_manual_input{0};
+	static constexpr hrt_abstime _mavlink_manual_timeout{300_ms};
 	hrt_abstime _last_wheel_pub{0};
 	uint32_t _wheel_sequence{0};
 	float _wheel_distance_left_m{0.f};
