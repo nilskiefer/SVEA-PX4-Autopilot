@@ -362,6 +362,28 @@ fi
 # execute autostart post script if any
 [ -e "$autostart_file".post ] && . "$autostart_file".post
 
+# SVEA TRX4 SITL: auto-arm deterministically and fail hard if it cannot arm quickly.
+if [ "$SYS_AUTOSTART" -eq 51003 ]
+then
+	i=0
+	while true
+	do
+		if commander arm -f
+		then
+			break
+		fi
+
+		i=$((i + 1))
+		if [ "$i" -ge 50 ]
+		then
+			echo "ERROR [init] auto-arm failed for SYS_AUTOSTART=51003 after 5s"
+			exit 1
+		fi
+
+		sleep 0.1
+	done
+fi
+
 # Run script to start logging
 if param compare -s EKF2_EN 1
 then
