@@ -56,6 +56,17 @@ The download link is near the bottom of the page.
 
 Follow these instructions [https://helpdesk.mikroe.com](https://helpdesk.mikroe.com/en-us/10-codegrip/79-how-to-update-codegrip-device-firmware)
 
+### 3.2 Testing/troubleshooting USB connection
+Connect USB cable from CN1 to a computer running Linux (eg jetson).
+
+Running in terminal
+`ls /dev/serial/by-id/*SVEA*` 
+Should show something like 
+`/dev/serial/by-id/usb-SVEA_PX4_AUTOPILOT_0-if00`
+
+If not try pressing large RED button on the board (this resets the microcontroller but shouldn't turn off raspberry/jetson)
+If not try flipping the off and on switch on the mikroe board (this will likely turn off the raspberry/jetson)
+
 ## 4) USB behavior notes
 
 - This setup has two USB paths in practice:
