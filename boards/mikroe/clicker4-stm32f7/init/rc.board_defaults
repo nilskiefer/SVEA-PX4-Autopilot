@@ -132,6 +132,11 @@ param set-default NAV_RCL_ACT 6
 param set-default COM_RCL_EXCEPT 0
 param set-default COM_KILL_DISARM 5
 
+# Board-specific workaround: load_mon publishes stale cpuload timestamp on this target,
+# so disable CPU/RAM preflight threshold checks by default.
+param set-default COM_CPU_MAX 0
+param set-default COM_RAM_MAX 0
+
 # Mute behavior (kill/disarmed): force all active outputs to 0 duty.
 param set-default PWM_MAIN_DIS1 0
 param set-default PWM_MAIN_DIS2 0
