@@ -38,12 +38,12 @@ This is via the usb c port marked CN2
 
 If you are having issues it might be because the flash chip's firmware needs to be update:
 
-### 3.1. Update the mikroE flasher firmware 
+### 3.1. Update the mikroE flasher firmware
 If you are having trouble flashing with openocd the likely cause is autodated flasher firmware.
 
-If you get errors like 
+If you get errors like
 `CMSIS-DAP command mismatch. Sent 0x10 received 0x0`
-and you see a line like 
+and you see a line like
 `Info : CMSIS-DAP: FW Version = 1.0`
 
 Then this will likely solve the issue:
@@ -60,12 +60,56 @@ Follow these instructions [https://helpdesk.mikroe.com](https://helpdesk.mikroe.
 Connect USB cable from CN1 to a computer running Linux (eg jetson).
 
 Running in terminal
-`ls /dev/serial/by-id/*SVEA*` 
-Should show something like 
+`ls /dev/serial/by-id/*SVEA*`
+Should show something like
 `/dev/serial/by-id/usb-SVEA_PX4_AUTOPILOT_0-if00`
 
 If not try pressing large RED button on the board (this resets the microcontroller but shouldn't turn off raspberry/jetson)
 If not try flipping the off and on switch on the mikroe board (this will likely turn off the raspberry/jetson)
+
+### 3.3 NSH access without QGroundControl (MAVLink shell)
+If QGroundControl is not available on your PC, you can still access `nsh` and run `dmesg` over MAVLink.
+
+Create and enter a Python virtual environment (optional):
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+```
+
+Install required Python packages:
+
+```bash
+pip install mavproxy future
+```
+
+Find the USB serial device:
+
+- Linux (preferred stable path):
+
+```bash
+ls /dev/serial/by-id/*SVEA*
+```
+
+- Linux fallback:
+
+```bash
+ls /dev/ttyACM*
+```
+
+Run MAVLink shell (replace device if needed):
+
+```bash
+python3 ./Tools/mavlink_shell.py /dev/ttyACM0
+```
+
+You should now see an `nsh` console. Example:
+
+```sh
+dmesg
+```
+
+This is useful for debugging arming failures and startup issues.
 
 ## 4) USB behavior notes
 
