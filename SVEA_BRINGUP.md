@@ -38,7 +38,15 @@ This is via the usb c port marked CN2
 
 If you are having issues it might be because the flash chip's firmware needs to be update:
 
-### 3.1. Update the mikroE firmware
+### 3.1. Update the mikroE flasher firmware 
+If you are having trouble flashing with openocd the likely cause is autodated flasher firmware.
+
+If you get errors like 
+`CMSIS-DAP command mismatch. Sent 0x10 received 0x0`
+and you see a line like 
+`Info : CMSIS-DAP: FW Version = 1.0`
+
+Then this will likely solve the issue:
 
 Install CODEGRIP from:
 
@@ -46,15 +54,7 @@ https://www.mikroe.com/codegrip
 
 The download link is near the bottom of the page.
 
-Open CODEGRIP and connect the STM32F7 board to the computer using the `CN2` port.
-
-Then:
-
-1. Press the yellow mail icon in the bottom left.
-
-2. Press the yellow icon next to `New firmware available` in the window that pops up.
-
-3. Follow the instructions shown in CODEGRIP.
+Follow these instructions [https://helpdesk.mikroe.com](https://helpdesk.mikroe.com/en-us/10-codegrip/79-how-to-update-codegrip-device-firmware)
 
 ## 4) USB behavior notes
 
