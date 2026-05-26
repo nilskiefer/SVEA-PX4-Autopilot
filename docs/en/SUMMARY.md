@@ -1,5 +1,10 @@
 - [Introduction](index.md)
   - [Basic Concepts](getting_started/px4_basic_concepts.md)
+  - [SVEA Clicker4 Bringup](svea/index.md)
+    - [Build and Flash](svea/build-and-flash.md)
+    - [Troubleshooting and Connectivity](svea/troubleshooting.md)
+    - [Powerboard and Expanders](svea/powerboard-and-expanders.md)
+    - [Actuators, LEDs, and Manual Tests](svea/actuators-and-leds.md)
 
 - [Multicopters](frames_multicopter/index.md)
   - [Features](features_mc/index.md)
