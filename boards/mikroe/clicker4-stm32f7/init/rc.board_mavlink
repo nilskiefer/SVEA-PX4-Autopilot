@@ -5,3 +5,17 @@
 
 # Keep USART1 (/dev/ttyS0, PB6/PB7) reserved for svea_peripheral_mcu.
 # USART2 (PA2/PA3) remains the NSH serial console.
+
+# Deterministic CDC MAVLink bringup:
+# 1) Attach CDC ACM
+# 2) Ensure /dev/ttyACM0 exists
+# 3) Start MAVLink directly on USB CDC
+sercon
+sleep 1
+
+if [ ! -e /dev/ttyACM0 ]
+then
+	echo "ERROR: /dev/ttyACM0 missing after sercon; MAVLink USB startup aborted"
+else
+	mavlink start -d /dev/ttyACM0 -b 2000000 -m onboard
+fi
