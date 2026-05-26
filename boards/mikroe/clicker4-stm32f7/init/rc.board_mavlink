@@ -17,5 +17,5 @@ if [ ! -e /dev/ttyACM0 ]
 then
 	echo "ERROR: /dev/ttyACM0 missing after sercon; MAVLink USB startup aborted"
 else
-	mavlink start -d /dev/ttyACM0 -b 2000000 -m onboard
+	mavlink start -d /dev/ttyACM0 -b 115200 -m onboard
 fi

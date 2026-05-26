@@ -152,9 +152,8 @@ param set-default PWM_MAIN_TIM1 100
 param set-default PWM_MAIN_TIM2 100
 param set-default PWM_MAIN_TIM3 100
 
-# Enable USB CDC auto-management and MAVLink on USB by default.
-param set-default SYS_USB_AUTO 2
-param set-default USB_MAV_MODE 2
+# USB CDC MAVLink is brought up explicitly in rc.board_mavlink.
+# Do not set SYS_USB_AUTO/USB_MAV_MODE here; these params are absent in this build config.
 
 # GPS driver is not part of this board target by default.
 # Do not touch GPS_*_CONFIG params here (they may not exist in this build).
