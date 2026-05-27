@@ -70,6 +70,6 @@ From `noboot.px4board`:
 
 ## Detailed References
 
-- [Manual Control Gating (ROS vs RC)](manual-control-gating.md)
+- [Controlling the Car (RC and ROS/MAVLink)](controlling-the-car.md)
 - [Peripheral MCU Bridge](peripheral-mcu-bridge.md)
 - [MAVLink uORB Tunnel](mavlink-uorb-tunnel.md)

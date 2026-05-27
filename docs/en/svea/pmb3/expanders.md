@@ -1,5 +1,11 @@
 # PMB3: Expanders and GPIO
 
+> WARNING
+> Only change GPIO states if you understand the PMB3 powerboard wiring and rail dependencies.
+> Some GPIOs control power enables, charger paths, receiver power, and safety-related signals.
+> Writing the wrong value can disable critical rails, trip faults, or cause unintended actuator/power behavior.
+> If unsure, do not write GPIOs manually.
+
 ## Address and Device Ranges
 
 - Primary expander `0x22` -> `/dev/gpio0..23`
