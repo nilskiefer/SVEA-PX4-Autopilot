@@ -24,7 +24,6 @@ export default defineConfig({
           { text: "Firmware Inventory", link: "/firmware-inventory" },
           { text: "Manual Control Gating", link: "/manual-control-gating" },
           { text: "Peripheral MCU Bridge", link: "/peripheral-mcu-bridge" },
-          { text: "SVEA Power Gate", link: "/svea-power-gate" },
           { text: "MAVLink uORB Tunnel", link: "/mavlink-uorb-tunnel" }
         ]
       },
@@ -34,6 +33,7 @@ export default defineConfig({
           { text: "Overview", link: "/pmb3/" },
           { text: "Powerboard Baseline", link: "/pmb3/powerboard" },
           { text: "Expanders and GPIO", link: "/pmb3/expanders" },
+          { text: "Power Gate", link: "/pmb3/power-gate" },
           { text: "Actuators", link: "/pmb3/actuators" },
           { text: "LEDs", link: "/pmb3/leds" }
         ]
