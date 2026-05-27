@@ -14,7 +14,7 @@ In this image, the 3-way switch is currently in the middle position (RC-only).
 
 ## Control Flow
 
-::: mermaid
+```mermaid
 flowchart TD
   A[Power on RC transmitter] --> C{RC link connected?}
   C -- No --> D[Cannot arm with RC button]
@@ -27,7 +27,7 @@ flowchart TD
   H --> J
   J --> K[Drive]
   K --> L[Press arm button again to disarm]
-:::
+```
 
 ## Arming and Disarming
 
