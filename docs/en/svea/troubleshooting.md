@@ -1,25 +1,29 @@
-# Troubleshooting and Connectivity
+# Troubleshooting
 
-## USB Paths
+Use this page to quickly isolate startup and connectivity issues.
 
-- `CN2`: CODEGRIP debug/programming path (OpenOCD)
-- `CN1`: PX4 USB CDC path (runtime MAVLink/console)
+## USB Not Detected
 
-`noboot` firmware uses OpenOCD flashing and runtime USB CDC for host connection.
-
-## Quick USB Checks (Linux)
+Linux:
 
 ```bash
 ls /dev/serial/by-id/*SVEA*
 ls /dev/ttyACM*
 ```
 
-If no device appears:
+macOS:
 
-1. Press the red reset button.
-2. Power-cycle board if needed.
+```bash
+ls /dev/cu.usbmodem*
+```
 
-## NSH Without QGroundControl
+If missing:
+
+1. Press board reset button.
+2. Replug CN1 cable.
+3. Power-cycle board.
+
+## NSH Access Without QGroundControl
 
 ```bash
 python3 -m venv .venv
@@ -28,28 +32,40 @@ pip install mavproxy future
 python3 ./Tools/mavlink_shell.py /dev/ttyACM0
 ```
 
-Then in `nsh`:
+## Connected but No QGC Link
 
-```sh
-dmesg
-mavlink status
-```
-
-## MAVLink on USB CDC
-
-Board startup uses explicit USB CDC bringup in `rc.board_mavlink`:
-
-1. `sercon`
-2. wait for `/dev/ttyACM0`
-3. `mavlink start -d /dev/ttyACM0 ...`
-
-Verify from boot log:
+In boot log, verify both:
 
 - `sercon: Successfully registered the CDC/ACM serial driver`
 - `INFO [mavlink] ... on /dev/ttyACM0 ...`
 
-## Typical Startup Failures
+If missing, inspect `/etc/init.d/rc.board_mavlink` and startup log around `Board mavlink:`.
 
-- Missing sensor hardware: preflight accel/gyro failures.
-- Missing powerboard hardware: I2C probe failures for BQ/INA/PCAL/PCA9685.
-- Serial tool mismatch: host sees USB device but no MAVLink heartbeat.
+## Common Expected Errors (Bringup Without PMB3)
+
+These can be expected when hardware is absent:
+
+- BQ/INA/PCAL/PCA9685 probe failures
+- power-gate GPIO open failures
+
+## CPU/RAM Preflight Check Notes
+
+If you still see `No CPU and RAM load information`, verify:
+
+```sh
+load_mon status
+listener cpuload 5
+```
+
+If cpuload remains stale in this board setup, current operational default is:
+
+- `COM_CPU_MAX=0`
+- `COM_RAM_MAX=0`
+
+Keep this as board-specific policy until cpuload publication path is fully resolved upstream or in-board config.
+
+## Common Runtime Tuning from NSH
+
+For frequent parameter tweaks (including accel/decel limits), use:
+
+- [Common Adjustments (NSH)](common-adjustments.md)
