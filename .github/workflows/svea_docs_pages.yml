@@ -37,8 +37,11 @@ jobs:
 
       - name: Build VitePress docs
         working-directory: docs
+        env:
+          BRANCH_NAME: ${{ github.event.repository.name }}
+          CI: true
         run: |
-          npm run docs:build_ubuntu
+          npx vitepress build . --config .vitepress/config.svea.mjs
           touch .vitepress/dist/.nojekyll
 
       - name: Setup Pages
