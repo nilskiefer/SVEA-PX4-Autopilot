@@ -1,6 +1,6 @@
-import { defineConfig } from "vitepress";
+import { withMermaid } from "vitepress-plugin-mermaid";
 
-export default defineConfig({
+export default withMermaid({
   title: "SVEA PX4 Docs",
   description: "SVEA bringup, flashing, and troubleshooting documentation",
   base: process.env.BRANCH_NAME ? `/${process.env.BRANCH_NAME}/` : "/",
@@ -44,5 +44,8 @@ export default defineConfig({
       { icon: "github", link: "https://github.com/nilskiefer/SVEA-PX4-Autopilot" }
     ],
     search: { provider: "local" }
+  },
+  mermaidPlugin: {
+    class: "mermaid"
   }
 });
