@@ -6,6 +6,7 @@ export default defineConfig({
   base: process.env.BRANCH_NAME ? `/${process.env.BRANCH_NAME}/` : "/",
   cleanUrls: true,
   ignoreDeadLinks: false,
+  mermaid: {},
   themeConfig: {
     nav: [
       { text: "SVEA Docs", link: "/" },
