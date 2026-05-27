@@ -68,3 +68,35 @@ In practice:
 
 - `MODE_SLOT_1`: MAVLink `MANUAL_CONTROL` accepted, RC fallback active
 - other mode slots: MAVLink `MANUAL_CONTROL` rejected, RC path active
+
+## Verify `MANUAL_CONTROL` Lands in PX4 (NSH)
+
+When publishing from ROS/MAVROS (for example `/mavros/manual_control/send`), verify in NSH at three levels:
+
+1. MAVLink RX path is alive:
+
+```sh
+mavlink status
+```
+
+2. Decoded manual control setpoint updates:
+
+```sh
+listener manual_control_setpoint 10
+```
+
+3. Output path updates:
+
+```sh
+listener actuator_servos 10
+listener actuator_motors 10
+listener actuator_outputs 10
+```
+
+Gate check (required in this fork):
+
+```sh
+listener manual_control_switches 5
+```
+
+`mode_slot` must be `MODE_SLOT_1`, otherwise `MANUAL_CONTROL` is rejected.
