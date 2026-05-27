@@ -110,18 +110,108 @@ listener manual_control_switches 5
 
 `mode_slot` must be `MODE_SLOT_1` for MAVLink manual input to be accepted.
 
-## ROS Example
+## ROS Manual Control Reference
 
-Start SVEA core:
+This setup uses MAVLink `MANUAL_CONTROL` through MAVROS topic:
+
+- `/mavros/manual_control/send`
+
+### Switch-Gated Behavior
+
+Authority is selected by CH5 mode switch in PX4 firmware:
+
+- `~1000` (low): accepts MAVLink manual control from ROS
+- `~1500` (mid): rejects MAVLink manual control (RC-only)
+- `~2000` (high): kill
+
+### Field Mapping and Ranges
+
+For `mavros_msgs/msg/ManualControl`:
+
+- `y`: steering (`-1000..1000`)
+- `z`: throttle (`0..1000`, where `500` is neutral)
+- `aux1..aux6`: extra manual channels (`-1000..1000`, MAVLink v2 extensions)
+- `enabled_extensions`: must enable aux fields (`252` enables `aux1..aux6`)
+
+Publish continuously (`10-20 Hz`) and publish full state every message.
+If a later message sets `aux1=0`, output moves to `0` (it does not latch previous `1000`).
+
+### Current Output Mapping (Board Defaults)
+
+PCA9685:
+
+- CH0: throttle (Motor1, function `101`)
+- CH1: steering (Servo1, function `201`)
+- CH2: RC_AUX1 (function `407`) front diff
+- CH3: RC_AUX2 (function `408`) rear diff
+- CH4: RC_AUX3 (function `409`) gear
+- CH5: RC_AUX4 (function `410`) misc
+- CH6: RC_AUX5 (function `411`) misc
+
+Binary endpoints configured for diff/gear:
+
+- CH2/CH3/CH4 min/max = `1200/1800`
+
+### Gear/Diff Polarity
+
+`svea_lli_zephyr` used opposite front/rear differential pulses and inverted gear convention (`high_gear=true` => lower pulse). This setup keeps that semantic:
+
+Diff ON:
+
+- front diff (`aux1`) = `+1000` (high pulse on CH2)
+- rear diff (`aux2`) = `-1000` (low pulse on CH3)
+
+Diff OFF:
+
+- front diff (`aux1`) = `-1000`
+- rear diff (`aux2`) = `+1000`
+
+Gear HIGH (`high_gear=true`):
+
+- `aux3 = -1000` (low pulse on CH4)
+
+Gear LOW (`high_gear=false`):
+
+- `aux3 = +1000` (high pulse on CH4)
+
+For any binary channel:
+
+- `aux=-1000` -> channel min PWM
+- `aux=+1000` -> channel max PWM
+
+### Test Commands
+
+Template with named placeholders:
 
 ```sh
-ros2 launch svea_core svea.xml is_sim:=false
+STEER=1000           # y: steering (-1000..1000)
+THROTTLE=600         # z: throttle (0..1000, 500=neutral)
+FRONT_DIFF=1000      # aux1: front diff (-1000..1000)
+REAR_DIFF=-1000      # aux2: rear diff (-1000..1000)
+GEAR=-1000           # aux3: gear (-1000..1000)
+AUX4=0               # aux4: misc servo channel (CH5)
+AUX5=0               # aux5: misc servo channel (CH6)
+AUX6=0               # aux6: currently unused
+
+ros2 topic pub -r 20 /mavros/manual_control/send mavros_msgs/msg/ManualControl "{x: 0, y: ${STEER}, z: ${THROTTLE}, r: 0, buttons: 0, buttons2: 0, enabled_extensions: 252, s: 0, t: 0, aux1: ${FRONT_DIFF}, aux2: ${REAR_DIFF}, aux3: ${GEAR}, aux4: ${AUX4}, aux5: ${AUX5}, aux6: ${AUX6}}"
 ```
 
-Publish manual control at 20 Hz:
+Steer right, small forward throttle, front diff ON, rear diff OFF, gear HIGH:
 
 ```sh
 ros2 topic pub -r 20 /mavros/manual_control/send mavros_msgs/msg/ManualControl "{x: 0, y: 1000, z: 600, r: 0, buttons: 0, buttons2: 0, enabled_extensions: 252, s: 0, t: 0, aux1: 1000, aux2: -1000, aux3: -1000, aux4: 0, aux5: 0, aux6: 0}"
+```
+
+Neutral steering/throttle, all binary aux set to `-1000`:
+
+```sh
+ros2 topic pub -r 20 /mavros/manual_control/send mavros_msgs/msg/ManualControl "{x: 0, y: 0, z: 500, r: 0, buttons: 0, buttons2: 0, enabled_extensions: 252, s: 0, t: 0, aux1: -1000, aux2: -1000, aux3: -1000, aux4: 0, aux5: 0, aux6: 0}"
+```
+
+One-shot neutral:
+
+```sh
+ros2 topic pub -1 /mavros/manual_control/send mavros_msgs/msg/ManualControl "{x: 0, y: 0, z: 500, r: 0, buttons: 0, buttons2: 0, enabled_extensions: 252, s: 0, t: 0, aux1: -1000, aux2: -1000, aux3: -1000, aux4: 0, aux5: 0, aux6: 0}"
 ```
 
 For more details, consult the SVEA ROS repository documentation:
