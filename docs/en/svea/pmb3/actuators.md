@@ -1,7 +1,5 @@
 # PMB3: Actuators
 
-This page covers PCA9685 channel mapping and manual pulse tests.
-
 ## PCA9685 Setup
 
 Expected on I2C bus `2`, addr `0x61`.

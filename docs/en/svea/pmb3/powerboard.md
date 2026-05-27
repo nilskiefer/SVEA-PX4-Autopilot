@@ -1,7 +1,5 @@
 # PMB3: Powerboard Baseline
 
-This page documents baseline battery/BMS settings and rail telemetry.
-
 ## Battery Baseline
 
 Defaults from board startup:
