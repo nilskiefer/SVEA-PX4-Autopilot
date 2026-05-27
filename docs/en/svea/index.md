@@ -7,6 +7,11 @@
 3. [Build and Flash](build-and-flash.md)
 4. [Troubleshooting](troubleshooting.md)
 5. [Common Adjustments (NSH)](common-adjustments.md)
+6. [Firmware Inventory](firmware-inventory.md)
+7. [SVEA Power Gate](svea-power-gate.md)
+8. [MAVLink uORB Tunnel](mavlink-uorb-tunnel.md)
+9. [Manual Control Gating (ROS vs RC)](manual-control-gating.md)
+10. [Peripheral MCU Bridge](peripheral-mcu-bridge.md)
 
 ## PMB3 Reference
 

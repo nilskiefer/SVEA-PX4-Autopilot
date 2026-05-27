@@ -45,9 +45,34 @@ svea_ina226 status
 listener power_monitor 5
 ```
 
+## INA3221 Multi-Channel Rail Monitors
+
+Expected startup:
+
+- `0x41` with shunts `IN1=0.016`, `IN2=0.001`, `IN3=0.016`
+- `0x40` with `IN1/IN2/IN3=0.016`
+
+Checks:
+
+```sh
+svea_ina3221 status
+listener power_monitor 5
+```
+
 ## MAVLink Tunnel for `power_monitor`
 
-Add only existing instances:
+Current board startup forwards 8 instances at 4 Hz:
+
+- `0..1`: INA226 x2
+- `2..7`: INA3221 (2 devices x 3 channels)
+
+Checks:
+
+```sh
+mavlink uorb_tunnel list
+```
+
+Manual add (if needed):
 
 ```sh
 listener power_monitor
@@ -57,3 +82,7 @@ mavlink uorb_tunnel list
 ```
 
 If invalid instance is requested, it is rejected.
+
+Detailed protocol and TX/RX behavior:
+
+- [MAVLink uORB Tunnel](../mavlink-uorb-tunnel.md)

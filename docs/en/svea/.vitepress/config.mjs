@@ -20,7 +20,12 @@ export default defineConfig({
           { text: "Quick Bringup", link: "/quick-bringup" },
           { text: "Build and Flash", link: "/build-and-flash" },
           { text: "Troubleshooting", link: "/troubleshooting" },
-          { text: "Common Adjustments", link: "/common-adjustments" }
+          { text: "Common Adjustments", link: "/common-adjustments" },
+          { text: "Firmware Inventory", link: "/firmware-inventory" },
+          { text: "Manual Control Gating", link: "/manual-control-gating" },
+          { text: "Peripheral MCU Bridge", link: "/peripheral-mcu-bridge" },
+          { text: "SVEA Power Gate", link: "/svea-power-gate" },
+          { text: "MAVLink uORB Tunnel", link: "/mavlink-uorb-tunnel" }
         ]
       },
       {
