@@ -41,8 +41,8 @@ jobs:
           BRANCH_NAME: ${{ github.event.repository.name }}
           CI: true
         run: |
-          npx vitepress build . --config .vitepress/config.svea.mjs
-          touch .vitepress/dist/.nojekyll
+          npx vitepress build en/svea --config en/svea/.vitepress/config.mjs
+          touch en/svea/.vitepress/dist/.nojekyll
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
@@ -50,7 +50,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: docs/.vitepress/dist
+          path: docs/en/svea/.vitepress/dist
 
   deploy:
     needs: build
