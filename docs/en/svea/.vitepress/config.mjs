@@ -22,7 +22,7 @@ export default defineConfig({
           { text: "Troubleshooting", link: "/troubleshooting" },
           { text: "Common Adjustments", link: "/common-adjustments" },
           { text: "Firmware Inventory", link: "/firmware-inventory" },
-          { text: "Manual Control Gating", link: "/manual-control-gating" },
+          { text: "Controlling the Car", link: "/controlling-the-car" },
           { text: "Peripheral MCU Bridge", link: "/peripheral-mcu-bridge" },
           { text: "MAVLink uORB Tunnel", link: "/mavlink-uorb-tunnel" }
         ]

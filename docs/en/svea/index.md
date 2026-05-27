@@ -10,7 +10,7 @@
 6. [Firmware Inventory](firmware-inventory.md)
 7. [PMB3 Power Gate](pmb3/power-gate.md)
 8. [MAVLink uORB Tunnel](mavlink-uorb-tunnel.md)
-9. [Manual Control Gating (ROS vs RC)](manual-control-gating.md)
+9. [Controlling the Car (RC and ROS/MAVLink)](controlling-the-car.md)
 10. [Peripheral MCU Bridge](peripheral-mcu-bridge.md)
 
 ## PMB3 Reference
