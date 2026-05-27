@@ -1,7 +1,5 @@
 # Troubleshooting
 
-Use this page to quickly isolate startup and connectivity issues.
-
 ## USB Not Detected
 
 Linux:

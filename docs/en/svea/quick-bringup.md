@@ -1,7 +1,5 @@
 # Quick Bringup
 
-Use this when you need a known-good SVEA startup fast.
-
 ## 0) Environment First (Required)
 
 Complete this before anything else:

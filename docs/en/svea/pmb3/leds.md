@@ -1,7 +1,5 @@
 # PMB3: LEDs
 
-This page covers neopixel and pattern modules.
-
 ## Modules
 
 Startup includes:

@@ -1,7 +1,5 @@
 # Dev Environment (VS Code + Devcontainer)
 
-This page covers the expected setup flow before building/flashing.
-
 ## 1) Prerequisites
 
 - VS Code

@@ -1,7 +1,5 @@
 # Build and Flash
 
-This page is the canonical flash procedure for `mikroe_clicker4-stm32f7_noboot`.
-
 ## Hardware Paths
 
 - `CN2`: CODEGRIP / OpenOCD flash path

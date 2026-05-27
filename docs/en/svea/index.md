@@ -1,7 +1,5 @@
 # SVEA PX4 Docs
 
-This site is the operator/developer guide for SVEA on `MIKROE_CLICKER4_STM32F7`.
-
 ## Quick Start
 
 1. [Dev Environment (VS Code + Devcontainer)](dev-environment.md)
@@ -17,8 +15,3 @@ This site is the operator/developer guide for SVEA on `MIKROE_CLICKER4_STM32F7`.
 - [Expanders and GPIO](pmb3/expanders.md)
 - [Actuators](pmb3/actuators.md)
 - [LEDs](pmb3/leds.md)
-
-## Scope
-
-These docs focus on SVEA-specific bringup and hardware behavior.
-They do not try to mirror the full PX4 upstream user guide.
