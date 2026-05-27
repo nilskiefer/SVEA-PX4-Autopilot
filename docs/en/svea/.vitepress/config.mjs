@@ -16,10 +16,21 @@ export default defineConfig({
         text: "SVEA",
         items: [
           { text: "Overview", link: "/" },
+          { text: "Dev Environment", link: "/dev-environment" },
+          { text: "Quick Bringup", link: "/quick-bringup" },
           { text: "Build and Flash", link: "/build-and-flash" },
           { text: "Troubleshooting", link: "/troubleshooting" },
-          { text: "Powerboard and Expanders", link: "/powerboard-and-expanders" },
-          { text: "Actuators and LEDs", link: "/actuators-and-leds" }
+          { text: "Common Adjustments", link: "/common-adjustments" }
+        ]
+      },
+      {
+        text: "PMB3",
+        items: [
+          { text: "Overview", link: "/pmb3/" },
+          { text: "Powerboard Baseline", link: "/pmb3/powerboard" },
+          { text: "Expanders and GPIO", link: "/pmb3/expanders" },
+          { text: "Actuators", link: "/pmb3/actuators" },
+          { text: "LEDs", link: "/pmb3/leds" }
         ]
       }
     ],
