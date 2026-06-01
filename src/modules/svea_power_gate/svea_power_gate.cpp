@@ -67,7 +67,7 @@ public:
 private:
 	static constexpr const char *kEscEnDev = "/dev/gpio9";
 	static constexpr const char *kServoEnDev = "/dev/gpio10";
-	static constexpr useconds_t kRailStaggerUsON = 500000;
+	static constexpr useconds_t kRailStaggerUsON = 100000; // needs to be low to not mess with arm timing
 	static constexpr useconds_t kRailStaggerUsOFF = 50000;
 	static constexpr uint32_t kPollIntervalUs = 200000;
 	static constexpr hrt_abstime kReassertIntervalUs = 200000;
