@@ -145,8 +145,8 @@ PCA9685:
 - CH2: RC_AUX1 (function `407`) front diff
 - CH3: RC_AUX2 (function `408`) rear diff
 - CH4: RC_AUX3 (function `409`) gear
-- CH5: RC_AUX4 (function `410`) misc
-- CH6: RC_AUX5 (function `411`) misc
+- CH5: Actuator_Set1 (function `301`) misc0
+- CH6: Actuator_Set2 (function `302`) misc1
 
 Binary endpoints configured for diff/gear:
 
@@ -179,6 +179,19 @@ For any binary channel:
 - `aux=-1000` -> channel min PWM
 - `aux=+1000` -> channel max PWM
 
+### Diff/Gear Default in RC Mode
+
+In RC mode, differential lock channels are defaulted ON using an unused RC mapping:
+
+- `RC_MAP_AUX1=17`
+- `RC_MAP_AUX2=17`
+
+On common receiver profiles this unmapped channel is typically near low endpoint (~`1000us`), which drives the two diff channels to deterministic opposite endpoints (with rear diff inversion applied). This replaces the previous RC diff-switch behavior.
+
+Gear is controlled via:
+
+- `RC_MAP_AUX3=6` (gear on CH6)
+
 ### Test Commands
 
 Template with named placeholders:
@@ -189,12 +202,25 @@ THROTTLE=600         # z: throttle (0..1000, 500=neutral)
 FRONT_DIFF=1000      # aux1: front diff (-1000..1000)
 REAR_DIFF=-1000      # aux2: rear diff (-1000..1000)
 GEAR=-1000           # aux3: gear (-1000..1000)
-AUX4=0               # aux4: misc servo channel (CH5)
-AUX5=0               # aux5: misc servo channel (CH6)
+AUX4=0               # aux4: misc0 setpoint in MAVROS mode (CH5 / Actuator_Set1)
+AUX5=0               # aux5: misc1 setpoint in MAVROS mode (CH6 / Actuator_Set2)
 AUX6=0               # aux6: currently unused
 
 ros2 topic pub -r 20 /mavros/manual_control/send mavros_msgs/msg/ManualControl "{x: 0, y: ${STEER}, z: ${THROTTLE}, r: 0, buttons: 0, buttons2: 0, enabled_extensions: 252, s: 0, t: 0, aux1: ${FRONT_DIFF}, aux2: ${REAR_DIFF}, aux3: ${GEAR}, aux4: ${AUX4}, aux5: ${AUX5}, aux6: ${AUX6}}"
 ```
+
+### Mode-Dependent Behavior for Misc Channels
+
+`svea_rc_servo_latch` owns PCA9685 CH5/CH6 via `Actuator_Set1/2` and uses the active `manual_control_setpoint` source:
+
+- RC source (`SOURCE_RC`):
+  - CH4 (`RC_MAP_AUX4=4`) toggles active misc bank on rising edge
+  - CH3 (`RC_MAP_AUX5=3`) writes value to active bank
+  - inactive bank remains latched
+- MAVLink source (`SOURCE_MAVLINK_*`):
+  - `aux4 -> misc0` (CH5 / Actuator_Set1)
+  - `aux5 -> misc1` (CH6 / Actuator_Set2)
+  - direct passthrough (no latch logic)
 
 Steer right, small forward throttle, front diff ON, rear diff OFF, gear HIGH:
 

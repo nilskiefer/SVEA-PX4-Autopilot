@@ -13,11 +13,18 @@ pca9685_pwm_out status
 
 - CH0 `PCA9685_FUNC1` -> throttle (`101`)
 - CH1 `PCA9685_FUNC2` -> steering (`201`)
-- CH2 `PCA9685_FUNC3` -> front differential (`203`)
-- CH3 `PCA9685_FUNC4` -> rear differential (`204`)
-- CH4 `PCA9685_FUNC5` -> gear (`202`)
-- CH5 `PCA9685_FUNC6` -> misc (`205`)
-- CH6 `PCA9685_FUNC7` -> misc (`206`)
+- CH2 `PCA9685_FUNC3` -> front differential (`407`, RC_AUX1)
+- CH3 `PCA9685_FUNC4` -> rear differential (`408`, RC_AUX2)
+- CH4 `PCA9685_FUNC5` -> gear (`409`, RC_AUX3)
+- CH5 `PCA9685_FUNC6` -> misc0 (`301`, Actuator_Set1)
+- CH6 `PCA9685_FUNC7` -> misc1 (`302`, Actuator_Set2)
+
+Notes:
+
+- Diff channels are configured for binary endpoints (`1200/1800`).
+- Misc channels are driven by `svea_rc_servo_latch`:
+  - RC source: CH4 toggles selected misc channel, CH3 writes selected value
+  - MAVLink source: `aux4 -> misc0`, `aux5 -> misc1`
 
 Verify:
 

@@ -1,0 +1,5 @@
+menuconfig MODULES_SVEA_RC_SERVO_LATCH
+	bool "svea_rc_servo_latch"
+	default n
+	---help---
+		Enable support for SVEA RC servo latch/mux helper.
