@@ -259,6 +259,7 @@ param set-default PCA9685_REV 8
 param set-default PCA9685_MIN1 1000
 param set-default PCA9685_MAX1 2000
 param set-default PCA9685_DIS1 0
+param set-default PCA9685_DIS1 1500
 param set-default PCA9685_MIN2 1000
 param set-default PCA9685_MAX2 2000
 param set-default PCA9685_DIS2 0
