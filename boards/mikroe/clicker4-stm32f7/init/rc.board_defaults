@@ -60,6 +60,10 @@ param set-default COM_RC_IN_MODE 6
 # CH5 mode/kill, CH6 gear toggle.
 param set-default RC_MAP_ROLL 1
 param set-default RC_MAP_THROTTLE 2
+# Stub pitch/yaw mapping for QGC radio validation on rover profile.
+# CH17 is intentionally shared with AUX1/AUX2 fallback semantics.
+param set-default RC_MAP_PITCH 17
+param set-default RC_MAP_YAW 17
 # Extra servo 2 passthrough in RC manual mode (PCA9685 CH6 via RC_AUX5).
 param set-default RC_MAP_AUX5 3
 # CH4 push-button/toggle for selecting active misc servo latch bank.
