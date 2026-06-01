@@ -15,6 +15,12 @@ then
 	svea_peripheral_mcu start -d /dev/ttyS0 -b 115200
 fi
 
+# Start RC latch/mux for misc servos (CH4 toggles active bank, CH3 writes active bank).
+if ! svea_rc_servo_latch status > /dev/null 2>&1
+then
+	svea_rc_servo_latch start
+fi
+
 # Configure PX4_UORB_TUNNEL power_monitor forwarding deterministically.
 # -f allows registration before the uORB instance is advertised.
 # Expected instances:
