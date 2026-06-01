@@ -22,6 +22,11 @@ svea_ina3221 -I -b 2 -a 0x41 -x 0.016 -y 0.001 -z 0.016 -q start
 svea_ina3221 -I -b 2 -a 0x40 -r 0.016 -q start
 
 pca9685_pwm_out start -a 0x61 -b 2
+
+# Force both power rails low at boot before power-gate state machine takes over.
+gpio write /dev/gpio9 0
+gpio write /dev/gpio10 0
+
 svea_power_gate start
 
 # Keep 12V buck enabled after startup; delay to allow BQ precharge phase to settle.
