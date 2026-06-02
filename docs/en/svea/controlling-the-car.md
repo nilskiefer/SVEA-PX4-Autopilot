@@ -2,11 +2,14 @@
 
 ## Transmitter Controls
 
-- Green square: arm button (momentary, CH7)
-- Red circle: 3-way mode switch (CH5)
+- SWD: arm button (momentary, CH7)
+- SWB: 3-way mode/kill switch (CH5)
   - left: ROS/MAVLink manual control (`MODE_SLOT_1`) with RC fallback
   - middle: RC-only manual control (`MODE_SLOT_2`)
   - right: kill switch position (`MODE_SLOT_3`)
+- SWA: gear button (momentary, CH4)
+- SWC: misc-servo selector (3-way, CH6)
+- VR: misc-servo dial (CH3)
 
 ![RC arm button and 3-way switch](pmb3/rc-controls.png)
 
@@ -38,8 +41,8 @@ Board defaults use:
 
 So:
 
-- arm: press CH7 arm button once (green-marked button in image)
-- disarm: press CH7 arm button once again (same green-marked button)
+- arm: press SWD / CH7 once
+- disarm: press SWD / CH7 once again
 
 Note: with this operator flow, the RC receiver must be connected to use button arming.
 
@@ -118,7 +121,7 @@ This setup uses MAVLink `MANUAL_CONTROL` through MAVROS topic:
 
 ### Switch-Gated Behavior
 
-Authority is selected by CH5 mode switch in PX4 firmware:
+Authority is selected by SWB / CH5 mode switch in PX4 firmware:
 
 - `~1000` (low): accepts MAVLink manual control from ROS
 - `~1500` (mid): rejects MAVLink manual control (RC-only)
@@ -144,7 +147,7 @@ PCA9685:
 - CH1: steering (Servo1, function `201`)
 - CH2: RC_AUX1 (function `407`) front diff
 - CH3: RC_AUX2 (function `408`) rear diff
-- CH4: RC_AUX3 (function `409`) gear
+- CH4: Actuator_Set3 (function `303`) gear
 - CH5: Actuator_Set1 (function `301`) misc0
 - CH6: Actuator_Set2 (function `302`) misc1
 
@@ -188,9 +191,29 @@ In RC mode, differential lock channels are defaulted ON using an unused RC mappi
 
 On common receiver profiles this unmapped channel is typically near low endpoint (~`1000us`), which drives the two diff channels to deterministic opposite endpoints (with rear diff inversion applied). This replaces the previous RC diff-switch behavior.
 
-Gear is controlled via:
+RC gear/misc controls are handled by `svea_rc_servo_latch`:
 
-- `RC_MAP_AUX3=6` (gear on CH6)
+- `RC_MAP_AUX4=4` (SWA / CH4 push button toggles gear)
+- `RC_MAP_AUX5=3` (VR / CH3 misc-servo absolute-position dial)
+- `RC_MAP_AUX3=6` (SWC / CH6 selects misc0 low, misc1 high, neither in middle)
+- gear initializes to LOW on module start (`+1`, high pulse on CH4)
+
+### RC Misc Servo Selector
+
+SWC / CH6 selects which misc servo receives the VR / CH3 dial value. The dial is absolute, not relative: the selected servo moves directly to the current dial position. The unselected servo keeps its last latched value.
+
+```mermaid
+flowchart LR
+  A[SWC / CH6<br/>3-way selector] --> B{Selector position}
+  B -- Low / ~1000us --> C[Select misc0<br/>PCA9685 CH5]
+  B -- Middle / ~1500us --> D[Select neither<br/>both misc outputs hold]
+  B -- High / ~2000us --> E[Select misc1<br/>PCA9685 CH6]
+  F[VR / CH3 dial<br/>absolute position] --> C
+  F --> E
+  C --> G[misc0 follows dial<br/>misc1 holds last value]
+  E --> H[misc1 follows dial<br/>misc0 holds last value]
+  D --> I[misc0 holds<br/>misc1 holds]
+```
 
 ### Test Commands
 
@@ -211,15 +234,18 @@ ros2 topic pub -r 20 /mavros/manual_control/send mavros_msgs/msg/ManualControl "
 
 ### Mode-Dependent Behavior for Misc Channels
 
-`svea_rc_servo_latch` owns PCA9685 CH5/CH6 via `Actuator_Set1/2` and uses the active `manual_control_setpoint` source:
+`svea_rc_servo_latch` owns PCA9685 CH4/CH5/CH6 via `Actuator_Set3/1/2` and uses the active `manual_control_setpoint` source:
 
 - RC source (`SOURCE_RC`):
-  - CH4 (`RC_MAP_AUX4=4`) toggles active misc bank on rising edge
-  - CH3 (`RC_MAP_AUX5=3`) writes value to active bank
-  - inactive bank remains latched
+  - SWC / CH6 (`RC_MAP_AUX3=6`) selects misc0 low, misc1 high, neither in middle
+  - VR / CH3 (`RC_MAP_AUX5=3`) directly drives the selected misc bank
+  - SWA / CH4 (`RC_MAP_AUX4=4`) toggles gear on rising edge
+  - gear defaults to LOW when `svea_rc_servo_latch` starts
+  - inactive misc bank remains latched
 - MAVLink source (`SOURCE_MAVLINK_*`):
   - `aux4 -> misc0` (CH5 / Actuator_Set1)
   - `aux5 -> misc1` (CH6 / Actuator_Set2)
+  - `aux3 -> gear` (CH4 / Actuator_Set3)
   - direct passthrough (no latch logic)
 
 Steer right, small forward throttle, front diff ON, rear diff OFF, gear HIGH:
