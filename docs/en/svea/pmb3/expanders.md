@@ -103,9 +103,10 @@ Checks:
 
 ```sh
 svea_power_gate status
-gpio read /dev/gpio9
-gpio read /dev/gpio10
+pcal6524 status
 ```
+
+Do not use `gpio read` to check `/dev/gpio9` or `/dev/gpio10`; the GPIO tool reconfigures device-backed pins as inputs before reading.
 
 ## Safe Toggle Examples
 
