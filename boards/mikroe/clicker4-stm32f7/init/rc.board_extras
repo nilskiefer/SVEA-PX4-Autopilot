@@ -15,7 +15,7 @@ then
 	svea_peripheral_mcu start -d /dev/ttyS0 -b 115200
 fi
 
-# Start RC latch/mux for misc servos (CH4 toggles active bank, CH3 writes active bank).
+# Start RC latch/mux for gear and misc servos.
 if ! svea_rc_servo_latch status > /dev/null 2>&1
 then
 	svea_rc_servo_latch start
