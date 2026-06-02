@@ -24,7 +24,9 @@ svea_ina3221 -I -b 2 -a 0x40 -r 0.016 -q start
 pca9685_pwm_out start -a 0x61 -b 2
 
 # Force both power rails low at boot before power-gate state machine takes over.
+usleep 5000
 gpio write /dev/gpio9 0
+usleep 5000
 gpio write /dev/gpio10 0
 
 svea_power_gate start
