@@ -36,6 +36,7 @@
 #include <px4_platform_common/module.h>
 #include <px4_platform_common/px4_work_queue/ScheduledWorkItem.hpp>
 #include <drivers/drv_hrt.h>
+#include <lib/mathlib/mathlib.h>
 #include <uORB/Publication.hpp>
 #include <uORB/Subscription.hpp>
 #include <uORB/topics/manual_control_setpoint.h>
@@ -64,20 +65,23 @@ public:
 
 private:
 	void publish_actuator_set();
+	int selected_index_from_switch(float value) const;
 
 	uORB::Subscription _manual_control_setpoint_sub{ORB_ID(manual_control_setpoint)};
 	uORB::Publication<vehicle_command_s> _vehicle_command_pub{ORB_ID(vehicle_command)};
 
 	float _latched_value[2] {0.f, 0.f};
-	int _active_index{0};
+	float _gear_value{1.f};
+	int _active_index{-1};
 	bool _button_last_high{false};
-	uint32_t _toggle_count{0};
+	uint32_t _gear_toggle_count{0};
 };
 
 ModuleBase::Descriptor SveaRcServoLatch::desc{task_spawn, custom_command, print_usage};
 
 bool SveaRcServoLatch::init()
 {
+	publish_actuator_set();
 	ScheduleOnInterval(20_ms);
 	return true;
 }
@@ -89,12 +93,29 @@ void SveaRcServoLatch::publish_actuator_set()
 	command.command = vehicle_command_s::VEHICLE_CMD_DO_SET_ACTUATOR;
 	command.param1 = _latched_value[0];
 	command.param2 = _latched_value[1];
-	command.param3 = NAN;
+	command.param3 = _gear_value;
 	command.param4 = NAN;
 	command.param5 = NAN;
 	command.param6 = NAN;
 	command.param7 = 0.f;
 	_vehicle_command_pub.publish(command);
+}
+
+int SveaRcServoLatch::selected_index_from_switch(float value) const
+{
+	if (!PX4_ISFINITE(value)) {
+		return -1;
+	}
+
+	if (value < -0.5f) {
+		return 0;
+	}
+
+	if (value > 0.5f) {
+		return 1;
+	}
+
+	return -1;
 }
 
 void SveaRcServoLatch::Run()
@@ -110,30 +131,39 @@ void SveaRcServoLatch::Run()
 	if (_manual_control_setpoint_sub.update(&manual_control_setpoint)) {
 		if (!manual_control_setpoint.valid) {
 			_button_last_high = false;
+			_active_index = -1;
 			return;
 		}
 
 		// RC behavior:
-		// - AUX4 rising edge toggles active bank
-		// - AUX5 writes active bank
+		// - AUX3 selects misc bank 0/1, middle selects none
+		// - AUX5 directly drives the selected bank
+		// - AUX4 rising edge toggles gear
 		if (manual_control_setpoint.data_source == manual_control_setpoint_s::SOURCE_RC) {
 			const bool button_high = PX4_ISFINITE(manual_control_setpoint.aux4) && (manual_control_setpoint.aux4 > 0.5f);
 
 			if (button_high && !_button_last_high) {
-				_active_index = 1 - _active_index;
-				_toggle_count++;
+				_gear_value = (_gear_value < 0.f) ? 1.f : -1.f;
+				_gear_toggle_count++;
+				publish_actuator_set();
 			}
 
 			_button_last_high = button_high;
 
-			if (PX4_ISFINITE(manual_control_setpoint.aux5)) {
-				_latched_value[_active_index] = manual_control_setpoint.aux5;
-				publish_actuator_set();
+			_active_index = selected_index_from_switch(manual_control_setpoint.aux3);
+
+			if (_active_index >= 0 && PX4_ISFINITE(manual_control_setpoint.aux5)) {
+				const float value = math::constrain(manual_control_setpoint.aux5, -1.f, 1.f);
+
+				if (fabsf(value - _latched_value[_active_index]) > 0.001f) {
+					_latched_value[_active_index] = value;
+					publish_actuator_set();
+				}
 			}
 
 		} else if (manual_control_setpoint.data_source >= manual_control_setpoint_s::SOURCE_MAVLINK_0
 			   && manual_control_setpoint.data_source <= manual_control_setpoint_s::SOURCE_MAVLINK_5) {
-			// MAVLink behavior: direct passthrough (same external contract as prior RC_AUX4/5 mapping).
+			// MAVLink behavior: direct passthrough.
 			bool updated = false;
 
 			if (PX4_ISFINITE(manual_control_setpoint.aux4)) {
@@ -146,11 +176,17 @@ void SveaRcServoLatch::Run()
 				updated = true;
 			}
 
+			if (PX4_ISFINITE(manual_control_setpoint.aux3)) {
+				_gear_value = manual_control_setpoint.aux3;
+				updated = true;
+			}
+
 			if (updated) {
 				publish_actuator_set();
 			}
 
 			_button_last_high = false;
+			_active_index = -1;
 		}
 	}
 }
@@ -183,8 +219,9 @@ SveaRcServoLatch *SveaRcServoLatch::instantiate(int argc, char *argv[])
 
 int SveaRcServoLatch::print_status()
 {
-	PX4_INFO("active_index=%d latched0=%.3f latched1=%.3f toggles=%" PRIu32,
-		 _active_index, (double)_latched_value[0], (double)_latched_value[1], _toggle_count);
+	PX4_INFO("active_index=%d latched0=%.3f latched1=%.3f gear=%.3f gear_toggles=%" PRIu32,
+		 _active_index, (double)_latched_value[0], (double)_latched_value[1],
+		 (double)_gear_value, _gear_toggle_count);
 	return PX4_OK;
 }
 
@@ -198,11 +235,11 @@ int SveaRcServoLatch::print_usage(const char *reason)
 		R"DESCR_STR(
 ### Description
 SVEA RC latch/mux helper:
-- CH4 (mapped to AUX4) toggles active servo bank on rising edge
-- CH3 (mapped to AUX5) controls only the active bank
-- Inactive bank keeps its last latched value
-- MAVLink manual-control source directly drives AUX4->bank0 and AUX5->bank1
-- Publishes VEHICLE_CMD_DO_SET_ACTUATOR index 0 (param1/param2)
+- CH6 (mapped to AUX3) selects misc0 low, misc1 high, neither in middle
+- CH3 (mapped to AUX5) directly drives the selected misc bank
+- CH4 (mapped to AUX4) toggles gear on rising edge
+- MAVLink manual-control source directly drives AUX4->misc0, AUX5->misc1, AUX3->gear
+- Publishes VEHICLE_CMD_DO_SET_ACTUATOR index 0 (param1/param2/param3)
 )DESCR_STR");
 
 	PRINT_MODULE_USAGE_NAME("svea_rc_servo_latch", "system");
