@@ -1,0 +1,271 @@
+# Controlling the Car (RC and ROS/MAVLink)
+
+## Transmitter Controls
+
+- SWD: arm button (momentary, CH7)
+- SWB: 3-way mode/kill switch (CH5)
+  - left: ROS/MAVLink manual control (`MODE_SLOT_1`) with RC fallback
+  - middle: RC-only manual control (`MODE_SLOT_2`)
+  - right: kill switch position (`MODE_SLOT_3`)
+- SWA: gear button (momentary, CH4)
+- SWC: misc-servo selector (3-way, CH6)
+- VR: misc-servo dial (CH3)
+
+![RC arm button and 3-way switch](pmb3/rc-controls.png)
+
+In this image, the 3-way switch is currently in the middle position (RC-only).
+
+## Control Flow
+
+```mermaid
+flowchart TD
+  A[Power on RC transmitter] --> C{RC link connected?}
+  C -- No --> D[Cannot arm with RC button]
+  C -- Yes --> E[Select mode on 3-way switch]
+  E --> F{Switch position}
+  F -- Left --> G[MODE_SLOT_1: MAVLink/ROS accepted, RC fallback active]
+  F -- Middle --> H[MODE_SLOT_2: RC-only control]
+  F -- Right --> I[MODE_SLOT_3: Kill asserted]
+  G --> J[Press arm button to arm]
+  H --> J
+  J --> K[Drive]
+  K --> L[Press arm button again to disarm]
+```
+
+## Arming and Disarming
+
+Board defaults use:
+
+- `RC_MAP_ARM_SW=7`
+- `COM_ARM_SWISBTN=1`
+
+So:
+
+- arm: press SWD / CH7 once
+- disarm: press SWD / CH7 once again
+
+Note: with this operator flow, the RC receiver must be connected to use button arming.
+
+Quick state check:
+
+```sh
+listener actuator_armed 1
+```
+
+## Mode Rules in This Fork
+
+- `MANUAL_CONTROL` accepted only in `MODE_SLOT_1`
+- `RC_CHANNELS_OVERRIDE` accepted only in `MODE_SLOT_1`
+- other mode slots reject MAVLink manual input paths
+
+Source:
+
+- `src/modules/mavlink/mavlink_receiver.cpp`
+
+## MAVLink/ROS Validity Requirement
+
+Manual input validity is timeout-based via `COM_RC_LOSS_T` (seconds).
+
+- valid only while updates arrive within `COM_RC_LOSS_T`
+- if updates stop past timeout, MAVLink manual input becomes stale
+- in `MODE_SLOT_1`, stale MAVLink input falls back to RC
+
+Board default:
+
+- `COM_RC_LOSS_T=0.5`
+
+Implication:
+
+- theoretical minimum: `>2 Hz`
+- practical recommendation: `20 Hz` (`10-20 Hz` minimum)
+
+## Verify ROS `MANUAL_CONTROL` Lands in PX4 (NSH)
+
+If you are not already in NSH, first use:
+
+- [NSH Access Without QGroundControl](troubleshooting.md#nsh-access-without-qgroundcontrol)
+
+1. MAVLink RX path alive:
+
+```sh
+mavlink status
+```
+
+2. Decoded manual setpoint updates:
+
+```sh
+listener manual_control_setpoint 10
+```
+
+3. Output path updates:
+
+```sh
+listener actuator_servos 10
+listener actuator_motors 10
+listener actuator_outputs 10
+```
+
+4. Gate check:
+
+```sh
+listener manual_control_switches 5
+```
+
+`mode_slot` must be `MODE_SLOT_1` for MAVLink manual input to be accepted.
+
+## ROS Manual Control Reference
+
+This setup uses MAVLink `MANUAL_CONTROL` through MAVROS topic:
+
+- `/mavros/manual_control/send`
+
+### Switch-Gated Behavior
+
+Authority is selected by SWB / CH5 mode switch in PX4 firmware:
+
+- `~1000` (low): accepts MAVLink manual control from ROS
+- `~1500` (mid): rejects MAVLink manual control (RC-only)
+- `~2000` (high): kill
+
+### Field Mapping and Ranges
+
+For `mavros_msgs/msg/ManualControl`:
+
+- `y`: steering (`-1000..1000`)
+- `z`: throttle (`0..1000`, where `500` is neutral)
+- `aux1..aux6`: extra manual channels (`-1000..1000`, MAVLink v2 extensions)
+- `enabled_extensions`: must enable aux fields (`252` enables `aux1..aux6`)
+
+Publish continuously (`10-20 Hz`) and publish full state every message.
+If a later message sets `aux1=0`, output moves to `0` (it does not latch previous `1000`).
+
+### Current Output Mapping (Board Defaults)
+
+PCA9685:
+
+- CH0: throttle (Motor1, function `101`)
+- CH1: steering (Servo1, function `201`)
+- CH2: RC_AUX1 (function `407`) front diff
+- CH3: RC_AUX2 (function `408`) rear diff
+- CH4: Actuator_Set3 (function `303`) gear
+- CH5: Actuator_Set1 (function `301`) misc0
+- CH6: Actuator_Set2 (function `302`) misc1
+
+Binary endpoints configured for diff/gear:
+
+- CH2/CH3/CH4 min/max = `1200/1800`
+
+### Gear/Diff Polarity
+
+`svea_lli_zephyr` used opposite front/rear differential pulses and inverted gear convention (`high_gear=true` => lower pulse). This setup keeps that semantic:
+
+Diff ON:
+
+- front diff (`aux1`) = `+1000` (high pulse on CH2)
+- rear diff (`aux2`) = `-1000` (low pulse on CH3)
+
+Diff OFF:
+
+- front diff (`aux1`) = `-1000`
+- rear diff (`aux2`) = `+1000`
+
+Gear HIGH (`high_gear=true`):
+
+- `aux3 = -1000` (low pulse on CH4)
+
+Gear LOW (`high_gear=false`):
+
+- `aux3 = +1000` (high pulse on CH4)
+
+For any binary channel:
+
+- `aux=-1000` -> channel min PWM
+- `aux=+1000` -> channel max PWM
+
+### Diff/Gear Default in RC Mode
+
+In RC mode, differential lock channels are defaulted ON using an unused RC mapping:
+
+- `RC_MAP_AUX1=17`
+- `RC_MAP_AUX2=17`
+
+On common receiver profiles this unmapped channel is typically near low endpoint (~`1000us`), which drives the two diff channels to deterministic opposite endpoints (with rear diff inversion applied). This replaces the previous RC diff-switch behavior.
+
+RC gear/misc controls are handled by `svea_rc_servo_latch`:
+
+- `RC_MAP_AUX4=4` (SWA / CH4 push button toggles gear)
+- `RC_MAP_AUX5=3` (VR / CH3 misc-servo absolute-position dial)
+- `RC_MAP_AUX3=6` (SWC / CH6 selects misc0 low, misc1 high, neither in middle)
+- gear initializes to LOW on module start (`+1`, high pulse on CH4)
+
+### RC Misc Servo Selector
+
+SWC / CH6 selects which misc servo receives the VR / CH3 dial value. The dial is absolute, not relative: the selected servo moves directly to the current dial position. The unselected servo keeps its last latched value.
+
+```mermaid
+flowchart LR
+  A[SWC / CH6<br/>3-way selector] --> B{Selector position}
+  B -- Low / ~1000us --> C[Select misc0<br/>PCA9685 CH5]
+  B -- Middle / ~1500us --> D[Select neither<br/>both misc outputs hold]
+  B -- High / ~2000us --> E[Select misc1<br/>PCA9685 CH6]
+  F[VR / CH3 dial<br/>absolute position] --> C
+  F --> E
+  C --> G[misc0 follows dial<br/>misc1 holds last value]
+  E --> H[misc1 follows dial<br/>misc0 holds last value]
+  D --> I[misc0 holds<br/>misc1 holds]
+```
+
+### Test Commands
+
+Template with named placeholders:
+
+```sh
+STEER=1000           # y: steering (-1000..1000)
+THROTTLE=600         # z: throttle (0..1000, 500=neutral)
+FRONT_DIFF=1000      # aux1: front diff (-1000..1000)
+REAR_DIFF=-1000      # aux2: rear diff (-1000..1000)
+GEAR=-1000           # aux3: gear (-1000..1000)
+AUX4=0               # aux4: misc0 setpoint in MAVROS mode (CH5 / Actuator_Set1)
+AUX5=0               # aux5: misc1 setpoint in MAVROS mode (CH6 / Actuator_Set2)
+AUX6=0               # aux6: currently unused
+
+ros2 topic pub -r 20 /mavros/manual_control/send mavros_msgs/msg/ManualControl "{x: 0, y: ${STEER}, z: ${THROTTLE}, r: 0, buttons: 0, buttons2: 0, enabled_extensions: 252, s: 0, t: 0, aux1: ${FRONT_DIFF}, aux2: ${REAR_DIFF}, aux3: ${GEAR}, aux4: ${AUX4}, aux5: ${AUX5}, aux6: ${AUX6}}"
+```
+
+### Mode-Dependent Behavior for Misc Channels
+
+`svea_rc_servo_latch` owns PCA9685 CH4/CH5/CH6 via `Actuator_Set3/1/2` and uses the active `manual_control_setpoint` source:
+
+- RC source (`SOURCE_RC`):
+  - SWC / CH6 (`RC_MAP_AUX3=6`) selects misc0 low, misc1 high, neither in middle
+  - VR / CH3 (`RC_MAP_AUX5=3`) directly drives the selected misc bank
+  - SWA / CH4 (`RC_MAP_AUX4=4`) toggles gear on rising edge
+  - gear defaults to LOW when `svea_rc_servo_latch` starts
+  - inactive misc bank remains latched
+- MAVLink source (`SOURCE_MAVLINK_*`):
+  - `aux4 -> misc0` (CH5 / Actuator_Set1)
+  - `aux5 -> misc1` (CH6 / Actuator_Set2)
+  - `aux3 -> gear` (CH4 / Actuator_Set3)
+  - direct passthrough (no latch logic)
+
+Steer right, small forward throttle, front diff ON, rear diff OFF, gear HIGH:
+
+```sh
+ros2 topic pub -r 20 /mavros/manual_control/send mavros_msgs/msg/ManualControl "{x: 0, y: 1000, z: 600, r: 0, buttons: 0, buttons2: 0, enabled_extensions: 252, s: 0, t: 0, aux1: 1000, aux2: -1000, aux3: -1000, aux4: 0, aux5: 0, aux6: 0}"
+```
+
+Neutral steering/throttle, all binary aux set to `-1000`:
+
+```sh
+ros2 topic pub -r 20 /mavros/manual_control/send mavros_msgs/msg/ManualControl "{x: 0, y: 0, z: 500, r: 0, buttons: 0, buttons2: 0, enabled_extensions: 252, s: 0, t: 0, aux1: -1000, aux2: -1000, aux3: -1000, aux4: 0, aux5: 0, aux6: 0}"
+```
+
+One-shot neutral:
+
+```sh
+ros2 topic pub -1 /mavros/manual_control/send mavros_msgs/msg/ManualControl "{x: 0, y: 0, z: 500, r: 0, buttons: 0, buttons2: 0, enabled_extensions: 252, s: 0, t: 0, aux1: -1000, aux2: -1000, aux3: -1000, aux4: 0, aux5: 0, aux6: 0}"
+```
+
+For more details, consult the SVEA ROS repository documentation:
+
+- [kth-sml/svea](https://github.com/kth-sml/svea)

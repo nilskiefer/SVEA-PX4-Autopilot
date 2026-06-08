@@ -1,5 +1,12 @@
 - [Introduction](index.md)
   - [Basic Concepts](getting_started/px4_basic_concepts.md)
+  - [SVEA Clicker4 Bringup](svea/index.md)
+    - [Build and Flash](svea/build-and-flash.md)
+    - [Troubleshooting and Connectivity](svea/troubleshooting.md)
+    - [PMB3 Powerboard Baseline](svea/pmb3/powerboard.md)
+    - [PMB3 Expanders and GPIO](svea/pmb3/expanders.md)
+    - [PMB3 Actuators](svea/pmb3/actuators.md)
+    - [PMB3 LEDs](svea/pmb3/leds.md)
 
 - [Multicopters](frames_multicopter/index.md)
   - [Features](features_mc/index.md)

@@ -56,22 +56,31 @@ param set-default RC_CHAN_CNT 7
 param set-default COM_RC_IN_MODE 6
 
 # RC channel mapping aligned with SVEA LLI Zephyr semantics:
-# CH1 steer, CH2 throttle, CH3 extra-servo2, CH4 gear button, CH5 mode/kill, CH6 diff master toggle.
+# CH1 steer, CH2 throttle, VR/CH3 misc-servo dial, SWA/CH4 gear push button,
+# SWB/CH5 mode/kill, SWC/CH6 misc-servo selector.
 param set-default RC_MAP_ROLL 1
 param set-default RC_MAP_THROTTLE 2
-# Extra servo 2 passthrough in RC manual mode (PCA9685 CH6 via RC_AUX5).
+# Stub pitch/yaw mapping for QGC radio validation on rover profile.
+# CH17 is intentionally shared with AUX1/AUX2 fallback semantics.
+param set-default RC_MAP_PITCH 17
+param set-default RC_MAP_YAW 17
+# VR/CH3 misc-servo absolute-position dial in RC manual mode.
 param set-default RC_MAP_AUX5 3
-# Diff master on CH6: drive both front+rear diff outputs from one RC toggle.
-param set-default RC_MAP_AUX1 6
-param set-default RC_MAP_AUX2 6
-# Gear on CH4: route directly through RC_AUX3 (PCA9685 CH4).
-param set-default RC_MAP_AUX3 4
+# SWA/CH4 push-button for toggling gear.
+param set-default RC_MAP_AUX4 4
+# Diff outputs are MAVROS-controlled in MAVROS slot; RC slot uses CH17 fallback
+# (fixed low on this receiver profile) to keep diffs at a deterministic endpoint.
+param set-default RC_MAP_AUX1 17
+param set-default RC_MAP_AUX2 17
+# SWC/CH6 selects misc0 low, misc1 high, neither in the middle.
+param set-default RC_MAP_AUX3 6
 param set-default RC_MAP_FLTMODE 5
 # Disable landing-gear semantic switch mapping for this rover profile.
 param set-default RC_MAP_GEAR_SW 0
 
 # Minimal RC calibration baseline for rover use without QGC full radio wizard.
-# Channels used: CH1 steer, CH2 throttle, CH3 extra-servo2, CH4 gear, CH5 mode/kill, CH6 diff master.
+# Channels used: CH1 steer, CH2 throttle, VR/CH3 misc dial, SWA/CH4 gear button,
+# SWB/CH5 mode/kill, SWC/CH6 misc selector, SWD/CH7 arm button.
 param set-default RC1_MIN 1000
 param set-default RC1_TRIM 1500
 param set-default RC1_MAX 2000
@@ -94,7 +103,7 @@ param set-default RC7_MIN 1000
 param set-default RC7_TRIM 1500
 param set-default RC7_MAX 2000
 
-# Map the 3-position CH5 switch to manual-drive-only operation:
+# Map the 3-position SWB/CH5 switch to manual-drive-only operation:
 # low  (~1000, MODE_SLOT_1): Manual + MAVLink MANUAL_CONTROL accepted.
 # mid  (~1500, MODE_SLOT_2): Manual + MAVLink MANUAL_CONTROL rejected (RC-only).
 # high (~2000, MODE_SLOT_3): Manual + kill asserted.
@@ -114,11 +123,11 @@ param set-default RC_MAP_OFFB_SW 0
 # - The switch gate above currently applies to MAVLink MANUAL_CONTROL.
 # - MAVLink RC_CHANNELS_OVERRIDE is a separate path and is not gated by mode slot.
 
-# CH5 high position engages kill switch. Kill drives disarmed PWM values.
+# SWB/CH5 high position engages kill switch. Kill drives disarmed PWM values.
 param set-default RC_MAP_KILL_SW 5
 param set-default RC_KILLSWITCH_TH 0.75
 
-# CH7 momentary button arms/disarms without QGroundControl interaction.
+# SWD/CH7 momentary button arms/disarms without QGroundControl interaction.
 param set-default RC_MAP_ARM_SW 7
 param set-default COM_ARM_SWISBTN 1
 
@@ -131,6 +140,11 @@ param set-default COM_RC_LOSS_T 0.5
 param set-default NAV_RCL_ACT 6
 param set-default COM_RCL_EXCEPT 0
 param set-default COM_KILL_DISARM 5
+
+# Board-specific workaround: load_mon publishes stale cpuload timestamp on this target,
+# so disable CPU/RAM preflight threshold checks by default.
+param set-default COM_CPU_MAX 0
+param set-default COM_RAM_MAX 0
 
 # Mute behavior (kill/disarmed): force all active outputs to 0 duty.
 param set-default PWM_MAIN_DIS1 0
@@ -152,9 +166,8 @@ param set-default PWM_MAIN_TIM1 100
 param set-default PWM_MAIN_TIM2 100
 param set-default PWM_MAIN_TIM3 100
 
-# Enable USB CDC auto-management and MAVLink on USB by default.
-param set-default SYS_USB_AUTO 2
-param set-default USB_MAV_MODE 2
+# USB CDC MAVLink is brought up explicitly in rc.board_mavlink.
+# Do not set SYS_USB_AUTO/USB_MAV_MODE here; these params are absent in this build config.
 
 # GPS driver is not part of this board target by default.
 # Do not touch GPS_*_CONFIG params here (they may not exist in this build).
@@ -235,25 +248,26 @@ param set-default PCA9685_SCHD_HZ 100
 param set-default PCA9685_DUTY_EN 0
 
 # PCA9685 output functions (driver uses 1-based channel params for HW channels 0..15).
-# CH0/CH1 remain rover drive controls. CH2..CH6 are mapped to Manual RC aux passthrough
-# so ROS MAVLink MANUAL_CONTROL aux1..aux5 can drive these outputs directly.
+# CH0/CH1 remain rover drive controls.
+# CH2/CH3 are RC aux passthrough; CH4/CH5/CH6 are actuator-set outputs driven
+# by svea_rc_servo_latch in RC mode.
 param set-default PCA9685_FUNC1 101  # CH0: throttle (Motor1)
 param set-default PCA9685_FUNC2 201  # CH1: steering (Servo1)
 param set-default PCA9685_FUNC3 407  # CH2: front differential (RC_AUX1)
 param set-default PCA9685_FUNC4 408  # CH3: rear differential (RC_AUX2)
-param set-default PCA9685_FUNC5 409  # CH4: gear (RC_AUX3)
-param set-default PCA9685_FUNC6 410  # CH5: misc servo (RC_AUX4)
-param set-default PCA9685_FUNC7 411  # CH6: misc servo (RC_AUX5)
-# Reverse CH0 (throttle, bit 0) and CH3 (rear diff, bit 3).
-# - CH0 reverse: throttle neutral 1500, forward ramps toward 2000.
-# - CH3 reverse: keeps front/rear diff actuators opposite.
-param set-default PCA9685_REV 9
+param set-default PCA9685_FUNC5 303  # CH4: gear (Actuator_Set3)
+param set-default PCA9685_FUNC6 301  # CH5: misc servo latch bank 0 (Actuator_Set1)
+param set-default PCA9685_FUNC7 302  # CH6: misc servo latch bank 1 (Actuator_Set2)
+# Reverse CH3 (rear diff, bit 3) to keep front/rear diff actuators opposite.
+param set-default PCA9685_REV 8
 
 # PCA9685 signal ranges for channels 0..6.
-# Diff/gear outputs are intentionally binary (1200/1800) for actuator on/off behavior.
+# Diff/gear outputs are binary (1200/1800). Diff channels are controlled via
+# MAVLink/MAVROS MANUAL_CONTROL aux1/aux2 in MAVROS slot, and by CH17 fallback
+# in RC slot.
 param set-default PCA9685_MIN1 1000
 param set-default PCA9685_MAX1 2000
-param set-default PCA9685_DIS1 0
+param set-default PCA9685_DIS1 1500
 param set-default PCA9685_MIN2 1000
 param set-default PCA9685_MAX2 2000
 param set-default PCA9685_DIS2 0

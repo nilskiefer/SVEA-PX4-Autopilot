@@ -131,3 +131,7 @@ venv/
 boards/mikroe/clicker4-stm32f7/extras/*.bin
 /artifacts
 .codex
+mav.tlog.raw
+mav.parm
+mav.tlog
+.antigravitycli/

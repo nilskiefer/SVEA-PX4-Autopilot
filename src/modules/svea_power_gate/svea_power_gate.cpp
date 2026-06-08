@@ -43,6 +43,7 @@
 #include <nuttx/ioexpander/gpio.h>
 #include <uORB/Subscription.hpp>
 #include <uORB/topics/actuator_armed.h>
+#include <uORB/topics/rc_channels.h>
 #include <unistd.h>
 
 extern "C" __EXPORT int svea_power_gate_main(int argc, char *argv[]);
@@ -66,7 +67,7 @@ public:
 private:
 	static constexpr const char *kEscEnDev = "/dev/gpio9";
 	static constexpr const char *kServoEnDev = "/dev/gpio10";
-	static constexpr useconds_t kRailStaggerUsON = 500000;
+	static constexpr useconds_t kRailStaggerUsON = 100000; // needs to be low to not mess with arm timing
 	static constexpr useconds_t kRailStaggerUsOFF = 50000;
 	static constexpr uint32_t kPollIntervalUs = 200000;
 	static constexpr hrt_abstime kReassertIntervalUs = 200000;
@@ -76,8 +77,10 @@ private:
 	void apply_power(bool on);
 
 	uORB::Subscription _actuator_armed_sub{ORB_ID(actuator_armed)};
+	uORB::Subscription _rc_channels_sub{ORB_ID(rc_channels)};
 	bool _requested_on{false};
 	bool _rails_on{false};
+	bool _rc_disconnected{false};
 	hrt_abstime _last_apply{0};
 	hrt_abstime _last_heartbeat{0};
 	uint32_t _run_count{0};
@@ -135,9 +138,15 @@ void SveaPowerGate::apply_power(bool on)
 		esc = write_gpio(kEscEnDev, true);
 
 	} else {
-		// Disable ESC rail first, then servo rail after a short delay.
-		esc = write_gpio(kEscEnDev, false);
-		usleep(kRailStaggerUsOFF);
+		// Disarming only drops the servo rail. Drop ESC only if RC is disconnected.
+		if (_rc_disconnected) {
+			esc = write_gpio(kEscEnDev, false);
+			usleep(kRailStaggerUsOFF);
+
+		} else {
+			esc = PX4_OK;
+		}
+
 		servo = write_gpio(kServoEnDev, false);
 	}
 
@@ -183,6 +192,14 @@ void SveaPowerGate::Run()
 				PX4_DEBUG("state change: requested_on %d -> %d", _requested_on ? 1 : 0, should_enable ? 1 : 0);
 				apply_power(should_enable);
 			}
+		}
+	}
+
+	if (_rc_channels_sub.updated()) {
+		rc_channels_s rc_channels{};
+
+		if (_rc_channels_sub.copy(&rc_channels)) {
+			_rc_disconnected = rc_channels.signal_lost;
 		}
 	}
 
