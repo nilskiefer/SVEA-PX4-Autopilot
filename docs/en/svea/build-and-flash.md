@@ -33,7 +33,9 @@ openocd \
 
 ## CODEGRIP Firmware Pitfall
 
-If OpenOCD fails with CMSIS-DAP command mismatch and CODEGRIP reports old firmware (for example `FW Version = 1.0`), update CODEGRIP firmware first.
+If OpenOCD fails with a CMSIS-DAP command mismatch or cannot talk to the CODEGRIP probe reliably, update the CODEGRIP firmware first. This has been the most common flashing issue with this board.
+
+Do not rely on the displayed CODEGRIP `FW Version` string alone to decide whether the update worked; it may continue to report version `1` after the updater has completed.
 
 - Tool: [mikroE CODEGRIP](https://www.mikroe.com/codegrip)
 - Guide: [CODEGRIP firmware update](https://helpdesk.mikroe.com/en-us/10-codegrip/79-how-to-update-codegrip-device-firmware)
