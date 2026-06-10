@@ -39,6 +39,7 @@
 #include <lib/mathlib/mathlib.h>
 #include <uORB/Publication.hpp>
 #include <uORB/Subscription.hpp>
+#include <uORB/topics/actuator_armed.h>
 #include <uORB/topics/manual_control_setpoint.h>
 #include <uORB/topics/vehicle_command.h>
 
@@ -68,11 +69,13 @@ private:
 	int selected_index_from_switch(float value) const;
 
 	uORB::Subscription _manual_control_setpoint_sub{ORB_ID(manual_control_setpoint)};
+	uORB::Subscription _actuator_armed_sub{ORB_ID(actuator_armed)};
 	uORB::Publication<vehicle_command_s> _vehicle_command_pub{ORB_ID(vehicle_command)};
 
 	float _latched_value[2] {NAN, NAN};
 	float _gear_value{1.f};
 	int _active_index{-1};
+	bool _armed{false};
 	bool _button_last_high{false};
 	uint32_t _gear_toggle_count{0};
 };
@@ -126,9 +129,26 @@ void SveaRcServoLatch::Run()
 		return;
 	}
 
+	actuator_armed_s actuator_armed{};
+
+	if (_actuator_armed_sub.update(&actuator_armed)) {
+		_armed = actuator_armed.armed;
+
+		if (!_armed) {
+			_latched_value[0] = NAN;
+			_latched_value[1] = NAN;
+			_active_index = -1;
+			_button_last_high = false;
+		}
+	}
+
 	manual_control_setpoint_s manual_control_setpoint{};
 
 	if (_manual_control_setpoint_sub.update(&manual_control_setpoint)) {
+		if (!_armed) {
+			return;
+		}
+
 		if (!manual_control_setpoint.valid) {
 			_button_last_high = false;
 			_active_index = -1;
