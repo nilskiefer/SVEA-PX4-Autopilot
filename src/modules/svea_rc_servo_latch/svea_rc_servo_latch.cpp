@@ -70,7 +70,7 @@ private:
 	uORB::Subscription _manual_control_setpoint_sub{ORB_ID(manual_control_setpoint)};
 	uORB::Publication<vehicle_command_s> _vehicle_command_pub{ORB_ID(vehicle_command)};
 
-	float _latched_value[2] {0.f, 0.f};
+	float _latched_value[2] {NAN, NAN};
 	float _gear_value{1.f};
 	int _active_index{-1};
 	bool _button_last_high{false};
@@ -155,7 +155,8 @@ void SveaRcServoLatch::Run()
 			if (_active_index >= 0 && PX4_ISFINITE(manual_control_setpoint.aux5)) {
 				const float value = math::constrain(manual_control_setpoint.aux5, -1.f, 1.f);
 
-				if (fabsf(value - _latched_value[_active_index]) > 0.001f) {
+				if (!PX4_ISFINITE(_latched_value[_active_index])
+				    || fabsf(value - _latched_value[_active_index]) > 0.001f) {
 					_latched_value[_active_index] = value;
 					publish_actuator_set();
 				}
