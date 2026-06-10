@@ -47,38 +47,6 @@ jobs:
             svea-devcontainer-ci \
             /bin/bash -lc "git config --global --add safe.directory '*' && make mikroe_clicker4-stm32f7_noboot -j\$(nproc)"
 
-      - name: Collect artifacts
-        run: |
-          set -euo pipefail
-          cd "$GITHUB_WORKSPACE"
-          mkdir -p artifacts/svea-pmb-mikroe
-          short_sha="${GITHUB_SHA::12}"
-          mapfile -t fw_files < <(find build/mikroe_clicker4-stm32f7_noboot -maxdepth 1 -type f \( -name '*.bin' -o -name '*.hex' -o -name '*.px4' -o -name '*.elf' \))
-          if [ "${#fw_files[@]}" -eq 0 ]; then
-            echo "No firmware artifacts were produced"
-            exit 1
-          fi
-
-          # Stable rolling aliases (latest)
-          cp "${fw_files[@]}" artifacts/svea-pmb-mikroe/
-
-          # Immutable per-commit artifacts
-          for src in "${fw_files[@]}"; do
-            base="$(basename "${src}")"
-            stem="${base%.*}"
-            ext="${base##*.}"
-            cp "${src}" "artifacts/svea-pmb-mikroe/${stem}-${short_sha}.${ext}"
-          done
-
-          ls -la artifacts/svea-pmb-mikroe
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: svea-pmb-mikroe-noboot
-          path: artifacts/svea-pmb-mikroe/
-          if-no-files-found: error
-
       - name: Resolve release channel
         id: release_channel
         shell: bash
@@ -98,6 +66,40 @@ jobs:
             echo "retag_latest=true" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Collect artifacts
+        env:
+          RETAG_LATEST: ${{ steps.release_channel.outputs.retag_latest }}
+        run: |
+          set -euo pipefail
+          cd "$GITHUB_WORKSPACE"
+          mkdir -p artifacts/svea-pmb-mikroe
+          short_sha="${GITHUB_SHA::12}"
+          mapfile -t fw_files < <(find build/mikroe_clicker4-stm32f7_noboot -maxdepth 1 -type f \( -name '*.bin' -o -name '*.hex' -o -name '*.px4' -o -name '*.elf' \))
+          if [ "${#fw_files[@]}" -eq 0 ]; then
+            echo "No firmware artifacts were produced"
+            exit 1
+          fi
+
+          if [ "${RETAG_LATEST}" = "true" ]; then
+            cp "${fw_files[@]}" artifacts/svea-pmb-mikroe/
+          else
+            for src in "${fw_files[@]}"; do
+              base="$(basename "${src}")"
+              stem="${base%.*}"
+              ext="${base##*.}"
+              cp "${src}" "artifacts/svea-pmb-mikroe/${stem}-${short_sha}.${ext}"
+            done
+          fi
+
+          ls -la artifacts/svea-pmb-mikroe
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: svea-pmb-mikroe-noboot
+          path: artifacts/svea-pmb-mikroe/
+          if-no-files-found: error
+
       - name: Move rolling prerelease tag to this commit
         if: steps.release_channel.outputs.retag_latest == 'true'
         shell: bash
@@ -108,15 +110,17 @@ jobs:
           git tag -f "${{ steps.release_channel.outputs.release_tag }}" "${GITHUB_SHA}"
           git push --force origin "refs/tags/${{ steps.release_channel.outputs.release_tag }}"
 
-      - name: Remove existing assets for stable tag release
-        if: steps.release_channel.outputs.retag_latest != 'true'
+      - name: Remove existing release assets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ steps.release_channel.outputs.release_tag }}
         shell: bash
         run: |
           set -euo pipefail
-          asset_ids="$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${TAG}" --jq '.assets[]?.id' 2>/dev/null || true)"
+          if ! gh api --silent "repos/${GITHUB_REPOSITORY}/releases/tags/${TAG}" 2>/dev/null; then
+            exit 0
+          fi
+          asset_ids="$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${TAG}" --jq '.assets[]?.id')"
           if [ -z "${asset_ids}" ]; then
             exit 0
           fi
