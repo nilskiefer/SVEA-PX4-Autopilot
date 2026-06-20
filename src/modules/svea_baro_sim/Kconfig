@@ -1,0 +1,6 @@
+menuconfig MODULES_SVEA_BARO_SIM
+	bool "svea_baro_sim"
+	default n
+	depends on PLATFORM_NUTTX
+	---help---
+		Enable the SVEA board test publisher for the standard sensor_baro uORB topic.

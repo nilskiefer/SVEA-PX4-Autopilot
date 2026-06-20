@@ -21,6 +21,15 @@ then
 	svea_rc_servo_latch start
 fi
 
+# Start simulated barometer publisher for PX4_UORB_TUNNEL validation.
+if ! svea_baro_sim status > /dev/null 2>&1
+then
+	svea_baro_sim start
+fi
+
+# Forward the simulated barometer over PX4_UORB_TUNNEL.
+mavlink uorb_tunnel add -t sensor_baro -i 0 -r 4 -f
+
 # Configure PX4_UORB_TUNNEL power_monitor forwarding deterministically.
 # -f allows registration before the uORB instance is advertised.
 # Expected instances:
