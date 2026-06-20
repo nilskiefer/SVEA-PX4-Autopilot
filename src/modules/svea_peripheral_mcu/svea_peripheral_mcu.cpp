@@ -17,11 +17,9 @@
 
 extern "C" __EXPORT int svea_peripheral_mcu_main(int argc, char *argv[]);
 
-class SveaPeripheralMcu : public ModuleBase, public px4::ScheduledWorkItem
+class SveaPeripheralMcu : public ModuleBase<SveaPeripheralMcu>, public px4::ScheduledWorkItem
 {
 public:
-	static Descriptor desc;
-
 	SveaPeripheralMcu(const char *device, int baudrate) :
 		ScheduledWorkItem(MODULE_NAME, px4::wq_configurations::lp_default),
 		_baudrate(baudrate)
@@ -158,8 +156,6 @@ private:
 	bool _isatty{false};
 	bool _printed_raw_once{false};
 };
-
-ModuleBase::Descriptor SveaPeripheralMcu::desc{task_spawn, custom_command, print_usage};
 
 int SveaPeripheralMcu::open_serial()
 {
@@ -440,7 +436,7 @@ void SveaPeripheralMcu::Run()
 		}
 
 		ScheduleClear();
-		exit_and_cleanup(desc);
+		exit_and_cleanup();
 		return;
 	}
 
@@ -506,13 +502,13 @@ int SveaPeripheralMcu::task_spawn(int argc, char *argv[])
 		return PX4_ERROR;
 	}
 
-	desc.object.store(instance);
-	desc.task_id = task_id_is_work_queue;
+	_object.store(instance);
+	_task_id = task_id_is_work_queue;
 
 	if (!instance->init()) {
 		delete instance;
-		desc.object.store(nullptr);
-		desc.task_id = -1;
+		_object.store(nullptr);
+		_task_id = -1;
 		return PX4_ERROR;
 	}
 
@@ -619,5 +615,5 @@ Reads framed peripheral samples from an external MCU over UART and publishes typ
 
 extern "C" __EXPORT int svea_peripheral_mcu_main(int argc, char *argv[])
 {
-	return ModuleBase::main(SveaPeripheralMcu::desc, argc, argv);
+	return SveaPeripheralMcu::main(argc, argv);
 }

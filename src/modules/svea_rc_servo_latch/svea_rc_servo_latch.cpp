@@ -47,11 +47,9 @@ using namespace time_literals;
 
 extern "C" __EXPORT int svea_rc_servo_latch_main(int argc, char *argv[]);
 
-class SveaRcServoLatch : public ModuleBase, public px4::ScheduledWorkItem
+class SveaRcServoLatch : public ModuleBase<SveaRcServoLatch>, public px4::ScheduledWorkItem
 {
 public:
-	static Descriptor desc;
-
 	SveaRcServoLatch() : ScheduledWorkItem(MODULE_NAME, px4::wq_configurations::hp_default) {}
 	~SveaRcServoLatch() override = default;
 
@@ -79,8 +77,6 @@ private:
 	bool _button_last_high{false};
 	uint32_t _gear_toggle_count{0};
 };
-
-ModuleBase::Descriptor SveaRcServoLatch::desc{task_spawn, custom_command, print_usage};
 
 bool SveaRcServoLatch::init()
 {
@@ -125,7 +121,7 @@ void SveaRcServoLatch::Run()
 {
 	if (should_exit()) {
 		ScheduleClear();
-		exit_and_cleanup(desc);
+		exit_and_cleanup();
 		return;
 	}
 
@@ -217,8 +213,8 @@ int SveaRcServoLatch::task_spawn(int argc, char *argv[])
 	SveaRcServoLatch *instance = new SveaRcServoLatch();
 
 	if (instance) {
-		desc.object.store(instance);
-		desc.task_id = task_id_is_work_queue;
+		_object.store(instance);
+		_task_id = task_id_is_work_queue;
 
 		if (instance->init()) {
 			return PX4_OK;
@@ -226,8 +222,8 @@ int SveaRcServoLatch::task_spawn(int argc, char *argv[])
 	}
 
 	delete instance;
-	desc.object.store(nullptr);
-	desc.task_id = -1;
+	_object.store(nullptr);
+	_task_id = -1;
 	return PX4_ERROR;
 }
 
@@ -272,5 +268,5 @@ SVEA RC latch/mux helper:
 
 extern "C" __EXPORT int svea_rc_servo_latch_main(int argc, char *argv[])
 {
-	return ModuleBase::main(SveaRcServoLatch::desc, argc, argv);
+	return SveaRcServoLatch::main(argc, argv);
 }
