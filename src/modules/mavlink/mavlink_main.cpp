@@ -40,6 +40,7 @@
  * @author Anton Babushkin <anton.babushkin@me.com>
  */
 
+#include <cstdlib>
 #include <termios.h>
 
 #ifdef CONFIG_NET
@@ -56,9 +57,10 @@
 
 #include <px4_platform_common/events.h>
 
-#include <uORB/topics/event.h>
 #include "mavlink_receiver.h"
 #include "mavlink_main.h"
+#include <uORB/topics/event.h>
+#include <uORB/topics/uORBTopics.hpp>
 
 // Guard against MAVLink misconfiguration
 #ifndef MAVLINK_CRC_EXTRA
@@ -3352,6 +3354,276 @@ Mavlink::stream_command(int argc, char *argv[])
 	return OK;
 }
 
+namespace
+{
+pthread_mutex_t g_uorb_tunnel_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+struct UorbTunnelTopicEntry : public ListNode<UorbTunnelTopicEntry *> {
+	UorbTunnelTopicConfig cfg{};
+};
+
+List<UorbTunnelTopicEntry *> g_uorb_tunnel_topics{};
+
+static const orb_metadata *topic_from_id(int32_t topic_id)
+{
+	if (topic_id < 0 || topic_id >= static_cast<int32_t>(ORB_TOPICS_COUNT)) {
+		return nullptr;
+	}
+
+	const orb_metadata *const *topics = orb_get_topics();
+	return topics[topic_id];
+}
+
+static int topic_id_from_name(const char *topic_name)
+{
+	if (topic_name == nullptr || topic_name[0] == '\0') {
+		return -1;
+	}
+
+	const orb_metadata *const *topics = orb_get_topics();
+
+	for (int i = 0; i < static_cast<int>(ORB_TOPICS_COUNT); i++) {
+		const orb_metadata *meta = topics[i];
+
+		if (meta != nullptr && meta->o_name != nullptr && strcmp(meta->o_name, topic_name) == 0) {
+			return i;
+		}
+	}
+
+	return -1;
+}
+
+static unsigned topic_entry_count_locked()
+{
+	unsigned count = 0;
+
+	for (UorbTunnelTopicEntry *entry = g_uorb_tunnel_topics.getHead(); entry != nullptr; entry = entry->getSibling()) {
+		count++;
+	}
+
+	return count;
+}
+
+static UorbTunnelTopicEntry *topic_entry_at_locked(unsigned index)
+{
+	unsigned i = 0;
+
+	for (UorbTunnelTopicEntry *entry = g_uorb_tunnel_topics.getHead(); entry != nullptr; entry = entry->getSibling()) {
+		if (i == index) {
+			return entry;
+		}
+
+		i++;
+	}
+
+	return nullptr;
+}
+
+} // namespace
+
+unsigned
+Mavlink::uorb_tunnel_count()
+{
+	pthread_mutex_lock(&g_uorb_tunnel_mutex);
+	const unsigned count = topic_entry_count_locked();
+	pthread_mutex_unlock(&g_uorb_tunnel_mutex);
+	return count;
+}
+
+bool Mavlink::uorb_tunnel_get_config(unsigned index, UorbTunnelTopicConfig &out)
+{
+	pthread_mutex_lock(&g_uorb_tunnel_mutex);
+	UorbTunnelTopicEntry *entry = topic_entry_at_locked(index);
+
+	if (entry == nullptr) {
+		pthread_mutex_unlock(&g_uorb_tunnel_mutex);
+		return false;
+	}
+
+	out = entry->cfg;
+	pthread_mutex_unlock(&g_uorb_tunnel_mutex);
+	return true;
+}
+
+int Mavlink::uorb_tunnel_command(int argc, char *argv[])
+{
+	if (argc < 3) {
+		usage();
+		return PX4_ERROR;
+	}
+
+	const char *subcmd = argv[2];
+
+	if (!strcmp(subcmd, "list")) {
+		pthread_mutex_lock(&g_uorb_tunnel_mutex);
+
+		if (g_uorb_tunnel_topics.getHead() == nullptr) {
+			PX4_INFO("uorb tunnel: no topics configured");
+			pthread_mutex_unlock(&g_uorb_tunnel_mutex);
+			return PX4_OK;
+		}
+
+		unsigned i = 0;
+
+		for (UorbTunnelTopicEntry *entry = g_uorb_tunnel_topics.getHead(); entry != nullptr; entry = entry->getSibling()) {
+			const UorbTunnelTopicConfig &cfg = entry->cfg;
+			const orb_metadata *meta = topic_from_id(cfg.topic_id);
+
+			if (meta == nullptr || meta->o_name == nullptr) {
+				PX4_WARN("%u: invalid topic_id=%ld inst=%u rate=%.3f", static_cast<unsigned>(i + 1),
+					 static_cast<long>(cfg.topic_id), cfg.instance, static_cast<double>(cfg.rate_hz));
+
+			} else {
+				PX4_INFO("%u: topic=%s (id=%ld) inst=%u rate=%.3f Hz", static_cast<unsigned>(i + 1), meta->o_name,
+					 static_cast<long>(cfg.topic_id), cfg.instance, static_cast<double>(cfg.rate_hz));
+			}
+
+			i++;
+		}
+
+		pthread_mutex_unlock(&g_uorb_tunnel_mutex);
+		return PX4_OK;
+	}
+
+	if (!strcmp(subcmd, "remove")) {
+		int entry = -1;
+
+		for (int i = 3; i < argc; i++) {
+			if (!strcmp(argv[i], "-s") && (i + 1) < argc) {
+				entry = strtol(argv[++i], nullptr, 10);
+
+			} else {
+				PX4_ERR("invalid argument: %s", argv[i]);
+				return PX4_ERROR;
+			}
+		}
+
+		if (entry < 1) {
+			PX4_ERR("remove requires -s <entry>=1..N");
+			return PX4_ERROR;
+		}
+
+		pthread_mutex_lock(&g_uorb_tunnel_mutex);
+
+		const size_t idx = static_cast<size_t>(entry - 1);
+		UorbTunnelTopicEntry *to_remove = topic_entry_at_locked(idx);
+
+		if (to_remove == nullptr) {
+			const unsigned count = topic_entry_count_locked();
+			pthread_mutex_unlock(&g_uorb_tunnel_mutex);
+			PX4_ERR("entry out of range (N=%u)", count);
+			return PX4_ERROR;
+		}
+
+		g_uorb_tunnel_topics.remove(to_remove);
+		pthread_mutex_unlock(&g_uorb_tunnel_mutex);
+		delete to_remove;
+		PX4_INFO("uorb tunnel entry %d removed", entry);
+		return PX4_OK;
+	}
+
+	if (!strcmp(subcmd, "add")) {
+		const char *topic_name = nullptr;
+		int32_t instance = 0;
+		float rate_hz = -1.f;
+		bool force = false;
+
+		for (int i = 3; i < argc; i++) {
+			if (!strcmp(argv[i], "-t") && (i + 1) < argc) {
+				topic_name = argv[++i];
+
+			} else if (!strcmp(argv[i], "-i") && (i + 1) < argc) {
+				instance = strtol(argv[++i], nullptr, 10);
+
+			} else if (!strcmp(argv[i], "-r") && (i + 1) < argc) {
+				rate_hz = strtof(argv[++i], nullptr);
+
+			} else if (!strcmp(argv[i], "-f")) {
+				force = true;
+
+			} else {
+				PX4_ERR("invalid argument: %s", argv[i]);
+				return PX4_ERROR;
+			}
+		}
+
+		if (topic_name == nullptr || rate_hz <= 0.f) {
+			PX4_ERR("add requires -t <topic> and -r <hz>");
+			return PX4_ERROR;
+		}
+
+		if (instance < 0) {
+			PX4_ERR("instance must be >= 0");
+			return PX4_ERROR;
+		}
+
+		if (instance > 9) {
+			PX4_ERR("instance must be <= 9");
+			return PX4_ERROR;
+		}
+
+		if (rate_hz > 100.f) {
+			PX4_ERR("rate must be <= 100 Hz");
+			return PX4_ERROR;
+		}
+
+		const int topic_id = topic_id_from_name(topic_name);
+
+		if (topic_id < 0) {
+			PX4_ERR("unknown uORB topic: %s", topic_name);
+			return PX4_ERROR;
+		}
+
+		const orb_metadata *meta = topic_from_id(topic_id);
+
+		if (meta == nullptr || meta->o_name == nullptr) {
+			PX4_ERR("invalid uORB topic metadata: %s", topic_name);
+			return PX4_ERROR;
+		}
+
+		if (!force && orb_exists(meta, instance) != PX4_OK) {
+			PX4_ERR("uorb tunnel add rejected: topic=%s instance=%ld is not advertised", meta->o_name,
+				static_cast<long>(instance));
+			return PX4_ERROR;
+		}
+
+		pthread_mutex_lock(&g_uorb_tunnel_mutex);
+
+		for (UorbTunnelTopicEntry *entry = g_uorb_tunnel_topics.getHead(); entry != nullptr; entry = entry->getSibling()) {
+			UorbTunnelTopicConfig &cfg = entry->cfg;
+
+			if (cfg.topic_id == topic_id && cfg.instance == static_cast<uint8_t>(instance)) {
+				cfg.rate_hz = rate_hz;
+				pthread_mutex_unlock(&g_uorb_tunnel_mutex);
+				PX4_INFO("uorb tunnel updated%s: topic=%s id=%d inst=%ld rate=%.3f Hz", force ? " (forced)" : "",
+					 topic_name, topic_id, static_cast<long>(instance), static_cast<double>(rate_hz));
+				return PX4_OK;
+			}
+		}
+
+		UorbTunnelTopicEntry *new_entry = new UorbTunnelTopicEntry{};
+
+		if (new_entry == nullptr) {
+			pthread_mutex_unlock(&g_uorb_tunnel_mutex);
+			PX4_ERR("uorb tunnel add failed: allocation");
+			return PX4_ERROR;
+		}
+
+		new_entry->cfg.topic_id = topic_id;
+		new_entry->cfg.instance = static_cast<uint8_t>(instance);
+		new_entry->cfg.rate_hz = rate_hz;
+		g_uorb_tunnel_topics.add(new_entry);
+		const unsigned new_index = topic_entry_count_locked();
+		pthread_mutex_unlock(&g_uorb_tunnel_mutex);
+		PX4_INFO("uorb tunnel added%s (%u): topic=%s id=%d inst=%ld rate=%.3f Hz", force ? " (forced)" : "",
+			 new_index, topic_name, topic_id, static_cast<long>(instance), static_cast<double>(rate_hz));
+		return PX4_OK;
+	}
+
+	PX4_ERR("unknown uorb_tunnel command: %s", subcmd);
+	return PX4_ERROR;
+}
+
 void
 Mavlink::set_boot_complete()
 {
@@ -3449,6 +3721,12 @@ $ mavlink stream -u 14556 -s HIGHRES_IMU -r 50
 	PRINT_MODULE_USAGE_PARAM_STRING('s', nullptr, nullptr, "Mavlink stream to configure", false);
 	PRINT_MODULE_USAGE_PARAM_FLOAT('r', -1.0f, 0.0f, 2000.0f, "Rate in Hz (0 = turn off, -1 = set to default)", false);
 
+	PRINT_MODULE_USAGE_COMMAND_DESCR("uorb_tunnel", "Configure PX4_UORB_TUNNEL topic forwarding");
+	PRINT_MODULE_USAGE_ARG("list", "List configured tunnel entries", true);
+	PRINT_MODULE_USAGE_ARG("add -t <topic> -i <instance> -r <hz> [-f]",
+			       "Add or update a topic entry (use -f to allow non-advertised instances)", true);
+	PRINT_MODULE_USAGE_ARG("remove -s <entry>", "Remove an entry from list output", true);
+
 	PRINT_MODULE_USAGE_COMMAND_DESCR("boot_complete",
 					 "Enable sending of messages. (Must be) called as last step in startup script.");
 
@@ -3476,6 +3754,9 @@ extern "C" __EXPORT int mavlink_main(int argc, char *argv[])
 
 	} else if (!strcmp(argv[1], "stream")) {
 		return Mavlink::stream_command(argc, argv);
+
+	} else if (!strcmp(argv[1], "uorb_tunnel")) {
+		return Mavlink::uorb_tunnel_command(argc, argv);
 
 	} else if (!strcmp(argv[1], "boot_complete")) {
 		Mavlink::set_boot_complete();

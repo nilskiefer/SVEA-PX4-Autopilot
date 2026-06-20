@@ -105,6 +105,12 @@ enum class Protocol {
 
 using namespace time_literals;
 
+struct UorbTunnelTopicConfig {
+	int32_t topic_id{-1};
+	uint8_t instance{0};
+	float rate_hz{0.f};
+};
+
 class Mavlink final : public ModuleParams
 {
 
@@ -146,6 +152,9 @@ public:
 
 	static int		stop_command(int argc, char *argv[]);
 	static int		stream_command(int argc, char *argv[]);
+	static int		uorb_tunnel_command(int argc, char *argv[]);
+	static unsigned		uorb_tunnel_count();
+	static bool		uorb_tunnel_get_config(unsigned index, UorbTunnelTopicConfig &out);
 
 	static int		instance_count();
 
