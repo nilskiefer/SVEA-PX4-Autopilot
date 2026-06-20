@@ -241,7 +241,6 @@ param set-default BQ769X2_PDSG_DV 500
 # Channel map (0-based physical channels):
 #  0 throttle, 1 steering, 2 front diff, 3 rear diff, 4 gear, 5 misc servo, 6 misc servo.
 param set-default PCA9685_EN_BUS 2
-param set-default PCA9685_I2C_ADDR 97
 # Board-tuned target for ~17 ms physical period on this hardware.
 param set-default PCA9685_PWM_FREQ 60.9
 param set-default PCA9685_SCHD_HZ 100
