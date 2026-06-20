@@ -100,15 +100,15 @@ void px4_platform_i2c_init()
 	while (i2c_bus_iterator.next()) {
 		i2c_master_s *i2c_dev = px4_i2cbus_initialize(i2c_bus_iterator.bus().bus);
 
+		// SVEA Clicker4/PMB3 exception: bus 2 hosts PCAL6524 GPIO expanders
+		// that hold power-rail state across FMU reboot. Both the NuttX bus
+		// reset and the manual General Call software reset can disturb those
+		// expanders, so keep upstream reset behavior on all other buses only.
+		if (i2c_bus_iterator.bus().bus != 2) {
 #if defined(CONFIG_I2C_RESET)
-		I2C_RESET(i2c_dev);
+			I2C_RESET(i2c_dev);
 #endif // CONFIG_I2C_RESET
 
-		// "Bootleg" exception: I2C General Call software reset is broadcast
-		// (addr 0x00, data 0x06), so it cannot exclude specific devices.
-		// Skip bus 2 to avoid resetting PCAL6524 state across FMU reboot.
-		// Keep reset behavior on other buses.
-		if (i2c_bus_iterator.bus().bus != 2) {
 			uint8_t buf[1] {};
 			buf[0] = 0x06; // software reset
 
