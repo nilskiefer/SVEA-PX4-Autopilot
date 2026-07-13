@@ -39,7 +39,6 @@ fi
 param set-default MAV_0_CONFIG 0
 param set-default MAV_0_MODE 0
 param set-default MAV_0_RATE 1200
-param set-default SER_TEL1_BAUD 57600
 param set-default MAV_1_CONFIG 0
 param set-default MAV_2_CONFIG 0
 
@@ -156,8 +155,10 @@ param set-default PWM_MAIN_TIM3 100
 param set-default SYS_USB_AUTO 2
 param set-default USB_MAV_MODE 2
 
-# GPS driver is not part of this board target by default.
-# Do not touch GPS_*_CONFIG params here (they may not exist in this build).
+# ZED-F9P rover on USART1 (PB6/PB7, shared by mikroBUS sockets 2 and 3).
+# GPS_1_CONFIG defaults to the board's GPS1 port through the GPS module metadata.
+# Use the u-blox portable dynamic model.
+param set-default GPS_UBX_DYNMODEL 0
 
 # Use RAM-backed dataman. This board has no flash filesystem for /fs/dataman
 # and navigator/missions are not used, so RAM is sufficient.

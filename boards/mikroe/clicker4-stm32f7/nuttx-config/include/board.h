@@ -278,7 +278,7 @@
  */
 
 /* NOTE:
- * PB6/PB7 are dedicated to USART1 on this target (GPS/UART use-case),
+ * PB6/PB7 are dedicated to USART1 for the ZED-F9P on mikroBUS 2 or 3,
  * so I2C1 is intentionally not exposed.
  */
 
