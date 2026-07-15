@@ -155,7 +155,7 @@ param set-default PWM_MAIN_TIM3 100
 param set-default SYS_USB_AUTO 2
 param set-default USB_MAV_MODE 2
 
-# ZED-F9P rover on USART1 (PB6/PB7, shared by mikroBUS sockets 2 and 3).
+# ZED-F9P rover on USART2 (PA2/PA3, mikroBUS socket 1).
 # GPS_1_CONFIG defaults to the board's GPS1 port through the GPS module metadata.
 # Use the u-blox portable dynamic model.
 param set-default GPS_UBX_DYNMODEL 0

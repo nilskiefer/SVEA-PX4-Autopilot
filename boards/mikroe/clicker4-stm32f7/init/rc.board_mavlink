@@ -3,5 +3,6 @@
 # Clicker 4 STM32F7 board MAVLink startup script.
 #------------------------------------------------------------------------------
 
-# Keep USART1 (/dev/ttyS0, PB6/PB7) reserved for svea_peripheral_mcu.
-# USART2 (PA2/PA3) remains the NSH serial console.
+# USART1 (/dev/ttyS0, PB6/PB7) is reserved for svea_peripheral_mcu.
+# USART2 (/dev/ttyS1, PA2/PA3) is reserved for GPS1 on mikroBUS 1.
+# MAVLink is provided over USB by SYS_USB_AUTO/USB_MAV_MODE defaults.

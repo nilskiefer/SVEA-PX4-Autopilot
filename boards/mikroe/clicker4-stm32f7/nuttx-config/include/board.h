@@ -278,7 +278,7 @@
  */
 
 /* NOTE:
- * PB6/PB7 are dedicated to USART1 for the ZED-F9P on mikroBUS 2 or 3,
+ * PB6/PB7 are dedicated to USART1 for svea_peripheral_mcu,
  * so I2C1 is intentionally not exposed.
  */
 
