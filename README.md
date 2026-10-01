@@ -5,6 +5,8 @@ PX4-based firmware and bringup for `MIKROE_CLICKER4_STM32F7`.
 ## Documentation
 
 - Docs site entrypoint: [docs/en/svea/index.md](docs/en/svea/index.md)
+- ROS topic and power measurement lookup: [docs/en/svea/ros-topic-reference.md](docs/en/svea/ros-topic-reference.md)
+- Current sensor publish rates: [docs/en/svea/current-sensor-publish-rates.md](docs/en/svea/current-sensor-publish-rates.md)
 - Build and flash: [docs/en/svea/build-and-flash.md](docs/en/svea/build-and-flash.md)
 - Troubleshooting and connectivity: [docs/en/svea/troubleshooting.md](docs/en/svea/troubleshooting.md)
 - PMB3 powerboard baseline: [docs/en/svea/pmb3/powerboard.md](docs/en/svea/pmb3/powerboard.md)

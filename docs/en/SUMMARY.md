@@ -3,6 +3,8 @@
   - [SVEA Clicker4 Bringup](svea/index.md)
     - [Build and Flash](svea/build-and-flash.md)
     - [Troubleshooting and Connectivity](svea/troubleshooting.md)
+    - [ROS Topics and Power Measurements](svea/ros-topic-reference.md)
+    - [Current Sensor Publish Rates](svea/current-sensor-publish-rates.md)
     - [PMB3 Powerboard Baseline](svea/pmb3/powerboard.md)
     - [PMB3 Expanders and GPIO](svea/pmb3/expanders.md)
     - [PMB3 Actuators](svea/pmb3/actuators.md)
