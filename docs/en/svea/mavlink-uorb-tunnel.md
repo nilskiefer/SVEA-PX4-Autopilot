@@ -104,6 +104,8 @@ mavlink status
 ## Related
 
 - [Peripheral MCU Bridge](peripheral-mcu-bridge.md)
+- [ROS Topics and Power Measurements](ros-topic-reference.md)
+- [Current Sensor Publish Rates](current-sensor-publish-rates.md)
 
 ## When To Use `-f`
 

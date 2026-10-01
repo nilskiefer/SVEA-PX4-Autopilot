@@ -86,3 +86,8 @@ If invalid instance is requested, it is rejected.
 Detailed protocol and TX/RX behavior:
 
 - [MAVLink uORB Tunnel](../mavlink-uorb-tunnel.md)
+
+## Research Telemetry
+
+- [ROS topic and physical rail lookup](../ros-topic-reference.md)
+- [Current sensor acquisition and publish rates](../current-sensor-publish-rates.md)

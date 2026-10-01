@@ -13,6 +13,11 @@
 9. [Controlling the Car (RC and ROS/MAVLink)](controlling-the-car.md)
 10. [Peripheral MCU Bridge](peripheral-mcu-bridge.md)
 
+## Research Reference
+
+- [ROS Topics and Power Measurements](ros-topic-reference.md)
+- [Current Sensor Publish Rates](current-sensor-publish-rates.md)
+
 ## PMB3 Reference
 
 - [PMB3 Overview](pmb3/index.md)
