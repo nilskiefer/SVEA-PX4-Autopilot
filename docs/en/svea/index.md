@@ -17,6 +17,7 @@
 
 - [ROS Topics and Power Measurements](ros-topic-reference.md)
 - [Current Sensor Publish Rates](current-sensor-publish-rates.md)
+- [Battery State of Charge](battery-state-of-charge.md)
 
 ## PMB3 Reference
 

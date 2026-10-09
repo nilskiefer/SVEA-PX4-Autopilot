@@ -16,6 +16,10 @@ Inspect:
 param show BAT1_*
 ```
 
+SOC uses a linear voltage seed followed by signed current integration. See
+[Battery State of Charge](../battery-state-of-charge.md) for the exact mapping,
+full-charge reset, and limitations.
+
 ## BQ769x2 Baseline
 
 Driver and address:

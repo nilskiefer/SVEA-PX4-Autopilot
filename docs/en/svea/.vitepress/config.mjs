@@ -25,6 +25,7 @@ export default withMermaid({
           { text: "Firmware Inventory", link: "/firmware-inventory" },
           { text: "ROS Topics and Power Measurements", link: "/ros-topic-reference" },
           { text: "Current Sensor Publish Rates", link: "/current-sensor-publish-rates" },
+          { text: "Battery State of Charge", link: "/battery-state-of-charge" },
           { text: "Controlling the Car", link: "/controlling-the-car" },
           { text: "Peripheral MCU Bridge", link: "/peripheral-mcu-bridge" },
           { text: "MAVLink uORB Tunnel", link: "/mavlink-uorb-tunnel" }
