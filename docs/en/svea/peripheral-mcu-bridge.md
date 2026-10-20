@@ -56,6 +56,15 @@ Status output includes counters for:
 - framing/magic statistics
 - MAVLink-v1/v2 hit counters in parser path
 
+UART reads are nonblocking; an idle or disconnected peripheral must not stall the shared work queue. Fixed firmware reports `build_tag=periphmcu-nonblocking-20261020`.
+
+| Status | Meaning |
+| --- | --- |
+| `run` increases; wheel counters increase | UART reception and frame decoding are active |
+| `run` increases; `bytes=0` | No UART bytes received; check MCU power/firmware, GPIO16 TX → PX4 PB7 RX, common GND and 115200 baud |
+| `run=1`; `last_run_age_ms` keeps growing | Older firmware is blocked in its first UART read; flash the nonblocking fix |
+| `crc_err` / `parse_err` increase | Received data is corrupt or incompatible; check baud rate, wiring and protocol version |
+
 ## MAVLink `WHEEL_DISTANCE` Stream
 
 `wheel_distance` is streamed over MAVLink using `WHEEL_DISTANCE`:

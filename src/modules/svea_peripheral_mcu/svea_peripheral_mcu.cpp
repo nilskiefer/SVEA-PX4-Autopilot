@@ -73,7 +73,7 @@ private:
 	static constexpr uint8_t FRAME_VERSION = 2;
 	static constexpr uint8_t FRAME_PAYLOAD_MAX_LEN = 64;
 	static constexpr uint32_t SCHEDULE_INTERVAL_US = 5000;
-	static constexpr const char *BUILD_TAG = "periphmcu-rxfix-20260505-3";
+	static constexpr const char *BUILD_TAG = "periphmcu-nonblocking-20261020";
 
 	static uint16_t crc16_ccitt(const uint8_t *data, uint16_t len)
 	{
@@ -165,7 +165,8 @@ int SveaPeripheralMcu::open_serial()
 {
 	// Open read/write to avoid NuttX returning a write-only descriptor mode
 	// for this tty path on some board configurations (read() then fails EBADF).
-	_fd = ::open(_device, O_RDWR | O_NOCTTY);
+	// Run() shares a work queue, so an idle UART must never block it.
+	_fd = ::open(_device, O_RDWR | O_NOCTTY | O_NONBLOCK);
 
 	if (_fd < 0) {
 		PX4_ERR("open failed: %s (%d)", _device, errno);
@@ -186,12 +187,10 @@ int SveaPeripheralMcu::open_serial()
 		return PX4_ERROR;
 	}
 
-	// Hard-fail if we cannot clear O_NONBLOCK: this driver expects timed/blocking reads.
-	if ((_fd_flags_before & O_NONBLOCK) != 0) {
-		if (::fcntl(_fd, F_SETFL, _fd_flags_before & ~O_NONBLOCK) != 0) {
-			PX4_ERR("fcntl(F_SETFL clear O_NONBLOCK) failed (%d)", errno);
-			return PX4_ERROR;
-		}
+	if ((_fd_flags_before & O_NONBLOCK) == 0) {
+		PX4_ERR("UART descriptor is not nonblocking");
+		errno = EINVAL;
+		return PX4_ERROR;
 	}
 
 	_fd_flags_after = ::fcntl(_fd, F_GETFL, 0);
@@ -237,7 +236,7 @@ int SveaPeripheralMcu::open_serial()
 	config.c_iflag = 0;
 	config.c_oflag = 0;
 	config.c_lflag = 0;
-	config.c_cc[VTIME] = 1; // 100 ms read timeout
+	config.c_cc[VTIME] = 0;
 	config.c_cc[VMIN] = 0;
 
 	if (cfsetispeed(&config, speed) != 0 || cfsetospeed(&config, speed) != 0) {
@@ -450,6 +449,12 @@ void SveaPeripheralMcu::Run()
 		if (open_serial() != PX4_OK) {
 			_open_fails++;
 			_last_open_errno = errno;
+
+			if (_fd >= 0) {
+				::close(_fd);
+				_fd = -1;
+			}
+
 			ScheduleDelayed(SCHEDULE_INTERVAL_US);
 			return;
 		}
