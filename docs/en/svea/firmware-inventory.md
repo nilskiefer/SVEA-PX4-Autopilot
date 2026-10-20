@@ -27,6 +27,7 @@
 
 - `svea_power_gate`
 - `svea_peripheral_mcu`
+- `svea_rc_servo_latch`
 
 ### MAVLink/USB behavior
 
