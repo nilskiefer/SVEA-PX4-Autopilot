@@ -31,7 +31,7 @@ listener gpio_in
 | P0_2 | USB-C/HUSB238A/EN# | output | `/dev/gpio2` |
 | P0_4 | Power/5V-Buck/PGOOD | input | `/dev/gpio4` |
 | P0_5 | Button/DIGITAL | input | `/dev/gpio5` |
-| P0_6 | CHARGING-IC/DIGIPOT-#EN | input | `/dev/gpio6` |
+| P0_6 | CHARGING-IC/OPEN-DRAIN-DIGIPOT-#EN | input (bypass) / output-low (adjust) | `/dev/gpio6` |
 | P0_7 | Power/5V-Buck/EN# | output | `/dev/gpio7` |
 | P1_0 | IO-Expander/Secondary/INT | input | `/dev/gpio8` |
 | P1_1 | ESC/EN | output | `/dev/gpio9` |
@@ -59,6 +59,8 @@ listener gpio_in
 | P2_3 | USB-C/HUSB238A/INT | input | `/dev/gpio43` |
 | P2_6 | IMU/INT2 | input | `/dev/gpio46` |
 | P2_7 | IMU/INT1 | input | `/dev/gpio47` |
+
+GPIO6 is owned by [`svea_mppt`](mppt.md). Released/high bypasses the digipot; output-low enables adjustment.
 
 ## Rail-Related GPIOs (Complete)
 

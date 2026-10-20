@@ -22,6 +22,7 @@
 - `svea_ina226` x2 (rail monitors)
 - `svea_ina3221` x2 (multi-channel rail monitors)
 - `pca9685_pwm_out` (actuator outputs)
+- `svea_mppt` (TPL0401B MPPT setpoint; fixed divider by default)
 
 ### Board-specific modules
 
@@ -45,6 +46,7 @@
 - INA226 at `0x4E` and `0x4F`
 - INA3221 at `0x40` and `0x41`
 - PCA9685 at `0x61`
+- TPL0401B at `0x3E`
 
 ### `power_monitor` instance plan
 
@@ -66,6 +68,7 @@ From `noboot.px4board`:
 - `src/drivers/power_monitor/svea_ina226`
 - `src/drivers/power_monitor/svea_ina3221`
 - `src/drivers/gpio/pcal6524`
+- `src/drivers/svea_mppt`
 - `src/drivers/smart_battery/bq769x2`
 - `src/modules/svea_power_gate`
 - `src/modules/svea_peripheral_mcu`
