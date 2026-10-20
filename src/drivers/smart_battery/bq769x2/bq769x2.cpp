@@ -236,20 +236,18 @@ int BQ769x2::probe()
 		ret_device = PX4_ERROR;
 		ret_fw = PX4_ERROR;
 		ret_hw = PX4_ERROR;
-		bool device_ok = false;
 
 		for (int attempt = 0; attempt < kProbeAttempts; attempt++)
 		{
 			ret_device = _protocol.subcommandReadU2(BQ769X2_SUBCMD_DEVICE_NUMBER, _device_number);
 
 			if (ret_device == PX4_OK) {
-				device_ok = true;
 				// Read metadata with dedicated retries; these reads are occasionally
 				// transiently flaky right after wake/reset even when core comms works.
 				static constexpr int kMetaAttempts = 10;
 
 				for (int fw_attempt = 0; fw_attempt < kMetaAttempts; fw_attempt++) {
-					ret_fw = _protocol.subcommandReadU4(BQ769X2_SUBCMD_FW_VERSION, _fw_version);
+					ret_fw = _protocol.readFirmwareVersion(_fw_version, _fw_build);
 
 					if (ret_fw == PX4_OK) {
 						break;
@@ -262,7 +260,7 @@ int BQ769x2::probe()
 
 				if (ret_fw == PX4_OK) {
 					for (int hw_attempt = 0; hw_attempt < kMetaAttempts; hw_attempt++) {
-						ret_hw = _protocol.subcommandReadU4(BQ769X2_SUBCMD_HW_VERSION, _hw_version);
+						ret_hw = _protocol.subcommandReadU2(BQ769X2_SUBCMD_HW_VERSION, _hw_version);
 
 						if (ret_hw == PX4_OK) {
 							return true;
@@ -281,22 +279,6 @@ int BQ769x2::probe()
 			px4_usleep(10'000);
 		}
 
-		// Accept partial probe if device number is readable. Some parts can
-		// transiently fail FW/HW metadata reads at boot while core commands work.
-		if (device_ok)
-		{
-			if (ret_fw != PX4_OK) {
-				_fw_version = 0;
-			}
-
-			if (ret_hw != PX4_OK) {
-				_hw_version = 0;
-			}
-
-			PX4_WARN("probe partial (dev ok, fw:%d hw:%d)", ret_fw, ret_hw);
-			return true;
-		}
-
 		return false;
 	};
 
@@ -310,8 +292,15 @@ int BQ769x2::probe()
 			return PX4_ERROR;
 		}
 
-		PX4_WARN("CRC auto-detected: using %d (param BQ769X2_CRC=%d)", !_crc_param_enabled ? 1 : 0,
-			 _crc_param_enabled ? 1 : 0);
+		const int32_t detected_crc = !_crc_param_enabled ? 1 : 0;
+
+		if (_param_crc == PARAM_INVALID || param_set(_param_crc, &detected_crc) != PX4_OK) {
+			PX4_ERR("cannot store detected CRC mode");
+			return PX4_ERROR;
+		}
+
+		_crc_param_enabled = detected_crc != 0;
+		PX4_INFO("BQ769X2_CRC corrected to detected hardware mode: %ld", (long)detected_crc);
 	}
 
 	_connected = true;
@@ -1605,8 +1594,8 @@ void BQ769x2::print_status()
 	PX4_INFO("consumed: %.1f mAh, %.3f Wh", (double)_discharged_mah, (double)_discharged_wh);
 	PX4_INFO("battery id: %u, cells: %u, vcell_mode: 0x%04x", _battery_id, __builtin_popcount(activeVcellModeMask()),
 		 activeVcellModeMask());
-	PX4_INFO("device: %u, fw: 0x%08lx, hw: 0x%08lx", _device_number,
-		 static_cast<unsigned long>(_fw_version), static_cast<unsigned long>(_hw_version));
+	PX4_INFO("device: %u, fw: 0x%04x build: 0x%04x, hw: 0x%04x", _device_number,
+		 _fw_version, _fw_build, _hw_version);
 
 	uint8_t fet_status{0};
 	uint8_t safety_a{0};

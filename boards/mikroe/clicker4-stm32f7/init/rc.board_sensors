@@ -31,6 +31,9 @@ gpio write /dev/gpio10 0
 
 svea_power_gate start
 
+# MPPT uses the fixed divider until SVEA_MPPT_EN is explicitly enabled.
+svea_mppt -I -b 2 -a 0x3e start
+
 # Keep 12V buck enabled after startup; delay to allow BQ precharge phase to settle.
 sh -c "sleep 5; gpio write /dev/gpio13 1" &
 

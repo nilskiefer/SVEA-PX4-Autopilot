@@ -1,0 +1,7 @@
+menuconfig DRIVERS_SVEA_MPPT
+	bool "svea_mppt"
+	default n
+	depends on PLATFORM_NUTTX
+	depends on DRIVERS_GPIO_PCAL6524
+	---help---
+		PMB3 TPL0401B MPPT setpoint and GPIO6 bypass control.

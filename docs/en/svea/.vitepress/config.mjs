@@ -37,6 +37,7 @@ export default withMermaid({
           { text: "Overview", link: "/pmb3/" },
           { text: "Powerboard Baseline", link: "/pmb3/powerboard" },
           { text: "Expanders and GPIO", link: "/pmb3/expanders" },
+          { text: "MPPT Setpoint", link: "/pmb3/mppt" },
           { text: "Power Gate", link: "/pmb3/power-gate" },
           { text: "Actuators", link: "/pmb3/actuators" },
           { text: "LEDs", link: "/pmb3/leds" }

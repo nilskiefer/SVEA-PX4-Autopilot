@@ -482,7 +482,7 @@ void SveaPeripheralMcu::Run()
 				pos += snprintf(&hexbuf[pos], sizeof(hexbuf) - pos, "%02X%s", buf[i], (i + 1 < dump_n) ? " " : "");
 			}
 
-			PX4_WARN("raw_rx_first[%d]=%s", dump_n, hexbuf);
+			PX4_INFO("raw_rx_first[%d]=%s", dump_n, hexbuf);
 			_printed_raw_once = true;
 		}
 

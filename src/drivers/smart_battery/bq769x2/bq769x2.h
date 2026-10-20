@@ -131,8 +131,9 @@ private:
 	bool _soc_seeded_from_voltage{false};
 
 	uint16_t _device_number{0};
-	uint32_t _fw_version{0};
-	uint32_t _hw_version{0};
+	uint16_t _fw_version{0};
+	uint16_t _fw_build{0};
+	uint16_t _hw_version{0};
 
 	float _bat_low_thr{0.f};
 	float _bat_crit_thr{0.f};

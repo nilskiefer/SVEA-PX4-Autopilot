@@ -57,7 +57,7 @@ public:
 	int subcommand(uint16_t subcmd);
 	int subcommandWriteU1(uint16_t subcmd, uint8_t value);
 	int subcommandReadU2(uint16_t subcmd, uint16_t &value);
-	int subcommandReadU4(uint16_t subcmd, uint32_t &value);
+	int readFirmwareVersion(uint16_t &version, uint16_t &build);
 
 	int datamemReadU1(uint16_t addr, uint8_t &value);
 	int datamemReadU2(uint16_t addr, uint16_t &value);
