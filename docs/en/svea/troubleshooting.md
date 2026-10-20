@@ -52,7 +52,7 @@ If you still see `No CPU and RAM load information`, verify:
 
 ```sh
 load_mon status
-listener cpuload 5
+listener cpuload -n 5
 ```
 
 If cpuload remains stale in this board setup, current operational default is:

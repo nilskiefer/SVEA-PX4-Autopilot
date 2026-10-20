@@ -27,11 +27,13 @@
 
 - `svea_power_gate`
 - `svea_peripheral_mcu`
+- `svea_rc_servo_latch`
 
 ### MAVLink/USB behavior
 
 - USB CDC startup is explicit via `sercon` + `mavlink start -d /dev/ttyACM0`
 - `PX4_UORB_TUNNEL` forwarding for `power_monitor` is set in `rc.board_extras`
+- BMS polling/internal updates: 10 Hz; USB battery telemetry: 10 Hz, set in `rc.board_mavlink`
 
 ## Effective Runtime Topology (from startup scripts)
 

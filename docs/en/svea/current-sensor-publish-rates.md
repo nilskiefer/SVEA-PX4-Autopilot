@@ -12,10 +12,10 @@ A measurement travels from sensor conversion, to driver/uORB publication, to MAV
 | --- | --- | --- |
 | INA226 driver, ESC and servo | `INA226_SAMPLE_FREQUENCY_HZ=4`, nominally 250 ms between publications | Edit `svea_ina226.h`, rebuild/flash; check conversion timing too. |
 | INA3221 driver, six connector branches | `INA3221_SAMPLE_FREQUENCY_HZ=4`, nominally 250 ms plus read/work-queue time | Edit `svea_ina3221.h`, rebuild/flash; check conversion and averaging settings. All three channels on each chip share the polling cadence. |
-| BQ769x2 battery driver | `SAMPLE_INTERVAL_US=100_ms`, nominally 10 Hz | Source change in `bq769x2.h` for faster driver polling; separate from chip CC2 measurement timing. |
+| BQ769x2 battery driver | BMS polling and internal `battery_status` updates: nominally 10 Hz (`SAMPLE_INTERVAL_US=100_ms`) | Compiled in `bq769x2.h`; unaffected by MAVLink stream settings. Chip conversion timing is separate. |
 | Per-instance uORB tunnel forwarding | Eight `power_monitor` entries, each capped at 4 Hz | `mavlink uorb_tunnel add -t ... -i ... -r ...` in NSH. |
-| MAVLink tunnel stream scheduler | Depends on the active MAVLink link configuration | `mavlink stream -d ... -s PX4_UORB_TUNNEL -r ...`. Must be enabled on the link used by MAVROS. |
-| Standard MAVLink battery stream | `BATTERY_STATUS` defaults to 0.5 Hz in the configured default stream sets | `mavlink stream -d ... -s BATTERY_STATUS -r ...`. |
+| MAVLink tunnel stream scheduler | Clicker4 Onboard default: 50 Hz | `mavlink stream -d ... -s PX4_UORB_TUNNEL -r ...` on the link used by MAVROS. |
+| Standard MAVLink battery stream | Clicker4 USB startup sets `BATTERY_STATUS` to 10 Hz | Edit `rc.board_mavlink` and rebuild/flash for persistence; `mavlink stream -d ... -s BATTERY_STATUS -r ...` for a temporary override. |
 | uXRCE-DDS battery output | `/fmu/out/battery_status` has `rate_limit: 1.` in `dds_topics.yaml` | Edit the YAML and rebuild if using DDS; MAVLink commands do not alter it. |
 
 The tunnel sends only when a uORB update exists and its per-entry rate gate permits it. It forwards the latest available sample; it does not queue every historical sensor sample or synthesize measurements. Achievable ROS rate is bounded by acquisition, entry cap, stream scheduling and available link bandwidth. Scheduling alignment can reduce the achieved rate further.
@@ -59,9 +59,9 @@ mavlink uorb_tunnel add -t power_monitor -i 1 -r 4
 
 Choose the stream scheduler rate according to every topic on that link; lowering it to 4 Hz would also limit any faster battery or wheel topics added to the tunnel.
 
-## Faster Battery Telemetry Without an INA Rebuild
+## Battery Telemetry Rate
 
-The BQ driver already polls nominally at 10 Hz. For the normal MAVROS battery topic, raise the standard battery stream on the companion link:
+BMS polling and internal `battery_status` updates remain **10 Hz**. Clicker4's `rc.board_mavlink` sets USB battery telemetry to **10 Hz** at each boot. Rebuild and flash to apply the startup setting. QGroundControl's Set Rate changes the running rate until reboot; it does not change BMS polling. To restore 10 Hz immediately:
 
 ```sh
 mavlink stream -d /dev/ttyACM0 -s BATTERY_STATUS -r 10
@@ -132,7 +132,9 @@ If results miss the requested rate, inspect driver polling/conversion timing, th
 
 ## Implementation References
 
-Checked against firmware `53453cddf9` on 2026-10-01:
+Battery telemetry startup: `boards/mikroe/clicker4-stm32f7/init/rc.board_mavlink`.
+
+Acquisition and tunnel references (revision `53453cddf9`):
 
 - [INA226 cadence and configuration](https://github.com/nilskiefer/SVEA-PX4-Autopilot/blob/53453cddf9/src/drivers/power_monitor/svea_ina226/svea_ina226.h), [INA226 parameter definition](https://github.com/nilskiefer/SVEA-PX4-Autopilot/blob/53453cddf9/src/drivers/power_monitor/ina226/ina226_params.c).
 - [INA3221 cadence and configuration](https://github.com/nilskiefer/SVEA-PX4-Autopilot/blob/53453cddf9/src/drivers/power_monitor/svea_ina3221/svea_ina3221.h), [BQ battery cadence](https://github.com/nilskiefer/SVEA-PX4-Autopilot/blob/53453cddf9/src/drivers/smart_battery/bq769x2/bq769x2.h).

@@ -54,6 +54,8 @@ On a failed sensor read the drivers publish `voltage_v=0`, `current_a=-1`, `powe
 
 ## Battery Power and Sign
 
+The BMS driver polls and publishes internal `battery_status` updates at nominally **10 Hz**. Clicker4 USB startup sets `BATTERY_STATUS` forwarding to **10 Hz**. Stream-rate changes affect forwarding only. See [Battery Telemetry Rate](current-sensor-publish-rates.md#battery-telemetry-rate).
+
 The BQ769x2 (`U80`, address `0x08`) senses battery current through `R207`, a 1 mΩ shunt between battery negative and board GND. Its PX4 `battery_status` report includes pack voltage, current, individual cell voltages, discharged charge and battery state. The board default `BQ769X2_CURR_INV=1` inverts the chip current for the PX4 convention; verify the saved parameter and sign on the actual car.
 
 For valid raw PX4 battery telemetry with positive discharge current, discharge power is `voltage_v * current_a`. MAVROS converts MAVLink battery current to the ROS `BatteryState` convention, making discharge current negative. Thus for `/mavros/battery`, positive discharge power is `-voltage * current`. `BatteryState` has no direct watts field. MAVROS may reconstruct voltage from the cell voltages in `BATTERY_STATUS`, whereas the BQ driver reports its PACK voltage register in raw `battery_status`. See the [MAVROS battery conversion implementation](https://github.com/mavlink/mavros/blob/ros2/mavros/src/plugins/sys_status.cpp).

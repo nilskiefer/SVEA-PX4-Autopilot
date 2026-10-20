@@ -54,7 +54,7 @@ Replace device path for macOS if needed.
 ```sh
 dmesg
 mavlink status
-listener cpuload 1
+listener cpuload -n 1
 ```
 
 ## 6) If you run without PMB3 hardware

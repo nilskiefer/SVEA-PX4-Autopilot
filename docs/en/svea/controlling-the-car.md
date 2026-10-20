@@ -49,7 +49,7 @@ Note: with this operator flow, the RC receiver must be connected to use button a
 Quick state check:
 
 ```sh
-listener actuator_armed 1
+listener actuator_armed -n 1
 ```
 
 ## Mode Rules in This Fork
@@ -94,21 +94,21 @@ mavlink status
 2. Decoded manual setpoint updates:
 
 ```sh
-listener manual_control_setpoint 10
+listener manual_control_setpoint -n 10
 ```
 
 3. Output path updates:
 
 ```sh
-listener actuator_servos 10
-listener actuator_motors 10
-listener actuator_outputs 10
+listener actuator_servos -n 10
+listener actuator_motors -n 10
+listener actuator_outputs -n 10
 ```
 
 4. Gate check:
 
 ```sh
-listener manual_control_switches 5
+listener manual_control_switches -n 5
 ```
 
 `mode_slot` must be `MODE_SLOT_1` for MAVLink manual input to be accepted.

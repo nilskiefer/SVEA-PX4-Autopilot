@@ -46,7 +46,7 @@ Checks:
 ```sh
 i2cdetect -b 2
 svea_ina226 status
-listener power_monitor 5
+listener power_monitor -n 5
 ```
 
 ## INA3221 Multi-Channel Rail Monitors
@@ -60,7 +60,7 @@ Checks:
 
 ```sh
 svea_ina3221 status
-listener power_monitor 5
+listener power_monitor -n 5
 ```
 
 ## MAVLink Tunnel for `power_monitor`
