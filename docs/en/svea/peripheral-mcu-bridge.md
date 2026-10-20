@@ -13,7 +13,7 @@ Source path:
 
 ## Startup
 
-Started from board extras:
+Included in both `default` and `noboot` builds; started from board extras:
 
 ```sh
 svea_peripheral_mcu start -d /dev/ttyS0 -b 115200
