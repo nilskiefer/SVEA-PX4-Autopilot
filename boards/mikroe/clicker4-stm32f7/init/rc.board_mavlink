@@ -18,4 +18,5 @@ then
 	echo "ERROR: /dev/ttyACM0 missing after sercon; MAVLink USB startup aborted"
 else
 	mavlink start -d /dev/ttyACM0 -b 115200 -m onboard
+	mavlink stream -d /dev/ttyACM0 -s BATTERY_STATUS -r 10
 fi
