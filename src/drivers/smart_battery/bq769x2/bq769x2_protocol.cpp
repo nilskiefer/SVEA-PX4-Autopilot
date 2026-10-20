@@ -102,16 +102,18 @@ int BQ769x2Protocol::subcommandReadU2(uint16_t subcmd, uint16_t &value)
 	return PX4_OK;
 }
 
-int BQ769x2Protocol::subcommandReadU4(uint16_t subcmd, uint32_t &value)
+int BQ769x2Protocol::readFirmwareVersion(uint16_t &version, uint16_t &build)
 {
-	uint8_t bytes[4] {};
-	const int ret = dataRead(subcmd, bytes, sizeof(bytes));
+	uint8_t bytes[6] {};
+	const int ret = dataRead(BQ769X2_SUBCMD_FW_VERSION, bytes, sizeof(bytes));
 
 	if (ret != PX4_OK) {
 		return ret;
 	}
 
-	value = static_cast<uint32_t>(bytes[0] | (bytes[1] << 8) | (bytes[2] << 16) | (bytes[3] << 24));
+	// FW_VERSION returns device number, version and build as three big-endian U2 fields.
+	version = static_cast<uint16_t>((bytes[2] << 8) | bytes[3]);
+	build = static_cast<uint16_t>((bytes[4] << 8) | bytes[5]);
 	return PX4_OK;
 }
 
