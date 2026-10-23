@@ -1,0 +1,5 @@
+uint64 timestamp
+uint64 timestamp_sample
+uint32 sequence
+float32 left_distance_m
+float32 right_distance_m

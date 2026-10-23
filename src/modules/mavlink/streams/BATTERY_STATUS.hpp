@@ -74,7 +74,19 @@ private:
 				bat_msg.type = MAV_BATTERY_TYPE_LIPO;
 				bat_msg.current_consumed = (battery_status.connected
 							    && fabsf(battery_status.discharged_mah + 1.f) > FLT_EPSILON) ? battery_status.discharged_mah : -1;
-				bat_msg.energy_consumed = -1;
+
+				if (battery_status.connected
+				    && PX4_ISFINITE(battery_status.full_charge_capacity_wh)
+				    && PX4_ISFINITE(battery_status.remaining_capacity_wh)
+				    && battery_status.full_charge_capacity_wh >= battery_status.remaining_capacity_wh) {
+					// MAVLink unit is hJ (100 J). 1 Wh = 3600 J = 36 hJ.
+					const float consumed_wh = battery_status.full_charge_capacity_wh - battery_status.remaining_capacity_wh;
+					bat_msg.energy_consumed = static_cast<int32_t>(consumed_wh * 36.f);
+
+				} else {
+					bat_msg.energy_consumed = -1;
+				}
+
 				bat_msg.current_battery = (battery_status.connected
 							   && fabsf(battery_status.current_a + 1.f) > FLT_EPSILON) ? battery_status.current_a * 100 : -1;
 				bat_msg.battery_remaining = (battery_status.connected

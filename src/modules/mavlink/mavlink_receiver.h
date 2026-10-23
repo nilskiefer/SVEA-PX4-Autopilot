@@ -61,6 +61,7 @@
 #include <uORB/Publication.hpp>
 #include <uORB/PublicationMulti.hpp>
 #include <uORB/SubscriptionInterval.hpp>
+#include <uORB/topics/manual_control_switches.h>
 #include <uORB/topics/actuator_armed.h>
 #include <uORB/topics/actuator_outputs.h>
 #include <uORB/topics/airspeed.h>
@@ -421,6 +422,7 @@ private:
 	uint8_t			_vehicle_type_bitmask{0}; ///< cached from vehicle_status; vehicle type requires reboot to change
 	uORB::Subscription	_autotune_attitude_control_status_sub{ORB_ID(autotune_attitude_control_status)};
 
+	uORB::Subscription _manual_control_switches_sub{ORB_ID(manual_control_switches)};
 	uORB::SubscriptionInterval _parameter_update_sub{ORB_ID(parameter_update), 1_s};
 
 	// hil_sensor and hil_state_quaternion

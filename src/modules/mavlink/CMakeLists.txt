@@ -110,6 +110,7 @@ px4_add_module(
 		mavlink_ftp.cpp
 		mavlink_log_handler.cpp
 		mavlink_main.cpp
+		mavlink_uorb_tunnel.cpp
 		mavlink_messages.cpp
 		mavlink_mission.cpp
 		mavlink_parameters.cpp

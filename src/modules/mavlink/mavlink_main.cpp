@@ -3782,6 +3782,8 @@ $ mavlink stream -u 14556 -s HIGHRES_IMU -r 50
 	PRINT_MODULE_USAGE_PARAM_STRING('s', nullptr, nullptr, "Mavlink stream to configure", false);
 	PRINT_MODULE_USAGE_PARAM_FLOAT('r', -1.0f, 0.0f, 2000.0f, "Rate in Hz (0 = turn off, -1 = set to default)", false);
 
+	PRINT_MODULE_USAGE_COMMAND_DESCR("uorb_tunnel", "Configure outbound uORB forwarding: list, add, remove");
+
 	PRINT_MODULE_USAGE_COMMAND_DESCR("boot_complete",
 					 "Enable sending of messages. (Must be) called as last step in startup script.");
 
@@ -3809,6 +3811,9 @@ extern "C" __EXPORT int mavlink_main(int argc, char *argv[])
 
 	} else if (!strcmp(argv[1], "stream")) {
 		return Mavlink::stream_command(argc, argv);
+
+	} else if (!strcmp(argv[1], "uorb_tunnel")) {
+		return Mavlink::uorb_tunnel_command(argc, argv);
 
 	} else if (!strcmp(argv[1], "boot_complete")) {
 		Mavlink::set_boot_complete();
