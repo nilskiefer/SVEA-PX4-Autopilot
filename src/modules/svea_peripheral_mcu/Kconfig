@@ -1,0 +1,5 @@
+menuconfig MODULES_SVEA_PERIPHERAL_MCU
+	bool "svea_peripheral_mcu"
+	default n
+	---help---
+		Enable support for SVEA peripheral MCU bridge ingest.

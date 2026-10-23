@@ -159,6 +159,9 @@ if(CONFIG_MODULES_ROVER_ACKERMANN)
 		51002_nxp_b3rb
 		51003_hiwonder_ackermann
 	)
+	if(PX4_BOARD STREQUAL "mikroe_clicker4-stm32f7")
+		px4_add_romfs_files(51004_svea_trx4)
+	endif()
 endif()
 
 if(CONFIG_MODULES_ROVER_MECANUM)

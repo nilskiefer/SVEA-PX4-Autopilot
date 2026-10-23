@@ -1,0 +1,13 @@
+{
+    "board_id": 7454,
+    "magic": "CLKR4F7",
+    "description": "Firmware for the MikroElektronika Clicker 4 STM32F7 board",
+    "image": "",
+    "build_time": 0,
+    "summary": "Clicker 4 STM32F7",
+    "version": "0.1",
+    "image_size": 0,
+    "image_maxsize": 901120,
+    "git_identity": "",
+    "board_revision": 0
+}
