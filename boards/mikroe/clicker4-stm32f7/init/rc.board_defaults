@@ -22,16 +22,21 @@ param set-default CBRK_SUPPLY_CHK 894281
 # No onboard magnetometer is described for this target.
 param set-default SYS_HAS_MAG 0
 param set-default SYS_HAS_BARO 0
-param set-default COM_ARM_SDCARD 0
 
 # Default to the SVEA TRX4 profile on fresh parameter storage.
-param set-default SYS_AUTOSTART 51003
+param set-default SYS_AUTOSTART 51004
+
+# Migrate the former SVEA ID before upstream interprets it as the Hiwonder profile.
+if param compare SYS_AUTOSTART 51003
+then
+	param set SYS_AUTOSTART 51004
+fi
 
 # If params are present but airframe is unset, recover to SVEA default.
 if param compare SYS_AUTOSTART 0
 then
-	echo "Configuring default SVEA airframe (51003)"
-	param set SYS_AUTOSTART 51003
+	echo "Configuring default SVEA airframe (51004)"
+	param set SYS_AUTOSTART 51004
 	param set SYS_AUTOCONFIG 1
 fi
 
@@ -139,7 +144,8 @@ param set-default COM_ARM_SWISBTN 1
 param set-default COM_RC_LOSS_T 0.5
 param set-default NAV_RCL_ACT 6
 param set-default COM_RCL_EXCEPT 0
-param set-default COM_KILL_DISARM 5
+
+# PX4 rc1 fixes kill-switch auto-disarm at five seconds.
 
 # Board-specific workaround: load_mon publishes stale cpuload timestamp on this target,
 # so disable CPU/RAM preflight threshold checks by default.
@@ -270,7 +276,8 @@ param set-default PCA9685_MAX1 2000
 param set-default PCA9685_DIS1 1500
 param set-default PCA9685_MIN2 1000
 param set-default PCA9685_MAX2 2000
-param set-default PCA9685_DIS2 0
+# Start the arming ramp at steering neutral; the servo rail is off while disarmed.
+param set-default PCA9685_DIS2 1500
 param set-default PCA9685_MIN3 1200
 param set-default PCA9685_MAX3 1800
 param set-default PCA9685_DIS3 0

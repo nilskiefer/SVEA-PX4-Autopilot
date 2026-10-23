@@ -67,6 +67,7 @@
 #include <drivers/drv_board_led.h>
 #include <systemlib/px4_macros.h>
 #include <px4_platform_common/init.h>
+#include <nuttx/i2c/i2c_master.h>
 #include <px4_platform/gpio.h>
 #include <px4_platform/board_dma_alloc.h>
 
@@ -189,6 +190,25 @@ __EXPORT int board_app_initialize(uintptr_t arg)
 {
 
 	px4_platform_init();
+
+	// Recover the bus without broadcasting a software reset to the power expanders.
+	struct i2c_master_s *i2c = px4_i2cbus_initialize(2);
+
+	if (i2c == NULL) {
+		return -ENODEV;
+	}
+
+#if defined(CONFIG_I2C_RESET)
+	int reset_result = I2C_RESET(i2c);
+	px4_i2cbus_uninitialize(i2c);
+
+	if (reset_result < 0) {
+		return reset_result;
+	}
+
+#else
+	px4_i2cbus_uninitialize(i2c);
+#endif
 
 	/* configure the DMA allocator */
 

@@ -41,6 +41,8 @@ px4_add_module(
 		LSM6DSOX.hpp
 		vendor/lsm6dsox_reg.c
 		vendor/lsm6dsox_reg.h
+	MODULE_CONFIG
+		module.yaml
 	DEPENDS
 		px4_work_queue
 		drivers_accelerometer

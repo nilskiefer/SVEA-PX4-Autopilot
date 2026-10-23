@@ -19,4 +19,6 @@ then
 else
 	mavlink start -d /dev/ttyACM0 -b 115200 -m onboard
 	mavlink stream -d /dev/ttyACM0 -s BATTERY_STATUS -r 10
+	mavlink stream -d /dev/ttyACM0 -s WHEEL_DISTANCE -r 10
+	mavlink stream -d /dev/ttyACM0 -s PX4_UORB_TUNNEL -r 50
 fi

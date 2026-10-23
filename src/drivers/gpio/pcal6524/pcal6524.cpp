@@ -473,18 +473,13 @@ int PCAL6524::register_gpios(const pcal6524_config_t &cfg, pcal6524_gpio_dev_s *
 		static_cast<uint8_t>(cfg.device_type)
 	};
 
-	auto *callback_handler = new PCAL6524CallbackHandler(ORB_ID(gpio_in));
+	auto *input_reader = new PCAL6524InputReader();
 
-	if (callback_handler == nullptr) {
+	if (input_reader == nullptr) {
 		return PX4_ERROR;
 	}
 
-	callback_handler->dev_id = devid.devid;
-
-	if (!callback_handler->registerCallback()) {
-		delete callback_handler;
-		return PX4_ERROR;
-	}
+	input_reader->dev_id = devid.devid;
 
 	bool all_registered = true;
 
@@ -499,7 +494,7 @@ int PCAL6524::register_gpios(const pcal6524_config_t &cfg, pcal6524_gpio_dev_s *
 				gpio_handle[i] = {{GPIO_OUTPUT_PIN, {}, &g_gpio_ops}, mask, false, nullptr};
 			}
 
-			gpio_handle[i].callback_handler = callback_handler;
+			gpio_handle[i].input_reader = input_reader;
 			const int ret = gpio_pin_register(&gpio_handle[i].gpio, cfg.first_minor + i);
 
 			if (ret != OK) {
@@ -518,16 +513,15 @@ int PCAL6524::register_gpios(const pcal6524_config_t &cfg, pcal6524_gpio_dev_s *
 				gpio_handle[i].registered = false;
 			}
 
-			gpio_handle[i].callback_handler = nullptr;
+			gpio_handle[i].input_reader = nullptr;
 		}
 
-		callback_handler->unregisterCallback();
-		delete callback_handler;
+		delete input_reader;
 		return PX4_ERROR;
 	}
 
 	for (uint8_t i = 0; i < cfg.num_pins; i++) {
-		gpio_handle[i].callback_handler = callback_handler;
+		gpio_handle[i].input_reader = input_reader;
 	}
 
 	return PX4_OK;
@@ -535,9 +529,8 @@ int PCAL6524::register_gpios(const pcal6524_config_t &cfg, pcal6524_gpio_dev_s *
 
 int PCAL6524::unregister_gpios(const pcal6524_config_t &cfg, pcal6524_gpio_dev_s *gpio_handle)
 {
-	if (gpio_handle[0].callback_handler) {
-		auto *handler = gpio_handle[0].callback_handler;
-		handler->unregisterCallback();
+	if (gpio_handle[0].input_reader) {
+		auto *handler = gpio_handle[0].input_reader;
 		delete handler;
 	}
 
@@ -545,7 +538,7 @@ int PCAL6524::unregister_gpios(const pcal6524_config_t &cfg, pcal6524_gpio_dev_s
 		if (gpio_handle[i].registered) {
 			gpio_pin_unregister(&gpio_handle[i].gpio, cfg.first_minor + i);
 			gpio_handle[i].registered = false;
-			gpio_handle[i].callback_handler = nullptr;
+			gpio_handle[i].input_reader = nullptr;
 		}
 	}
 
@@ -556,11 +549,17 @@ int PCAL6524::gpio_read(struct gpio_dev_s *dev, bool *value)
 {
 	auto *gpio = reinterpret_cast<pcal6524_gpio_dev_s *>(dev);
 
-	if (gpio == nullptr || gpio->callback_handler == nullptr || value == nullptr) {
+	if (gpio == nullptr || gpio->input_reader == nullptr || value == nullptr) {
 		return -EINVAL;
 	}
 
-	*value = (gpio->callback_handler->input & gpio->mask) != 0;
+	uint32_t state = 0;
+
+	if (!gpio->input_reader->read(state)) {
+		return -EAGAIN;
+	}
+
+	*value = (state & gpio->mask) != 0;
 	return OK;
 }
 
@@ -568,13 +567,13 @@ int PCAL6524::gpio_write(struct gpio_dev_s *dev, bool value)
 {
 	auto *gpio = reinterpret_cast<pcal6524_gpio_dev_s *>(dev);
 
-	if (gpio == nullptr || gpio->callback_handler == nullptr) {
+	if (gpio == nullptr || gpio->input_reader == nullptr) {
 		return -EINVAL;
 	}
 
 	gpio_out_s msg{};
 	msg.timestamp = hrt_absolute_time();
-	msg.device_id = gpio->callback_handler->dev_id;
+	msg.device_id = gpio->input_reader->dev_id;
 	msg.mask = gpio->mask;
 	msg.state = value ? gpio->mask : 0u;
 	return g_gpio_out_pub.publish(msg) ? OK : -ETIMEDOUT;
@@ -584,13 +583,13 @@ int PCAL6524::gpio_setpintype(struct gpio_dev_s *dev, enum gpio_pintype_e pintyp
 {
 	auto *gpio = reinterpret_cast<pcal6524_gpio_dev_s *>(dev);
 
-	if (gpio == nullptr || gpio->callback_handler == nullptr) {
+	if (gpio == nullptr || gpio->input_reader == nullptr) {
 		return -EINVAL;
 	}
 
 	gpio_config_s msg{};
 	msg.timestamp = hrt_absolute_time();
-	msg.device_id = gpio->callback_handler->dev_id;
+	msg.device_id = gpio->input_reader->dev_id;
 	msg.mask = gpio->mask;
 
 	switch (pintype) {

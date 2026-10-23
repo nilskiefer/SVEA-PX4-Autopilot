@@ -56,6 +56,10 @@
 
 #include <ekf_derivation/generated/state.h>
 
+#if defined(CONFIG_EKF2_TERRAIN)
+# include <ekf_derivation/generated/compute_hagl_innov_var.h>
+#endif // CONFIG_EKF2_TERRAIN
+
 #include <uORB/topics/estimator_aid_source1d.h>
 #include <uORB/topics/estimator_aid_source2d.h>
 #include <uORB/topics/estimator_aid_source3d.h>
@@ -101,6 +105,10 @@ public:
 #if defined(CONFIG_EKF2_TERRAIN)
 	// terrain estimate
 	bool isTerrainEstimateValid() const { return _terrain_valid; }
+	bool isHeightAboveGroundEstimateValid() const
+	{
+		return isTerrainEstimateValid() || (_height_sensor_ref == HeightSensor::RANGE);
+	}
 
 	// get the estimated terrain vertical position relative to the NED origin
 	float getTerrainVertPos() const { return _state.terrain + getEkfGlobalOriginAltitude(); };
@@ -108,6 +116,15 @@ public:
 
 	// get the terrain variance
 	float getTerrainVariance() const { return P(State::terrain.idx, State::terrain.idx); }
+
+	// get the variance of the height above ground (HAGL) estimate; accounts for terrain and
+	// vertical position uncertainty as well as their covariance
+	float getHaglVariance() const
+	{
+		float hagl_var = 0.f;
+		sym::ComputeHaglInnovVar(P, 0.f, &hagl_var);
+		return fmaxf(hagl_var, 0.f);
+	}
 
 #endif // CONFIG_EKF2_TERRAIN
 
@@ -136,6 +153,10 @@ public:
 	const Vector3f &getFlowGyroBias() const { return _flow_gyro_bias; }
 	const Vector3f &getFlowRefBodyRate() const { return _ref_body_rate; }
 #endif // CONFIG_EKF2_OPTICAL_FLOW
+
+#if defined(CONFIG_EKF2_AUX_GLOBAL_POSITION) && defined(MODULE_NAME)
+	uint8_t getAgpFusingBitmask() const { return _aux_global_position.sourceFusingBitmask(); }
+#endif // CONFIG_EKF2_AUX_GLOBAL_POSITION
 
 	float getHeadingInnov() const;
 	float getHeadingInnovVar() const;
@@ -259,7 +280,10 @@ public:
 	}
 
 	// fuse single direct state measurement (eg NED velocity, NED position, mag earth field, etc)
-	void fuseDirectStateMeasurement(const float innov, const float innov_var, const float R, const int state_index);
+	// constrain_variances must be false when called from inside constrainStateVar to prevent
+	// unbounded recursion (constrainStateVariances can call back into this function).
+	void fuseDirectStateMeasurement(const float innov, const float innov_var, const float R, const int state_index,
+					bool constrain_variances = true);
 
 	bool measurementUpdate(VectorState &K, const VectorState &H, const float R, const float innovation);
 
@@ -273,6 +297,9 @@ public:
 	const Vector3f &getAccelBias() const { return _state.accel_bias; } // get the accelerometer bias in m/s**2
 	Vector3f getAccelBiasVariance() const { return getStateVariance<State::accel_bias>(); } // get the accelerometer bias variance in m/s**2
 	float getAccelBiasLimit() const { return _params.ekf2_abl_lim; }
+
+	// latitude-dependent gravity magnitude
+	float getGravityMss() const { return _gravity; }
 
 #if defined(CONFIG_EKF2_MAGNETOMETER)
 	const Vector3f &getMagEarthField() const { return _state.mag_I; }
@@ -413,16 +440,25 @@ public:
 	const auto &aid_src_aux_vel() const { return _aid_src_aux_vel; }
 #endif // CONFIG_EKF2_AUXVEL
 
+#if defined(CONFIG_EKF2_RANGING_BEACON)
+	const auto &aid_src_ranging_beacon() const { return _aid_src_ranging_beacon; }
+#endif // CONFIG_EKF2_RANGING_BEACON
+
 	bool resetGlobalPosToExternalObservation(double latitude, double longitude, float altitude, float eph, float epv,
 			uint64_t timestamp_observation);
 
 	void resetHeadingToExternalObservation(float heading, float heading_accuracy)
 	{
+		// External heading is an observation of yaw. Setting heading_observable = true
+		// prevents clearInhibitedStateKalmanGains() from inhibiting the update
+		_control_status.flags.heading_observable = true;
+		const float heading_variance = sq(heading_accuracy);
+
 		if (_control_status.flags.yaw_align) {
-			resetYawByFusion(heading, heading_accuracy);
+			resetYawByFusion(heading, heading_variance);
 
 		} else {
-			resetQuatStateYaw(heading, heading_accuracy);
+			resetQuatStateYaw(heading, heading_variance);
 			_control_status.flags.yaw_align = true;
 		}
 
@@ -507,6 +543,8 @@ private:
 	Vector3f _earth_rate_NED{}; ///< earth rotation vector (NED) in rad/s
 	double _earth_rate_lat_ref_rad{0.0}; ///< latitude at which the earth rate was evaluated (radians)
 
+	float _gravity{CONSTANTS_ONE_G}; ///< latitude-dependent gravity magnitude (m/s^2)
+
 	Dcmf _R_to_earth{};	///< transformation matrix from body frame to earth frame from last EKF prediction
 
 	static constexpr float _kAccelHorizLpfTimeConstant = 1.f;
@@ -588,6 +626,10 @@ private:
 	estimator_aid_source1d_s _aid_src_gnss_yaw {};
 # endif // CONFIG_EKF2_GNSS_YAW
 #endif // CONFIG_EKF2_GNSS
+
+#if defined(CONFIG_EKF2_RANGING_BEACON)
+	estimator_aid_source1d_s _aid_src_ranging_beacon {};
+#endif // CONFIG_EKF2_RANGING_BEACON
 
 #if defined(CONFIG_EKF2_GRAVITY_FUSION)
 	estimator_aid_source3d_s _aid_src_gravity {};
@@ -712,6 +754,8 @@ private:
 
 	// fuse body frame drag specific forces for multi-rotor wind estimation
 	void fuseDrag(const dragSample &drag_sample);
+
+	Vector3f getRelativeWindBody() const;
 #endif // CONFIG_EKF2_DRAG_FUSION
 
 	void resetVelocityTo(const Vector3f &vel, const Vector3f &new_vel_var);
@@ -732,6 +776,7 @@ private:
 	void resetHorizontalPositionTo(const Vector2f &new_pos, const Vector2f &new_horz_pos_var);
 
 	Vector2f getLocalHorizontalPosition() const;
+	LatLonAlt localToGlobalPosition(const Vector2f &pos_ne) const;
 
 	Vector2f computeDeltaHorizontalPosition(const double &new_latitude, const double &new_longitude) const;
 	void updateHorizontalPositionResetStatus(const Vector2f &delta);
@@ -750,7 +795,9 @@ private:
 					     const float observation, const float observation_variance, const float innovation_gate = 1.f) const;
 
 	// horizontal and vertical position fusion
+	bool fuseHorizontalPositionCore(estimator_aid_source2d_s &pos_aid_src);
 	bool fuseHorizontalPosition(estimator_aid_source2d_s &pos_aid_src);
+	bool fuseFakeHorizontalPosition(estimator_aid_source2d_s &pos_aid_src);
 	bool fuseVerticalPosition(estimator_aid_source1d_s &hgt_aid_src);
 
 	// 2d & 3d velocity fusion
@@ -822,6 +869,8 @@ private:
 
 	void constrainStateVar(const IdxDof &state, float min, float max);
 	void constrainStateVarLimitRatio(const IdxDof &state, float min, float max, float max_ratio = 1.e6f);
+
+	void uncorrelateAndLimitHeadingCovariance();
 
 	// generic function which will perform a fusion step given a kalman gain K
 	// and a scalar innovation value
@@ -918,6 +967,12 @@ private:
 
 #endif // CONFIG_EKF2_GNSS
 
+#if defined(CONFIG_EKF2_RANGING_BEACON)
+	void controlRangingBeaconFusion(const imuSample &imu_delayed);
+	void fuseRangingBeacon(const rangingBeaconSample &sample);
+	void stopRangingBeaconFusion();
+#endif // CONFIG_EKF2_RANGING_BEACON
+
 #if defined(CONFIG_EKF2_MAGNETOMETER)
 	// control fusion of magnetometer observations
 	void controlMagFusion(const imuSample &imu_sample);
@@ -948,8 +1003,6 @@ private:
 	void resetFakeHgtFusion();
 	void resetHeightToLastKnown();
 	void stopFakeHgtFusion();
-
-	void controlZeroInnovationHeadingUpdate();
 
 #if defined(CONFIG_EKF2_AUXVEL)
 	// control fusion of auxiliary velocity observations

@@ -1,19 +1,8 @@
 # PMB3: LEDs
 
-## Modules
-
-Startup includes:
-
-- `led_bus_worker`
-- `led_pattern`
-- `button_led_mirror`
-
-Checks:
-
-```sh
-led_bus_worker status
-button_led_mirror status
-```
+Default Clicker4 builds omit the LED commands. For Neopixel bringup, enable
+`CONFIG_DRIVERS_LIGHTS_NEOPIXEL` and `CONFIG_SYSTEMCMDS_LED_CONTROL` in the
+board build configuration, then rebuild and flash.
 
 ## Neopixel Bringup
 
@@ -40,14 +29,4 @@ led_control blink -l 0 -c red -s fast -n 0
 led_control reset
 led_control off -l 0
 neopixel stop
-```
-
-## `neopixel_fx` Effects
-
-`neopixel_fx` owns neopixel output while active.
-
-```sh
-neopixel_fx start -m rainbow -t 120 -l 0 -p 2
-neopixel_fx status
-neopixel_fx stop
 ```

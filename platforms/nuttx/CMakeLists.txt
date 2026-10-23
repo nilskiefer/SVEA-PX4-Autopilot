@@ -67,8 +67,15 @@ endif()
 
 set(nuttx_libs)
 set(SCRIPT_PREFIX)
-if("${PX4_BOARD_LABEL}" STREQUAL "bootloader")
-	set(SCRIPT_PREFIX ${PX4_BOARD_LABEL}_)
+# Match "bootloader" and any "bootloader_<variant>" label (e.g.
+# "bootloader_secureboot") so a board can ship a bootloader variant
+# with extra Kconfig (crypto, keystore, etc.) without duplicating
+# the bootloader build wiring.
+if("${PX4_BOARD_LABEL}" MATCHES "^bootloader")
+	# All bootloader variants share the same linker script
+	# (bootloader_script.ld); the label suffix only changes which
+	# Kconfig and which Tools/test_keys/*.pub are baked in.
+	set(SCRIPT_PREFIX bootloader_)
 	add_subdirectory(src/bootloader)
 	list(APPEND nuttx_libs
 		bootloader
@@ -353,7 +360,7 @@ else()
 	target_link_libraries(nuttx_c INTERFACE nuttx_drivers)
 	target_link_libraries(nuttx_drivers INTERFACE nuttx_c)
 	target_link_libraries(nuttx_xx INTERFACE nuttx_c)
-	target_link_libraries(nuttx_fs INTERFACE nuttx_c)
+	target_link_libraries(nuttx_fs INTERFACE nuttx_c nuttx_mm)
 
 	target_link_libraries(px4 PRIVATE
 
@@ -425,6 +432,49 @@ if (TARGET parameters_xml AND TARGET airframes_xml)
 
 	string(REPLACE ".elf" ".px4" fw_package ${PX4_BINARY_DIR}/${FW_NAME})
 
+	# Secure-boot variants sign the .bin with sign_firmware.py before
+	# wrapping it in the .px4 envelope, and tag the envelope so the
+	# uploader runs VERIFY_SIG against the matching bootloader. The
+	# resulting .px4 is the only one that will boot on a secure
+	# bootloader (the unsigned .bin still ships alongside, for users
+	# who want to sign with a different key out-of-tree).
+	set(_mkfw_image ${PX4_BINARY_DIR}/${PX4_CONFIG}.bin)
+	set(_mkfw_signed_flag)
+	set(_mkfw_extra_depends)
+
+	if(CONFIG_BOARD_SECUREBOOT)
+		# Allow an env var to override the Kconfig default so a release
+		# build can point at a private key that doesn't live in the
+		# repo without having to edit the .px4board. Relative paths
+		# from the .px4board are resolved against the repo root, to
+		# match how CONFIG_PUBLIC_KEYn paths are written.
+		if(DEFINED ENV{BOARD_SECUREBOOT_KEY})
+			set(_secureboot_key $ENV{BOARD_SECUREBOOT_KEY})
+		else()
+			set(_secureboot_key ${CONFIG_BOARD_SECUREBOOT_KEY})
+		endif()
+		if(NOT IS_ABSOLUTE ${_secureboot_key})
+			get_filename_component(_secureboot_key
+				${_secureboot_key} ABSOLUTE BASE_DIR ${PX4_SOURCE_DIR})
+		endif()
+
+		set(_signed_bin ${PX4_BINARY_DIR}/${PX4_CONFIG}_signed.bin)
+		add_custom_command(
+			OUTPUT ${_signed_bin}
+			COMMAND
+				${PYTHON_EXECUTABLE} ${PX4_SOURCE_DIR}/Tools/secure_bootloader/sign_firmware.py
+					--key ${_secureboot_key}
+					${PX4_BINARY_DIR}/${PX4_CONFIG}.bin
+					${_signed_bin}
+			DEPENDS ${PX4_BINARY_DIR}/${PX4_CONFIG}.bin
+			COMMENT "Signing ${PX4_CONFIG}.bin with ${_secureboot_key}"
+			WORKING_DIRECTORY ${PX4_BINARY_DIR}
+		)
+		set(_mkfw_image ${_signed_bin})
+		set(_mkfw_signed_flag --image_signed)
+		set(_mkfw_extra_depends ${_signed_bin})
+	endif()
+
 	add_custom_command(
 		OUTPUT ${fw_package}
 		COMMAND
@@ -433,9 +483,11 @@ if (TARGET parameters_xml AND TARGET airframes_xml)
 				--git_identity ${PX4_SOURCE_DIR}
 				--parameter_xml ${PX4_BINARY_DIR}/parameters.xml
 				--airframe_xml ${PX4_BINARY_DIR}/airframes.xml
-				--image ${PX4_BINARY_DIR}/${PX4_CONFIG}.bin > ${fw_package}
+				${_mkfw_signed_flag}
+				--image ${_mkfw_image} > ${fw_package}
 		DEPENDS
 			${PX4_BINARY_DIR}/${PX4_CONFIG}.bin
+			${_mkfw_extra_depends}
 			airframes_xml
 			parameters_xml
 		COMMENT "Creating ${fw_package}"
@@ -450,32 +502,6 @@ if (TARGET parameters_xml AND TARGET airframes_xml)
 		include(upload)
 	endif()
 
-endif()
-
-# Copy firmware artifacts to a source-tree folder that is easy to access
-# from the host when build outputs are on a container volume.
-set(PX4_HOST_ARTIFACT_DIR ${PX4_SOURCE_DIR}/artifacts/${PX4_CONFIG})
-
-add_custom_target(host_artifacts ALL
-	COMMAND ${CMAKE_COMMAND} -E make_directory ${PX4_HOST_ARTIFACT_DIR}
-	COMMAND ${CMAKE_COMMAND} -E copy_if_different ${PX4_BINARY_DIR}/${FW_NAME} ${PX4_HOST_ARTIFACT_DIR}/
-	COMMAND ${CMAKE_COMMAND} -E copy_if_different ${PX4_BINARY_DIR}/${PX4_CONFIG}.bin ${PX4_HOST_ARTIFACT_DIR}/
-	DEPENDS px4 ${PX4_BINARY_OUTPUT}
-	COMMENT "Copying firmware artifacts to ${PX4_HOST_ARTIFACT_DIR}"
-)
-
-if (TARGET px4_package)
-	add_dependencies(host_artifacts px4_package)
-	add_custom_command(TARGET host_artifacts POST_BUILD
-		COMMAND ${CMAKE_COMMAND} -E copy_if_different ${fw_package} ${PX4_HOST_ARTIFACT_DIR}/
-	)
-endif()
-
-if (TARGET px4_hex)
-	add_dependencies(host_artifacts px4_hex)
-	add_custom_command(TARGET host_artifacts POST_BUILD
-		COMMAND ${CMAKE_COMMAND} -E copy_if_different ${hex_package} ${PX4_HOST_ARTIFACT_DIR}/
-	)
 endif()
 
 if(${CONFIG_NSH_LIBRARY} MATCHES "y")

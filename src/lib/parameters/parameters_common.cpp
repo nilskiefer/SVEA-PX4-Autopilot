@@ -96,6 +96,26 @@ bool param_is_volatile(param_t param)
 	return false;
 }
 
+static bool params_locked = false;
+
+bool param_is_readonly(param_t param)
+{
+	if (params_locked && handle_in_range(param)) {
+		for (const auto &p : px4::parameters_readonly) {
+			if (static_cast<px4::params>(param) == p) {
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
+void param_lock_readonly()
+{
+	params_locked = true;
+}
+
 size_t param_size(param_t param)
 {
 	if (handle_in_range(param)) {
@@ -136,4 +156,11 @@ param_get_system_default_value(param_t param, void *default_val)
 	}
 
 	return ret;
+}
+
+int
+param_get_mark_used(param_t param, void *val)
+{
+	param_set_used(param);
+	return param_get(param, val);
 }

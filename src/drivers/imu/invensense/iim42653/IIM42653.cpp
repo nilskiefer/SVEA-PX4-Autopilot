@@ -123,23 +123,18 @@ void IIM42653::print_status()
 int IIM42653::probe()
 {
 	for (int i = 0; i < 3; i++) {
+		// force bank 0: the actual register bank after a soft reset is unknown,
+		// but _last_register_bank is default-initialized to 0, so RegisterRead
+		// would otherwise skip the bank select and read from the wrong bank
+		SelectRegisterBank(REG_BANK_SEL_BIT::BANK_SEL_0, true);
+
 		uint8_t whoami = RegisterRead(Register::BANK_0::WHO_AM_I);
 
 		if (whoami == WHOAMI) {
 			return PX4_OK;
-
-		} else {
-			DEVICE_DEBUG("unexpected WHO_AM_I 0x%02x", whoami);
-
-			uint8_t reg_bank_sel = RegisterRead(Register::BANK_0::REG_BANK_SEL);
-			int bank = reg_bank_sel >> 4;
-
-			if (bank >= 1 && bank <= 3) {
-				DEVICE_DEBUG("incorrect register bank for WHO_AM_I REG_BANK_SEL:0x%02x, bank:%d", reg_bank_sel, bank);
-				// force bank selection and retry
-				SelectRegisterBank(REG_BANK_SEL_BIT::BANK_SEL_0, true);
-			}
 		}
+
+		DEVICE_DEBUG("unexpected WHO_AM_I 0x%02x", whoami);
 	}
 
 	return PX4_ERROR;
@@ -416,9 +411,9 @@ bool IIM42653::Configure()
 	}
 
 	// 20-bits data format used
-	//  the only FSR settings that are operational are ±2000dps for gyroscope and ±16g for accelerometer
-	_px4_accel.set_range(16.f * CONSTANTS_ONE_G);
-	_px4_gyro.set_range(math::radians(2000.f));
+	//  IIM-42653 FSR: ±4000 dps gyroscope and ±32 g accelerometer (default full-scale)
+	_px4_accel.set_range(32.f * CONSTANTS_ONE_G);
+	_px4_gyro.set_range(math::radians(4000.f));
 
 	return success;
 }
@@ -783,8 +778,9 @@ void IIM42653::ProcessGyro(const hrt_abstime &timestamp_sample, const FIFO::DATA
 	}
 
 	if (!scale_20bit) {
-		// if highres enabled gyro data is always 65.5 LSB/dps
-		_px4_gyro.set_scale(math::radians(1.f / 65.5f));
+		// published data is the 20 bit value shifted right by 1, so it spans the full range in
+		// 2^18 counts: 65.536 LSB/dps
+		_px4_gyro.set_scale(math::radians(4000.f / 262144.f));
 
 	} else {
 		// 20 bit data scaled to 16 bit (2^4)

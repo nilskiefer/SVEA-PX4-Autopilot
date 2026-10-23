@@ -42,6 +42,7 @@
 #include <px4_platform_common/i2c_spi_buses.h>
 #include <uORB/PublicationMulti.hpp>
 #include <uORB/SubscriptionCallback.hpp>
+#include <uORB/SubscriptionMultiArray.hpp>
 #include <uORB/topics/gpio_config.h>
 #include <uORB/topics/gpio_in.h>
 #include <uORB/topics/gpio_out.h>
@@ -50,34 +51,34 @@
 #error "CONFIG_DEV_GPIO is required to use PCAL6524 GPIO expander, enable it in your NuttX config"
 #endif
 
-class PCAL6524CallbackHandler : public uORB::SubscriptionCallback
+class PCAL6524InputReader
 {
 public:
 	uint32_t dev_id{0};
-	uint32_t input{0};
 
-	explicit PCAL6524CallbackHandler(orb_id_t id) : uORB::SubscriptionCallback(id) {}
-
-	void call() override
+	bool read(uint32_t &state)
 	{
-		px4::msg::GpioIn new_input{};
+		for (auto &subscription : _inputs) {
+			gpio_in_s input{};
 
-		for (int i = 0; i < new_input.MAX_INSTANCES; i++) {
-			ChangeInstance(i);
-
-			if (update(&new_input) && new_input.device_id == dev_id) {
-				input = new_input.state;
-				break;
+			if (subscription.copy(&input) && input.device_id == dev_id) {
+				state = input.state;
+				return true;
 			}
 		}
+
+		return false;
 	}
+
+private:
+	uORB::SubscriptionMultiArray<gpio_in_s, gpio_in_s::MAX_INSTANCES> _inputs{ORB_ID::gpio_in};
 };
 
 struct pcal6524_gpio_dev_s {
 	struct gpio_dev_s gpio;
 	uint32_t mask{0};
 	bool registered{false};
-	PCAL6524CallbackHandler *callback_handler{nullptr};
+	PCAL6524InputReader *input_reader{nullptr};
 };
 
 enum class PCAL6524PinType : uint8_t {

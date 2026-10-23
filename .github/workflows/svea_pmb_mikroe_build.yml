@@ -6,9 +6,20 @@ on:
     branches:
       - main
     tags:
-      - "v*"
+      - "v*.*.*-*.*.*"
     paths:
       - "boards/mikroe/**"
+      - "src/**"
+      - "msg/**"
+      - "ROMFS/**"
+      - "platforms/**"
+      - "cmake/**"
+      - "Tools/**"
+      - "CMakeLists.txt"
+      - "Makefile"
+      - "Kconfig"
+      - ".gitmodules"
+      - ".devcontainer/Dockerfile"
       - ".github/workflows/svea_pmb_mikroe_build.yml"
 
 permissions:
@@ -45,18 +56,27 @@ jobs:
             -v "$GITHUB_WORKSPACE":/workspaces/SVEA-PX4-Autopilot \
             -w /workspaces/SVEA-PX4-Autopilot \
             svea-devcontainer-ci \
-            /bin/bash -lc "git config --global --add safe.directory '*' && make mikroe_clicker4-stm32f7_noboot -j\$(nproc)"
+            /bin/bash -lc "git config --global --add safe.directory '*' && python3 boards/mikroe/clicker4-stm32f7/tests/test_migration.py && python3 src/drivers/smart_battery/bq769x2/tests/test_probe.py && python3 src/drivers/svea_mppt/tests/test_mppt.py && python3 src/modules/svea_peripheral_mcu/tests/test_uart.py && make mikroe_clicker4-stm32f7_noboot -j\$(nproc)"
 
       - name: Resolve release channel
         id: release_channel
         shell: bash
         run: |
           set -euo pipefail
-          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            if [[ ! "${GITHUB_REF_NAME}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-[0-9]+\.[0-9]+\.[0-9]+(-(rc|beta|alpha)[0-9]+)?$ ]]; then
+              echo "Invalid SVEA release tag: ${GITHUB_REF_NAME}" >&2
+              exit 1
+            fi
             echo "release_tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
             echo "release_name=SVEA PMB Mikroe Build (noboot) ${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
-            echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
-            echo "make_latest=true" >> "$GITHUB_OUTPUT"
+            if [[ "${GITHUB_REF_NAME}" =~ -(rc|beta|alpha)[0-9]+$ ]]; then
+              echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
+              echo "make_latest=false" >> "$GITHUB_OUTPUT"
+            else
+              echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
+              echo "make_latest=true" >> "$GITHUB_OUTPUT"
+            fi
             echo "retag_latest=false" >> "$GITHUB_OUTPUT"
           else
             echo "release_tag=svea-pmb-mikroe-latest" >> "$GITHUB_OUTPUT"

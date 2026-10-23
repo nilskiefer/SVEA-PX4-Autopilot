@@ -117,6 +117,7 @@ public:
 	void land();
 	void transition_to_fixedwing();
 	void transition_to_multicopter();
+	void wait_until_multicopter(std::chrono::seconds timeout);
 	void wait_until_disarmed(std::chrono::seconds timeout_duration = std::chrono::seconds(60));
 	void wait_until_hovering(); // TODO: name suggests, that function waits for drone velocity to be zero and not just drone in the air
 	void wait_until_altitude(float rel_altitude_m, std::chrono::seconds timeout, float delta = 0.5f);
@@ -132,6 +133,14 @@ public:
 	void execute_mission_and_get_baro_stuck();
 	void load_qgc_mission_raw_and_move_here(const std::string &plan_file);
 	void execute_mission_raw();
+	// Build and upload a multicopter mission (relative to home) that contains a DO_JUMP item looping
+	// back to an earlier waypoint. The mission lands at the end so it terminates on its own. Returns
+	// the sequence index of the DO_JUMP item.
+	int prepare_multicopter_mission_with_do_jump(const MissionOptions &mission_options, int jump_repeats);
+	// Start the (raw) mission and block until the vehicle reaches the given sequence number.
+	void start_mission_raw_and_wait_for_sequence(int sequence_number);
+	// Send MISSION_SET_CURRENT for the given sequence index (mimics an operator/GCS command).
+	void send_set_current_mission_item(int index);
 	void execute_rtl();
 	void execute_land();
 	void offboard_goto(const Offboard::PositionNedYaw &target, float acceptance_radius_m = 0.3f,

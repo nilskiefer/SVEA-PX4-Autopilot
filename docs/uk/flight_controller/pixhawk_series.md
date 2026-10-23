@@ -71,7 +71,7 @@ PX4 _developers_ need to know the FMU version of their board, as this is require
 
 На дуже високому рівні, основні відмінності полягають у наступному:
 
-- **FMUv2:** Single board with STM32427VI processor ([Pixhawk 1 (Discontinued)](../flight_controller/pixhawk.md), [pix32](../flight_controller/holybro_pix32.md), [Pixfalcon](../flight_controller/pixfalcon.md), [Drotek DroPix](../flight_controller/dropix.md))
+- **FMUv2:** Single board with STM32427VI processor (Pixhawk 1 (discontinued), Holybro pix32 (discontinued), Pixfalcon (discontinued), Drotek DroPix (discontinued))
 - **FMUv3:** Identical to FMUv2, but usable flash doubled to 2MB ([Hex Cube Black](../flight_controller/pixhawk-2.md),[CUAV Pixhack v3](../flight_controller/pixhack_v3.md),[mRo Pixhawk](../flight_controller/mro_pixhawk.md), [Pixhawk Mini (Discontinued)](../flight_controller/pixhawk_mini.md))
 - **FMUv4:** Increased RAM. Швидший процесор. Більше послідовних портів. No IO processor ([Pixracer](../flight_controller/pixracer.md))
 - **FMUv4-PRO:** Slightly increased RAM. Більше послідовних портів. IO processor ([Pixhawk 3 Pro](../flight_controller/pixhawk3_pro.md))
@@ -146,6 +146,6 @@ _Pixhawk_ is a trademark, and cannot be used in product names without permission
 All _Pixhawk-series_ flight controllers support:
 
 - A user facing RGB _UI LED_ to indicate the current _readiness to fly_ status of the vehicle. Зазвичай це дуже яскравий I2C, який може бути встановлений або не встановлений на платі (наприклад FMUv4 не має такого на борту, і зазвичай використовує світлодіод, встановлений на GPS).
-- Three _Status LED_s that provide lower level power status, bootloader mode and activity, and error information.
+- Three _Status LE&#x44;_&#x73; that provide lower level power status, bootloader mode and activity, and error information.
 
 To interpret the LEDs see: [LED Meanings](../getting_started/led_meanings.md).

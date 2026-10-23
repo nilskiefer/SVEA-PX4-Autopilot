@@ -70,6 +70,9 @@
 #include "streams/COMPONENT_METADATA.hpp"
 #include "streams/DISTANCE_SENSOR.hpp"
 #include "streams/EFI_STATUS.hpp"
+#if defined(MAVLINK_MSG_ID_ESTIMATOR_SENSOR_FUSION_STATUS)
+#include "streams/ESTIMATOR_SENSOR_FUSION_STATUS.hpp"
+#endif
 #include "streams/ESC_INFO.hpp"
 #include "streams/ESC_STATUS.hpp"
 #include "streams/ESTIMATOR_STATUS.hpp"
@@ -82,7 +85,6 @@
 #endif
 #include "streams/GPS_GLOBAL_ORIGIN.hpp"
 #include "streams/GPS_RAW_INT.hpp"
-#include "streams/GPS_RTCM_DATA.hpp"
 #include "streams/GPS_STATUS.hpp"
 #include "streams/HEARTBEAT.hpp"
 #include "streams/HIGHRES_IMU.hpp"
@@ -122,8 +124,8 @@
 #include "streams/TIMESYNC.hpp"
 #include "streams/VFR_HUD.hpp"
 #include "streams/VIBRATION.hpp"
-#include "streams/WHEEL_DISTANCE.hpp"
 #include "streams/WIND_COV.hpp"
+#include "streams/WHEEL_DISTANCE.hpp"
 #include "streams/PX4_UORB_TUNNEL.hpp"
 #if defined(MAVLINK_MSG_ID_FIGURE_EIGHT_EXECUTION_STATUS)
 #include "streams/FIGURE_EIGHT_EXECUTION_STATUS.hpp"
@@ -135,6 +137,10 @@
 #ifdef MAVLINK_MSG_ID_AVAILABLE_MODES // Only defined if development.xml is used
 #include "streams/AVAILABLE_MODES.hpp"
 #include "streams/CURRENT_MODE.hpp"
+#endif
+
+#ifdef MAVLINK_MSG_ID_ESC_EEPROM // Only defined if development.xml is used
+#include "streams/ESC_EEPROM.hpp"
 #endif
 
 #if !defined(CONSTRAINED_FLASH)
@@ -253,6 +259,8 @@ static_assert(MAV_SENSOR_ROTATION_CUSTOM == static_cast<MAV_SENSOR_ORIENTATION>(
 
 
 static const StreamListItem streams_list[] = {
+	create_stream_list_item<MavlinkStreamWheelDistance>(),
+	create_stream_list_item<MavlinkStreamPx4UorbTunnel>(),
 #if defined(HEARTBEAT_HPP)
 	create_stream_list_item<MavlinkStreamHeartbeat>(),
 #endif // HEARTBEAT_HPP
@@ -320,9 +328,6 @@ static const StreamListItem streams_list[] = {
 #if defined(TIMESYNC_HPP)
 	create_stream_list_item<MavlinkStreamTimesync>(),
 #endif // TIMESYNC_HPP
-#if defined(PX4_UORB_TUNNEL_HPP)
-	create_stream_list_item<MavlinkStreamPx4UorbTunnel>(),
-#endif // PX4_UORB_TUNNEL_HPP
 #if defined(GLOBAL_POSITION_INT_HPP)
 	create_stream_list_item<MavlinkStreamGlobalPositionInt>(),
 #endif // GLOBAL_POSITION_INT_HPP
@@ -341,6 +346,9 @@ static const StreamListItem streams_list[] = {
 #if defined(ESTIMATOR_STATUS_HPP)
 	create_stream_list_item<MavlinkStreamEstimatorStatus>(),
 #endif // ESTIMATOR_STATUS_HPP
+#if defined(ESTIMATOR_SENSOR_FUSION_STATUS_HPP)
+	create_stream_list_item<MavlinkStreamEstimatorSensorFusionStatus>(),
+#endif // ESTIMATOR_SENSOR_FUSION_STATUS_HPP
 #if defined(VIBRATION_HPP)
 	create_stream_list_item<MavlinkStreamVibration>(),
 #endif // VIBRATION_HPP
@@ -471,6 +479,9 @@ static const StreamListItem streams_list[] = {
 #if defined(ESC_STATUS_HPP)
 	create_stream_list_item<MavlinkStreamESCStatus>(),
 #endif // ESC_STATUS_HPP
+#if defined(ESC_EEPROM_HPP)
+	create_stream_list_item<MavlinkStreamEscEeprom>(),
+#endif // ESC_EEPROM_HPP
 #if defined(AUTOPILOT_VERSION_HPP)
 	create_stream_list_item<MavlinkStreamAutopilotVersion>(),
 #endif // AUTOPILOT_VERSION_HPP
@@ -501,15 +512,9 @@ static const StreamListItem streams_list[] = {
 #if defined(RAW_RPM_HPP)
 	create_stream_list_item<MavlinkStreamRawRpm>(),
 #endif // RAW_RPM_HPP
-#if defined(WHEEL_DISTANCE_HPP)
-	create_stream_list_item<MavlinkStreamWheelDistance>(),
-#endif // WHEEL_DISTANCE_HPP
 #if defined(EFI_STATUS_HPP)
 	create_stream_list_item<MavlinkStreamEfiStatus>(),
 #endif // EFI_STATUS_HPP
-#if defined(GPS_RTCM_DATA_HPP)
-	create_stream_list_item<MavlinkStreamGPSRTCMData>(),
-#endif // GPS_RTCM_DATA_HPP
 #if defined(UAVIONIX_ADSB_OUT_CFG_HPP)
 	create_stream_list_item<MavlinkStreamUavionixADSBOutCfg>(),
 #endif // UAVIONIX_ADSB_OUT_CFG_HPP

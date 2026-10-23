@@ -132,7 +132,6 @@ list(APPEND EKF_SRCS
 	EKF/aid_sources/fake_pos_control.cpp
 	EKF/aid_sources/ZeroGyroUpdate.cpp
 	EKF/aid_sources/ZeroVelocityUpdate.cpp
-	EKF/aid_sources/zero_innovation_heading_update.cpp
 )
 
 if(CONFIG_EKF2_AIRSPEED)
@@ -221,6 +220,13 @@ if(CONFIG_EKF2_RANGE_FINDER)
 	list(APPEND EKF_MODULE_PARAMS params_range_finder.yaml)
 endif()
 
+if(CONFIG_EKF2_RANGING_BEACON)
+	list(APPEND EKF_SRCS
+		EKF/aid_sources/ranging_beacon/ranging_beacon_control.cpp
+	)
+	list(APPEND EKF_MODULE_PARAMS params_ranging_beacon.yaml)
+endif()
+
 if(CONFIG_EKF2_SIDESLIP)
 	list(APPEND EKF_SRCS EKF/aid_sources/sideslip/sideslip_fusion.cpp)
 	list(APPEND EKF_MODULE_PARAMS params_sideslip.yaml)
@@ -289,4 +295,6 @@ px4_add_module(
 
 if(BUILD_TESTING)
 	add_subdirectory(test)
+
+	px4_add_functional_gtest(SRC EKF2SelectorTest.cpp LINKLIBS modules__ekf2)
 endif()

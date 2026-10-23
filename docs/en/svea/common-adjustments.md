@@ -41,7 +41,7 @@ param set RO_DECEL_LIM 0.8
 param save
 ```
 
-Higher values -> more aggressive response.  
+Higher values -> more aggressive response.
 Lower values -> smoother response.
 
 ## Speed Limit (Rover)

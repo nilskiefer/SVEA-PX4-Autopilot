@@ -50,3 +50,22 @@ Do not rely on the displayed CODEGRIP `FW Version` string alone to decide whethe
 dmesg
 mavlink status
 ```
+
+## Release versions
+
+The migration base is PX4 `v1.18.0-rc1` (`fca3df865af36124a28c9d607e850f111dbaaea9`).
+Use immutable annotated downstream tags such as `v1.18.0-1.1.0-rc1`:
+PX4 1.18.0, SVEA 1.1.0, release candidate 1. Record the exact upstream base
+in the release description; the custom tag does not encode the upstream RC number.
+Keep releases based on an upstream candidate marked as prereleases.
+
+`v1.18.0-rc1-1.1.0` is not accepted by PX4's version validator.
+The moving `svea-pmb-mikroe-latest` tag is for development builds only.
+
+The upstream NuttX pin is used without local USB patches. Clicker4 owns I2C
+startup through `BOARD_I2C_LATEINIT`: bus recovery is retained, while the
+general-call device reset is omitted to preserve power-expander outputs.
+
+SVEA TRX4 uses airframe ID `51004`. On Clicker4, the former saved SVEA ID
+`51003` is migrated to `51004` at startup. Other saved airframe selections
+are retained. Upstream `51003` remains the Hiwonder profile.

@@ -43,8 +43,6 @@
 
 #include "ActuatorEffectivenessTilts.hpp"
 
-using namespace matrix;
-
 ActuatorEffectivenessRotors::ActuatorEffectivenessRotors(ModuleParams *parent, AxisConfiguration axis_config,
 		bool tilt_support)
 	: ModuleParams(parent), _axis_config(axis_config), _tilt_support(tilt_support)
@@ -224,14 +222,14 @@ ActuatorEffectivenessRotors::computeEffectivenessMatrix(const Geometry &geometry
 	return num_actuators;
 }
 
-uint32_t ActuatorEffectivenessRotors::updateAxisFromTilts(const ActuatorEffectivenessTilts &tilts,
+ActuatorBitmask ActuatorEffectivenessRotors::updateAxisFromTilts(const ActuatorEffectivenessTilts &tilts,
 		float collective_tilt_control)
 {
 	if (!PX4_ISFINITE(collective_tilt_control)) {
 		collective_tilt_control = -1.f;
 	}
 
-	uint32_t nontilted_motors = 0;
+	ActuatorBitmask nontilted_motors = 0;
 
 	for (int i = 0; i < _geometry.num_rotors; ++i) {
 		int tilt_index = _geometry.rotors[i].tilt_index;
@@ -256,9 +254,9 @@ Vector3f ActuatorEffectivenessRotors::tiltedAxis(float tilt_angle, float tilt_di
 	return Dcmf{Eulerf{0.f, -tilt_angle, tilt_direction}} * axis;
 }
 
-uint32_t ActuatorEffectivenessRotors::getMotors() const
+ActuatorBitmask ActuatorEffectivenessRotors::getMotors() const
 {
-	uint32_t motors = 0;
+	ActuatorBitmask motors = 0;
 
 	for (int i = 0; i < _geometry.num_rotors; ++i) {
 		motors |= 1u << i;
@@ -267,34 +265,30 @@ uint32_t ActuatorEffectivenessRotors::getMotors() const
 	return motors;
 }
 
-uint32_t ActuatorEffectivenessRotors::getUpwardsMotors() const
+bool ActuatorEffectivenessRotors::isAlignedWithCoordinateAxis(const Vector3f &vec, int axis_idx)
 {
-	uint32_t upwards_motors = 0;
+	const Vector3f vec_abs_unit = vec.unit().abs();
 
-	for (int i = 0; i < _geometry.num_rotors; ++i) {
-		const Vector3f &axis = _geometry.rotors[i].axis;
-
-		if (fabsf(axis(0)) < 0.1f && fabsf(axis(1)) < 0.1f && axis(2) < -0.5f) {
-			upwards_motors |= 1u << i;
-		}
-	}
-
-	return upwards_motors;
+	// Equivalent to: angle between axis_abs and coordinate axis < 10 deg
+	static constexpr float MAX_MISALIGNMENT_COS = 0.9848; // cos(10 deg)
+	return vec_abs_unit(axis_idx) > MAX_MISALIGNMENT_COS;
 }
 
-uint32_t ActuatorEffectivenessRotors::getForwardsMotors() const
+void ActuatorEffectivenessRotors::setMotorDirectionBitmasks(ActuatorEffectiveness::MotorDirectionBitmasks &masks)
 {
-	uint32_t forward_motors = 0;
+	masks.longitudinal = masks.lateral = masks.vertical = 0;
 
 	for (int i = 0; i < _geometry.num_rotors; ++i) {
-		const Vector3f &axis = _geometry.rotors[i].axis;
+		if (isAlignedWithCoordinateAxis(_geometry.rotors[i].axis, 0)) { // X-axis
+			masks.longitudinal |= 1 << i;
 
-		if (axis(0) > 0.5f && fabsf(axis(1)) < 0.1f && fabsf(axis(2)) < 0.1f) {
-			forward_motors |= 1u << i;
+		} else if (isAlignedWithCoordinateAxis(_geometry.rotors[i].axis, 1)) { // Y-axis
+			masks.lateral |= 1 << i;
+
+		} else if (isAlignedWithCoordinateAxis(_geometry.rotors[i].axis, 2)) { // Z-axis
+			masks.vertical |= 1 << i;
 		}
 	}
-
-	return forward_motors;
 }
 
 bool

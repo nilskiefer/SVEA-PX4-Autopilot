@@ -1,6 +1,0 @@
-# Ignore all generated artifacts in this folder by default.
-*
-
-# Keep documentation and ignore rules tracked.
-!.gitignore
-!README.md

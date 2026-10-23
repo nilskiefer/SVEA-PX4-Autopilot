@@ -1,0 +1,307 @@
+module_name: BQ769X2
+parameters:
+- group: Sensors
+  definitions:
+    BQ769X2_ADDR:
+      description:
+        short: Default I2C address for BQ769x2
+      type: int32
+      default: 8
+      min: 1
+      max: 127
+      reboot_required: true
+    BQ769X2_BAL_DV:
+      description:
+        short: Minimum/stop delta for balancing, in volts
+        long: Applied to both charge and relaxed balancing modes.
+      type: float
+      default: 0.01
+      min: 0.002
+      max: 0.12
+      reboot_required: true
+    BQ769X2_BAL_EN:
+      description:
+        short: Enable autonomous balancing in BQ769x2 (CB_CHG + CB_RLX)
+      type: boolean
+      default: 1
+      reboot_required: true
+    BQ769X2_BAL_IIDL:
+      description:
+        short: Idle current threshold for relaxed balancing, in amps
+        long: Written to both DSG_CURR_TH and CHG_CURR_TH.
+      type: float
+      default: 0.1
+      min: 0.0
+      max: 20.0
+      reboot_required: true
+    BQ769X2_BAL_MAX:
+      description:
+        short: Maximum simultaneously balanced cells
+        long: Board thermal limit. For 3S default is 3.
+      type: int32
+      default: 3
+      min: 1
+      max: 16
+      reboot_required: true
+    BQ769X2_BAL_VMIN:
+      description:
+        short: Minimum cell voltage for balancing (charge and relaxed), in volts
+        long: '3S LiPo/NMC default: 3.8V.'
+      type: float
+      default: 3.8
+      min: 2.5
+      max: 4.3
+      reboot_required: true
+    BQ769X2_CELLS:
+      description:
+        short: Number of series cells wired to BQ769x2
+      type: int32
+      default: 3
+      min: 1
+      max: 14
+      reboot_required: true
+    BQ769X2_CFG:
+      description:
+        short: Apply BQ769x2 configuration writes on startup
+        long: 'When enabled, the driver enters config-update mode and writes data-memory fields.
+
+          Startup fails if any write/verification fails.'
+      type: boolean
+      default: 1
+      reboot_required: true
+    BQ769X2_COV_DLY:
+      description:
+        short: Cell overvoltage detection delay in milliseconds
+      type: float
+      default: 1000.0
+      min: 3.3
+      max: 6755.0
+      reboot_required: true
+    BQ769X2_COV_RV:
+      description:
+        short: Cell overvoltage recovery threshold in volts
+      type: float
+      default: 4.1
+      min: 1.5
+      max: 5.6
+      reboot_required: true
+    BQ769X2_COV_V:
+      description:
+        short: Cell overvoltage threshold (COV) in volts
+      type: float
+      default: 4.2
+      min: 1.5
+      max: 5.6
+      reboot_required: true
+    BQ769X2_CRC:
+      description:
+        short: Enable BQ769x2 CRC mode for host communication
+        long: SVEA powerboard defaults to CRC enabled.
+      type: boolean
+      default: 1
+      reboot_required: true
+    BQ769X2_CURR_INV:
+      description:
+        short: Invert measured pack current sign
+        long: 'Set to 1 when shunt polarity/wiring makes charging current positive in telemetry.
+
+          The driver convention is positive = discharge, negative = charge.'
+      type: boolean
+      default: 0
+      reboot_required: true
+    BQ769X2_CUV_DLY:
+      description:
+        short: Cell undervoltage detection delay in milliseconds
+      type: float
+      default: 1000.0
+      min: 3.3
+      max: 6755.0
+      reboot_required: true
+    BQ769X2_CUV_RV:
+      description:
+        short: Cell undervoltage recovery threshold in volts
+      type: float
+      default: 3.3
+      min: 1.5
+      max: 4.6
+      reboot_required: true
+    BQ769X2_CUV_V:
+      description:
+        short: Cell undervoltage threshold (CUV) in volts
+      type: float
+      default: 3.2
+      min: 1.5
+      max: 4.6
+      reboot_required: true
+    BQ769X2_OCC_A:
+      description:
+        short: Charge overcurrent threshold in amps (OCC)
+      type: float
+      default: 10.0
+      min: 1.0
+      max: 500.0
+      reboot_required: true
+    BQ769X2_OCC_DLY:
+      description:
+        short: Charge overcurrent delay in milliseconds (OCC)
+      type: float
+      default: 200.0
+      min: 6.6
+      max: 425.0
+      reboot_required: true
+    BQ769X2_OCD_A:
+      description:
+        short: Discharge overcurrent threshold in amps (OCD1)
+      type: float
+      default: 140.0
+      min: 1.0
+      max: 500.0
+      reboot_required: true
+    BQ769X2_OCD_DLY:
+      description:
+        short: Discharge overcurrent delay in milliseconds (OCD1)
+      type: float
+      default: 320.0
+      min: 6.6
+      max: 425.0
+      reboot_required: true
+    BQ769X2_OTC_C:
+      description:
+        short: Charge over-temperature threshold in degC (OTC)
+      type: float
+      default: 45.0
+      min: -40.0
+      max: 120.0
+      reboot_required: true
+    BQ769X2_OTD_C:
+      description:
+        short: Discharge over-temperature threshold in degC (OTD)
+      type: float
+      default: 60.0
+      min: -40.0
+      max: 120.0
+      reboot_required: true
+    BQ769X2_OWTOL:
+      description:
+        short: Open-wire tolerance in mV per detected cell
+        long: Deviation beyond (cells * tolerance) is treated as open-wire mismatch.
+      type: float
+      default: 50.0
+      min: 1.0
+      max: 500.0
+    BQ769X2_OW_CHK:
+      description:
+        short: Enable open-wire consistency check
+        long: 'Compares measured stack voltage against sum of selected cell voltages.
+
+          On mismatch, FAULT_CELL_FAIL is raised in telemetry.'
+      type: boolean
+      default: 1
+    BQ769X2_OW_TIME:
+      description:
+        short: Hardware open-wire-check period in seconds
+        long: 'Written to BQ769x2 OPEN_WIRE_CHECK_TIME data memory.
+
+          Set 0 to disable periodic hardware open-wire check.'
+      type: int32
+      default: 10
+      min: 0
+      max: 255
+      reboot_required: true
+    BQ769X2_PDSG_DV:
+      description:
+        short: Auto-PDSG stop delta in millivolts
+        long: 'Written to BQ769x2 FET_PDSG_STOP_DV (0x930F), encoded in 10 mV steps.
+
+          0 disables voltage-stop condition (timeout-only behavior).'
+      type: int32
+      default: 500
+      min: 0
+      max: 2550
+      reboot_required: true
+    BQ769X2_PDSG_TO:
+      description:
+        short: Auto-PDSG timeout in milliseconds
+        long: 'Written to BQ769x2 FET_PDSG_TIMEOUT (0x930E), encoded in 10 ms steps.
+
+          Must be >0 so predischarge doesn''t hold indefinitely.'
+      type: int32
+      default: 2000
+      min: 10
+      max: 2550
+      unit: ms
+      reboot_required: true
+    BQ769X2_SCD_A:
+      description:
+        short: Short-circuit threshold in amps (SCD)
+      type: float
+      default: 150.0
+      min: 10.0
+      max: 1000.0
+      reboot_required: true
+    BQ769X2_SCD_DLY:
+      description:
+        short: Short-circuit delay in microseconds (SCD)
+      type: float
+      default: 100.0
+      min: 0.0
+      max: 450.0
+      reboot_required: true
+    BQ769X2_SHUNT:
+      description:
+        short: BQ769x2 shunt resistance in micro-ohms
+        long: Used to program CAL_CURR_CC_GAIN in data memory, following TI/LibreSolar convention.
+      type: float
+      default: 1000.0
+      min: 1.0
+      max: 10000.0
+      reboot_required: true
+    BQ769X2_TPROT_EN:
+      description:
+        short: Enable external thermistor temperature protections (OTC/OTD/UTC/UTD)
+        long: Keep disabled when TS thermistors are not connected.
+      type: boolean
+      default: 0
+      reboot_required: true
+    BQ769X2_T_HYST_C:
+      description:
+        short: Temperature recovery hysteresis in degC
+        long: Recovery thresholds are OTC/OTD minus hysteresis and UTC/UTD plus hysteresis.
+      type: float
+      default: 5.0
+      min: 1.0
+      max: 20.0
+      reboot_required: true
+    BQ769X2_UTC_C:
+      description:
+        short: Charge under-temperature threshold in degC (UTC)
+      type: float
+      default: 0.0
+      min: -40.0
+      max: 120.0
+      reboot_required: true
+    BQ769X2_UTD_C:
+      description:
+        short: Discharge under-temperature threshold in degC (UTD)
+      type: float
+      default: -20.0
+      min: -40.0
+      max: 120.0
+      reboot_required: true
+    BQ769X2_VCMODE:
+      description:
+        short: BQ769x2 VCELL_MODE bitmask
+        long: 'Bit 0 = VC1 channel, bit 1 = VC2 ... bit 15 = VC16.
+
+          Set to 0 to use contiguous channels from BQ769X2_CELLS.'
+      type: int32
+      default: 0
+      min: 0
+      max: 65535
+      reboot_required: true
+    SENS_EN_BQ769X2:
+      description:
+        short: Enable BQ769x2 battery monitor support in board startup scripts
+      type: boolean
+      default: 0
+      reboot_required: true

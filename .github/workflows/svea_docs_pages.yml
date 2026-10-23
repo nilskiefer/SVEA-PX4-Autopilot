@@ -28,21 +28,21 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: yarn
-          cache-dependency-path: docs/yarn.lock
+          cache: npm
+          cache-dependency-path: docs/en/svea/package-lock.json
 
       - name: Install docs dependencies
-        working-directory: docs
-        run: yarn install --frozen-lockfile
+        working-directory: docs/en/svea
+        run: npm ci
 
       - name: Build VitePress docs
-        working-directory: docs
+        working-directory: docs/en/svea
         env:
           BRANCH_NAME: ${{ github.event.repository.name }}
           CI: true
         run: |
-          npx vitepress build en/svea --config en/svea/.vitepress/config.mjs
-          touch en/svea/.vitepress/dist/.nojekyll
+          npm run build
+          touch .vitepress/dist/.nojekyll
 
       - name: Setup Pages
         uses: actions/configure-pages@v5

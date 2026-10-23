@@ -39,7 +39,7 @@ mavlink uorb_tunnel add -t power_monitor -i 0 -r 4
 mavlink uorb_tunnel remove -s 1
 ```
 
-Rules implemented in `mavlink_main.cpp`:
+Rules implemented in `mavlink_uorb_tunnel.cpp`:
 
 - `-i` range: `0..9`
 - rate limit: `<=100 Hz`
@@ -69,29 +69,11 @@ Frame fields include:
 
 Payload type used: `0xE001`.
 
-## RX Path (MAVLink -> Autopilot)
+## Commands from ROS
 
-Experimental.
-
-Implementation: `src/modules/mavlink/mavlink_receiver.cpp` (`handle_px4_uorb_tunnel_message`).
-
-Validation path:
-
-1. target system/component filter
-2. payload length/header checks
-3. protocol version check
-4. topic lookup by name
-5. message hash match
-6. total length match vs topic size
-
-Fragment handling:
-
-- first fragment allocates pending buffer slot
-- subsequent fragments append by offset
-- stale fragment state is cleared periodically
-- when complete, topic is published to requested instance
-
-If checks fail, message is rejected with warning logs.
+The tunnel is outbound telemetry only. ROS control continues through MAVLink
+`MANUAL_CONTROL` and the existing RC authority switch. Arbitrary inbound uORB
+publication is not enabled.
 
 ## Observability
 

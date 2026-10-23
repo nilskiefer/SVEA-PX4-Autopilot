@@ -1,8 +1,8 @@
 # vitepress - user guide
 node_modules/
-**/.vitepress/cache/
-**/.vitepress/dist/
-**/.vitepress/.temp/
+.vitepress/cache/
+.vitepress/dist/
+.vitepress/.temp/
 
 # Book build output
 _book

@@ -38,6 +38,8 @@ px4_add_module(
 		bq769x2.cpp
 		bq769x2_main.cpp
 		bq769x2_protocol.cpp
+	MODULE_CONFIG
+		module.yaml
 	DEPENDS
 		px4_work_queue
 	)

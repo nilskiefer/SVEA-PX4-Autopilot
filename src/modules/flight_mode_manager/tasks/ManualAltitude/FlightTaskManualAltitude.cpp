@@ -64,6 +64,8 @@ bool FlightTaskManualAltitude::activate(const trajectory_setpoint_s &last_setpoi
 	_acceleration_setpoint = Vector3f(0.f, 0.f, NAN); // altitude is controlled from position/velocity
 	_position_setpoint(2) = _position(2);
 	_velocity_setpoint(2) = 0.f;
+	_terrain_hold = false;
+	_dist_to_ground_lock = NAN;
 	_stick_yaw.reset(_yaw, _unaided_yaw);
 	_setDefaultConstraints();
 
@@ -100,6 +102,9 @@ void FlightTaskManualAltitude::_updateAltitudeLock()
 	// Depending on stick inputs and velocity, position is locked.
 	// If not locked, altitude setpoint is set to NAN.
 
+	// Reset every iteration; _terrainFollowing() re-sets it true when it drives the setpoint
+	_z_setpoint_from_terrain = false;
+
 	// Check if user wants to break
 	const bool apply_brake = fabsf(_sticks.getThrottleZeroCenteredExpo()) <= FLT_EPSILON;
 
@@ -129,8 +134,9 @@ void FlightTaskManualAltitude::_updateAltitudeLock()
 
 				} else {
 					_position_setpoint(2) = _position(2);
-					_dist_to_ground_lock = NAN;
 				}
+
+				_dist_to_ground_lock = NAN;
 			}
 
 		} else {
@@ -220,6 +226,8 @@ void FlightTaskManualAltitude::_terrainFollowing(bool apply_brake, bool stopped)
 		// user demands velocity change in D-direction
 		_dist_to_ground_lock = _position_setpoint(2) = NAN;
 	}
+
+	_z_setpoint_from_terrain = PX4_ISFINITE(_position_setpoint(2));
 }
 
 void FlightTaskManualAltitude::_respectMaxAltitude()

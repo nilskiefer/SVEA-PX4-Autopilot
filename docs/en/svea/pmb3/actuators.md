@@ -157,6 +157,8 @@ Do not connect a normal RC servo to a misc channel while it is configured for fu
 
 Use `PCA9685_DISx` parameters.
 
+Steering defaults to `PCA9685_DIS2=1500` µs to start the arming ramp at neutral. The servo rail is off while disarmed. Existing saved values are retained.
+
 For pulse-width channels, the value is in microseconds. For misc0/misc1 in duty mode, the value is a raw PCA9685 count from `0` to `4096`.
 
 Example steering (CH1 -> `PCA9685_DIS2`):
