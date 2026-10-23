@@ -1,0 +1,13 @@
+{
+  "name": "svea-px4-docs",
+  "private": true,
+  "scripts": {
+    "build": "vitepress build .",
+    "dev": "vitepress dev ."
+  },
+  "devDependencies": {
+    "mermaid": "11.12.1",
+    "vitepress": "1.6.3",
+    "vitepress-plugin-mermaid": "2.0.17"
+  }
+}

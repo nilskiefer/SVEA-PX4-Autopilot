@@ -1,3 +1,7 @@
+## SVEA Clicker4 firmware
+
+SVEA firmware based on PX4 v1.18.0-rc1. See the [SVEA documentation](docs/en/svea/index.md) and [build and flash instructions](docs/en/svea/build-and-flash.md).
+
 <p align="center">
   <a href="https://px4.io">
     <img src="docs/assets/site/px4_logo.svg" alt="PX4 Autopilot" width="240">
