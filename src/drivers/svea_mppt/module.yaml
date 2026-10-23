@@ -1,0 +1,34 @@
+module_name: SVEA_MPPT
+parameters:
+- group: SVEA MPPT
+  definitions:
+    SVEA_MPPT_EN:
+      description:
+        short: Enable PMB3 digital MPPT adjustment
+        long: '0 releases GPIO6: Q601 bypasses the digipot, using the fixed divider (~19.1 V).
+
+          1 sinks GPIO6 after wiper readback: SVEA_MPPT_V adjusts the CN3722 setpoint.
+
+          This does not enable/disable charging or run an MPPT search algorithm.'
+      type: boolean
+      default: 0
+    SVEA_MPPT_V:
+      description:
+        short: PMB3 MPPT input-voltage target
+        long: 'Converted to the nearest nominal TPL0401B wiper setting using the PMB3
+
+          100 kOhm / 5.76 kOhm divider, 10 kOhm digipot and 1.04 V CN3722 reference, with typical 100
+          Ohm
+
+          H-terminal and 35 Ohm wiper resistance.
+
+          Component tolerances and switch resistance affect the actual voltage.
+
+          Digital adjustment requires SVEA_MPPT_EN=1. Targets outside the range fault.'
+      type: float
+      default: 18.0
+      min: 7.66
+      max: 18.98
+      unit: V
+      decimal: 2
+      increment: 0.1
