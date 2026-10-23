@@ -1,0 +1,159 @@
+name: SVEA PMB Mikroe Build
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*.*.*-*.*.*"
+    paths:
+      - "boards/mikroe/**"
+      - "src/**"
+      - "msg/**"
+      - "ROMFS/**"
+      - "platforms/**"
+      - "cmake/**"
+      - "Tools/**"
+      - "CMakeLists.txt"
+      - "Makefile"
+      - "Kconfig"
+      - ".gitmodules"
+      - ".devcontainer/Dockerfile"
+      - ".github/workflows/svea_pmb_mikroe_build.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  build_and_prerelease:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Build devcontainer image (BuildKit cache)
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$GITHUB_WORKSPACE"
+          docker buildx create --use --name svea-buildx || docker buildx use svea-buildx
+          docker buildx build \
+            --load \
+            --cache-from type=gha,scope=svea-devcontainer \
+            --cache-to type=gha,mode=max,scope=svea-devcontainer \
+            -t svea-devcontainer-ci \
+            -f .devcontainer/Dockerfile \
+            .devcontainer
+
+      - name: Build mikroe noboot firmware in devcontainer
+        run: |
+          cd "$GITHUB_WORKSPACE"
+          docker run --rm \
+            -v "$GITHUB_WORKSPACE":/workspaces/SVEA-PX4-Autopilot \
+            -w /workspaces/SVEA-PX4-Autopilot \
+            svea-devcontainer-ci \
+            /bin/bash -lc "git config --global --add safe.directory '*' && python3 boards/mikroe/clicker4-stm32f7/tests/test_migration.py && python3 src/drivers/smart_battery/bq769x2/tests/test_probe.py && python3 src/drivers/svea_mppt/tests/test_mppt.py && python3 src/modules/svea_peripheral_mcu/tests/test_uart.py && make mikroe_clicker4-stm32f7_noboot -j\$(nproc)"
+
+      - name: Resolve release channel
+        id: release_channel
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            if [[ ! "${GITHUB_REF_NAME}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-[0-9]+\.[0-9]+\.[0-9]+(-(rc|beta|alpha)[0-9]+)?$ ]]; then
+              echo "Invalid SVEA release tag: ${GITHUB_REF_NAME}" >&2
+              exit 1
+            fi
+            echo "release_tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+            echo "release_name=SVEA PMB Mikroe Build (noboot) ${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+            if [[ "${GITHUB_REF_NAME}" =~ -(rc|beta|alpha)[0-9]+$ ]]; then
+              echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
+              echo "make_latest=false" >> "$GITHUB_OUTPUT"
+            else
+              echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
+              echo "make_latest=true" >> "$GITHUB_OUTPUT"
+            fi
+            echo "retag_latest=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "release_tag=svea-pmb-mikroe-latest" >> "$GITHUB_OUTPUT"
+            echo "release_name=SVEA PMB Mikroe Build (noboot)" >> "$GITHUB_OUTPUT"
+            echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
+            echo "make_latest=false" >> "$GITHUB_OUTPUT"
+            echo "retag_latest=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Collect artifacts
+        env:
+          RETAG_LATEST: ${{ steps.release_channel.outputs.retag_latest }}
+        run: |
+          set -euo pipefail
+          cd "$GITHUB_WORKSPACE"
+          mkdir -p artifacts/svea-pmb-mikroe
+          short_sha="${GITHUB_SHA::12}"
+          mapfile -t fw_files < <(find build/mikroe_clicker4-stm32f7_noboot -maxdepth 1 -type f \( -name '*.bin' -o -name '*.hex' -o -name '*.px4' -o -name '*.elf' \))
+          if [ "${#fw_files[@]}" -eq 0 ]; then
+            echo "No firmware artifacts were produced"
+            exit 1
+          fi
+
+          if [ "${RETAG_LATEST}" = "true" ]; then
+            cp "${fw_files[@]}" artifacts/svea-pmb-mikroe/
+          else
+            for src in "${fw_files[@]}"; do
+              base="$(basename "${src}")"
+              stem="${base%.*}"
+              ext="${base##*.}"
+              cp "${src}" "artifacts/svea-pmb-mikroe/${stem}-${short_sha}.${ext}"
+            done
+          fi
+
+          ls -la artifacts/svea-pmb-mikroe
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: svea-pmb-mikroe-noboot
+          path: artifacts/svea-pmb-mikroe/
+          if-no-files-found: error
+
+      - name: Move rolling prerelease tag to this commit
+        if: steps.release_channel.outputs.retag_latest == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -f "${{ steps.release_channel.outputs.release_tag }}" "${GITHUB_SHA}"
+          git push --force origin "refs/tags/${{ steps.release_channel.outputs.release_tag }}"
+
+      - name: Remove existing release assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.release_channel.outputs.release_tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! gh api --silent "repos/${GITHUB_REPOSITORY}/releases/tags/${TAG}" 2>/dev/null; then
+            exit 0
+          fi
+          asset_ids="$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${TAG}" --jq '.assets[]?.id')"
+          if [ -z "${asset_ids}" ]; then
+            exit 0
+          fi
+          echo "${asset_ids}" | while read -r asset_id; do
+            [ -n "${asset_id}" ] || continue
+            gh api --method DELETE "repos/${GITHUB_REPOSITORY}/releases/assets/${asset_id}"
+          done
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.release_channel.outputs.release_tag }}
+          name: ${{ steps.release_channel.outputs.release_name }}
+          prerelease: ${{ steps.release_channel.outputs.is_prerelease }}
+          make_latest: ${{ steps.release_channel.outputs.make_latest }}
+          files: artifacts/svea-pmb-mikroe/*
