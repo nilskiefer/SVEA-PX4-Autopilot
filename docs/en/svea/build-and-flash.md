@@ -19,7 +19,7 @@ make mikroe_clicker4-stm32f7_noboot
 
 ## Flash
 
-To install the latest SVEA prerelease using Chrome or Edge, open [Flash the Clicker4](flash.md).
+To install the latest SVEA release or prerelease using Chrome or Edge, open [Flash the Clicker4](flash.md).
 
 For macOS/Windows flashing with OpenOCD:
 
@@ -53,6 +53,19 @@ dmesg
 mavlink status
 ```
 
+## Restore a parameter backup
+
+The [browser flasher](flash.md) downloads a 256 KiB copy of the Clicker4's saved parameter sector. Restore it to the same board running compatible firmware. Rename the downloaded file to `clicker4-parameters.bin` and check that it is exactly 262,144 bytes. Connect the board through CN2 and run OpenOCD from the folder containing the file.
+
+```bash
+openocd \
+  -f interface/cmsis-dap.cfg \
+  -c "cmsis_dap_vid_pid 0x2dbc 0x1924; cmsis_dap_backend hid; transport select swd" \
+  -f target/stm32f7x.cfg \
+  -c "if {[file size clicker4-parameters.bin] != 0x40000} {error {Expected a 256 KiB parameter backup}}" \
+  -c "program clicker4-parameters.bin 0x080c0000 verify reset exit"
+```
+
 ## Release versions
 
 The migration base is PX4 `v1.18.0-rc1` (`fca3df865af36124a28c9d607e850f111dbaaea9`).
@@ -71,3 +84,13 @@ general-call device reset is omitted to preserve power-expander outputs.
 SVEA TRX4 uses airframe ID `51004`. On Clicker4, the former saved SVEA ID
 `51003` is migrated to `51004` at startup. Other saved airframe selections
 are retained. Upstream `51003` remains the Hiwonder profile.
+
+If you downgrade a SVEA TRX4 from `v1.18.0-1.1.0-rc1` to `v1.17.0-1.0.0`
+with saved airframe ID `51004`, select the stable release's SVEA airframe from
+NSH after the flash.
+
+```sh
+param set SYS_AUTOSTART 51003
+param save
+reboot
+```

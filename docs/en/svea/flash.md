@@ -6,7 +6,9 @@ import FirmwareFlasher from "./.vitepress/components/FirmwareFlasher.vue"
 
 Use desktop Chrome or Edge on macOS, Windows, or Linux. Plug a USB data cable into **CN2** (CODEGRIP) on the Clicker4 and close OpenOCD or the CODEGRIP utility before connecting.
 
-**Connect CODEGRIP** checks the board without changing its firmware. **Flash firmware** replaces the firmware with the prerelease shown below.
+Select **Connect CODEGRIP** to check the board, then choose the latest release or prerelease. The flasher verifies the selected firmware and checks saved parameters before rebooting.
+
+**Back up parameters** downloads a copy of the saved parameter sector through CN2. The factory reset option erases that sector after the new firmware passes verification. See [how to restore a backup](build-and-flash.md#restore-a-parameter-backup).
 
 <FirmwareFlasher />
 

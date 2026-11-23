@@ -6,6 +6,7 @@ export const CODEGRIP = { vendorId: 0x2dbc, productId: 0x1924 };
 
 const FLASH_BASE = 0x08000000;
 const PARAMETER_SECTOR = 0x080c0000;
+const PARAMETER_SECTOR_SIZE = 0x40000;
 const SECTORS = [0x00000, 0x08000, 0x10000, 0x18000, 0x20000, 0x40000, 0x80000];
 const PAGE_SIZE = 1024;
 const FLASH_OPTIONS = 0x40023c14;
@@ -13,6 +14,7 @@ const DBGMCU_IDCODE = 0xe0042000;
 const DBGMCU_APB1_FZ = 0xe0042008;
 const FLASH_SIZE_WORD = 0x1ff0f440;
 
+const VTOR = 0xe000ed08;
 const AIRCR = 0xe000ed0c;
 const DFSR = 0xe000ed30;
 const DHCSR = 0xe000edf0;
@@ -22,7 +24,6 @@ const DEBUG_ENABLE = 1;
 const HALT = 2;
 const S_HALT = 1 << 17;
 const S_LOCKUP = 1 << 19;
-const S_RETIRE = 1 << 24;
 const S_RESET = 1 << 25;
 const RESET_REQUEST = 0x05fa0004;
 const VECTOR_CATCH_RESET = 1;
@@ -67,8 +68,9 @@ async function withTarget(device, action) {
       if ((deviceId & 0xfff) !== 0x449 || flashKiB !== 1024) {
         throw new Error("CODEGRIP did not identify the expected 1 MiB STM32F7 target.");
       }
-      await action(core);
+      const result = await action(core);
       await core.disconnect();
+      return result;
     } finally {
       await transport.close();
     }
@@ -77,6 +79,29 @@ async function withTarget(device, action) {
 
 export async function inspectTarget(device) {
   await withTarget(device, async () => {});
+}
+
+async function readParameterSector(core, stage, onProgress) {
+  const sector = new Uint8Array(PARAMETER_SECTOR_SIZE);
+  onProgress({ stage, completed: 0, total: sector.length });
+  // CSW auto-increment can wrap at 1 KiB, so each read starts at its own page.
+  for (let offset = 0; offset < sector.length; offset += PAGE_SIZE) {
+    const words = await core.readBlock(PARAMETER_SECTOR + offset, PAGE_SIZE / 4);
+    sector.set(new Uint8Array(words.buffer, words.byteOffset, words.byteLength), offset);
+    onProgress({ stage, completed: offset + PAGE_SIZE, total: sector.length });
+  }
+  return sector;
+}
+
+export async function backupParameters(device, onProgress) {
+  return withTarget(device, async (core) => {
+    const snapshot = await readParameterSector(core, "readingParameters", onProgress);
+    const confirmed = await readParameterSector(core, "checkingBackup", onProgress);
+    if (snapshot.some((value, index) => value !== confirmed[index])) {
+      throw new Error("Saved parameters changed during the backup. Let the board finish saving and try again.");
+    }
+    return snapshot;
+  });
 }
 
 async function verifyImage(image, expectedSha256) {
@@ -116,13 +141,14 @@ async function resetTarget(core, halt) {
   let resetSeen = false;
   await waitForCore(async () => {
     const status = await core.readMem32(DHCSR);
-    resetSeen ||= Boolean(status & S_RESET);
-    if (!resetSeen || status & S_LOCKUP) return false;
+    if (status & S_LOCKUP) return false;
     if (halt) {
-      return Boolean(status & S_HALT) && Boolean((await core.readMem32(DFSR)) & DFSR_VECTOR_CATCH);
+      resetSeen ||= Boolean(status & S_RESET);
+      return resetSeen && Boolean(status & S_HALT) && Boolean((await core.readMem32(DFSR)) & DFSR_VECTOR_CATCH);
     }
-    return !(status & S_HALT) && Boolean(status & S_RETIRE);
-  }, 2000, halt ? "The STM32 did not halt at reset." : "The STM32 did not restart.");
+    // VTOR resets to zero. NuttX sets it to the noboot application's flash base during startup.
+    return !(status & S_HALT) && (await core.readMem32(VTOR)) === FLASH_BASE;
+  }, halt ? 2000 : 5000, halt ? "The STM32 did not halt at reset." : "The browser could not confirm that the STM32 restarted.");
 }
 
 async function prepareLoader(core) {
@@ -159,17 +185,22 @@ async function callLoader(core, entry, args, timeout = 1000) {
   }
 }
 
-export async function flashFirmware(device, image, expectedSha256, onProgress) {
+export async function flashFirmware(device, image, expectedSha256, onProgress, { factoryReset = false } = {}) {
   await verifyImage(image, expectedSha256);
   await withTarget(device, async (core) => {
     const sectors = SECTORS.filter((offset) => offset < image.length);
     const options = await core.readMem32(FLASH_OPTIONS);
-    const requiredWritable = ((1 << sectors.length) - 1) << 16;
+    const appMask = (1 << sectors.length) - 1;
+    const resetMask = factoryReset ? 1 << SECTORS.length : 0;
+    const requiredWritable = (appMask | resetMask) << 16;
     if ((options & 0xff00) !== 0xaa00 || (options & requiredWritable) !== requiredWritable) {
-      throw new Error("The STM32 flash is protected. The flasher requires writable application sectors.");
+      throw new Error("The STM32 flash is protected. All selected sectors must be writable.");
     }
 
     await prepareLoader(core);
+    const savedParameters = factoryReset
+      ? new Uint8Array(PARAMETER_SECTOR_SIZE).fill(0xff)
+      : await readParameterSector(core, "readingParameters", onProgress);
     await callLoader(core, INIT, [FLASH_BASE, 16_000_000, ERASE_MODE]);
     onProgress({ stage: "erasing", completed: 0, total: sectors.length });
     for (const [index, offset] of sectors.entries()) {
@@ -201,6 +232,19 @@ export async function flashFirmware(device, image, expectedSha256, onProgress) {
         throw new Error(`Firmware read-back differed at 0x${address}.`);
       }
       onProgress({ stage: "verifying", completed: offset + page.length, total: image.length });
+    }
+
+    if (factoryReset) {
+      onProgress({ stage: "resettingParameters", completed: 0, total: 1 });
+      await callLoader(core, INIT, [FLASH_BASE, 16_000_000, ERASE_MODE]);
+      await callLoader(core, ERASE_SECTOR, [PARAMETER_SECTOR], 6000);
+      await callLoader(core, UNINIT, [ERASE_MODE]);
+    }
+    const verifiedParameters = await readParameterSector(core, "verifyingParameters", onProgress);
+    if (verifiedParameters.some((value, index) => value !== savedParameters[index])) {
+      throw new Error(factoryReset
+        ? "The parameter sector did not erase completely."
+        : "The saved-parameter sector changed during the flash.");
     }
 
     onProgress({ stage: "rebooting", completed: 0, total: 1 });
