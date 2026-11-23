@@ -1,4 +1,6 @@
-# PMB3: Powerboard Baseline
+# Battery and rail monitors {#pmb3-powerboard-baseline}
+
+Check the BQ769x2 battery monitor and the INA226 and INA3221 rail sensors from the PX4 console. The settings below are the defaults for PMB3.
 
 ## Battery Baseline
 

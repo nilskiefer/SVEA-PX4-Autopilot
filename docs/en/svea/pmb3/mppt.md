@@ -1,14 +1,13 @@
 # CN3722 MPPT Setpoint
 
-`svea_mppt` controls the TPL0401B-10 at **I2C bus 2, 0x3E (62)**.
-It starts automatically on the Clicker4 builds.
+Clicker4 starts `svea_mppt` at boot. It writes the TPL0401B-10 on **I2C bus 2 at 0x3E (62)** to set the CN3722 input-voltage target.
 
 | Parameter | Default | Meaning |
 | --- | --- | --- |
 | `SVEA_MPPT_EN` | `0` | `0`: fixed divider; `1`: digital adjustment |
 | `SVEA_MPPT_V` | `18.0` | Input-voltage target in volts, `7.66..18.98` |
 
-This sets the CN3722 input-voltage target. It does not run an adaptive MPPT algorithm or switch charging on/off.
+The setpoint stays fixed at the requested voltage. The CN3722 handles charging.
 
 ## Wiring and polarity
 

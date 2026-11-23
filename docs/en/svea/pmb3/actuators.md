@@ -1,44 +1,33 @@
-# PMB3: Actuators
+# Actuator outputs {#pmb3-actuators}
 
-## PCA9685 Setup
+The PCA9685 drives throttle, steering, differentials, gear, and the two misc outputs. Use the channel table to match an output to its PX4 parameter.
 
-Expected on I2C bus `2`, addr `0x61`.
+## PCA9685 setup
+
+The PCA9685 is on I2C bus `2` at `0x61`.
 
 ```sh
 i2cdetect -b 2
 pca9685_pwm_out status
 ```
 
-## Channel Mapping (Current Firmware)
+## Channel mapping {#channel-mapping-current-firmware}
 
-- CH0 `PCA9685_FUNC1` -> throttle (`101`)
-- CH1 `PCA9685_FUNC2` -> steering (`201`)
-- CH2 `PCA9685_FUNC3` -> front differential (`407`, RC_AUX1)
-- CH3 `PCA9685_FUNC4` -> rear differential (`408`, RC_AUX2)
-- CH4 `PCA9685_FUNC5` -> gear (`303`, Actuator_Set3)
-- CH5 `PCA9685_FUNC6` -> misc0 (`301`, Actuator_Set1)
-- CH6 `PCA9685_FUNC7` -> misc1 (`302`, Actuator_Set2)
+| Channel | Parameter | Output | PX4 function |
+| --- | --- | --- | --- |
+| CH0 | `PCA9685_FUNC1` | Throttle | `101` |
+| CH1 | `PCA9685_FUNC2` | Steering | `201` |
+| CH2 | `PCA9685_FUNC3` | Front differential | `407` (RC_AUX1) |
+| CH3 | `PCA9685_FUNC4` | Rear differential | `408` (RC_AUX2) |
+| CH4 | `PCA9685_FUNC5` | Gear | `303` (Actuator_Set3) |
+| CH5 | `PCA9685_FUNC6` | misc0 | `301` (Actuator_Set1) |
+| CH6 | `PCA9685_FUNC7` | misc1 | `302` (Actuator_Set2) |
 
-Notes:
+The differential channels use 1200 and 1800 µs endpoints. By default, misc0 and misc1 use a 1000–2000 µs pulse range for a servo. The `svea_rc_servo_latch` module starts in LOW gear (`+1`, high pulse on CH4).
 
-- Diff channels are configured for binary endpoints (`1200/1800`).
-- Misc channels are servo-safe by default (`1000/2000` us pulse range).
-- Misc channels are driven by `svea_rc_servo_latch`:
-  - RC source: SWC / CH6 selects misc0/misc1, VR / CH3 directly drives the selected value, SWA / CH4 toggles gear
-  - MAVLink source: `aux4 -> misc0`, `aux5 -> misc1`, `aux3 -> gear`
-- Gear initializes to LOW on `svea_rc_servo_latch` start (`+1`, high pulse on CH4).
+See the [RC misc servo selector](../controlling-the-car.md#rc-misc-servo-selector) for the transmitter's switch and dial, or [ROS misc outputs](../ros-manual-control.md#mode-dependent-behavior-for-misc-channels) for the matching MAVLink fields.
 
-RC misc selector:
-
-```mermaid
-flowchart LR
-  A[SWC / CH6 selector] --> B{Position}
-  B -- Low / ~1000us --> C[misc0 selected<br/>CH5 follows VR / CH3 dial]
-  B -- Middle / ~1500us --> D[neither selected<br/>CH5/CH6 hold]
-  B -- High / ~2000us --> E[misc1 selected<br/>CH6 follows VR / CH3 dial]
-```
-
-Verify:
+::: details Check the active PCA9685 parameters
 
 ```sh
 param show PCA9685_FUNC1
@@ -56,6 +45,8 @@ param show PCA9685_MIN7
 param show PCA9685_MAX7
 param show PCA9685_DIS7
 ```
+
+:::
 
 ## Misc Output Scaling
 

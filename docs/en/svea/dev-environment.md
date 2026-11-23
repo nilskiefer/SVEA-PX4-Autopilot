@@ -1,44 +1,29 @@
-# Dev Environment (VS Code + Devcontainer)
+# Set up the build environment {#dev-environment-vs-code-devcontainer}
 
-## 1) Prerequisites
+Use the VS Code devcontainer to build SVEA firmware from source. To install a published image, go straight to the [browser flasher](flash.md).
 
-- VS Code
-- Docker Engine running
-- VS Code extension: `Dev Containers` (`ms-vscode-remote.remote-containers`)
-- USB access to board/probe from host
+## Prerequisites {#_1-prerequisites}
 
-## 2) Open the Repository Correctly
+- VS Code with the **Dev Containers** extension (`ms-vscode-remote.remote-containers`).
+- A running Docker Engine.
+- A local checkout of the SVEA firmware repository.
 
-1. Open the repo folder in VS Code.
-2. If prompted, click **Trust** for this repository/workspace.
-3. Run `Dev Containers: Reopen in Container`.
+## Open the devcontainer {#_2-open-the-repository-correctly}
 
-## 3) Important Linux Popups (Do Not Skip)
+1. Open the repository folder in VS Code and approve workspace trust for your checkout.
+2. Run **Dev Containers: Reopen in Container** from the command palette.
 
-On Linux, VS Code may show multiple trust/safety popups during startup and when nested repos/submodules are scanned.
+### Linux trust prompts {#_3-important-linux-popups-do-not-skip}
 
-You must:
+Wait for VS Code to finish scanning submodules. Approve the trust prompts for the PX4 sub-repositories in your checkout. Extension tasks can fail if those prompts are left open.
 
-1. Wait for all prompts to appear.
-2. Accept/trust each repository prompt (including “unsafe repository” style prompts).
-3. Ensure all PX4 sub-repositories are trusted before continuing.
+## Check the container {#_4-verify-environment-inside-container}
 
-If you skip these prompts, extension tasks and tooling can partially fail.
-
-## 4) Verify Environment Inside Container
-
-Open terminal in VS Code (inside container) and check:
+Open a terminal in VS Code after the container starts.
 
 ```bash
 pwd
 git status
 ```
 
-You should be in the SVEA PX4 repo and have normal git access.
-
-## 5) Continue to Build/Flash
-
-After container/trust setup is complete:
-
-- [Quick Bringup](quick-bringup.md)
-- [Build and Flash](build-and-flash.md)
+Once `git status` works from the firmware checkout, [build the Clicker4 image](build-and-flash.md#build).

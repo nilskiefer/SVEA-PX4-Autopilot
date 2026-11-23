@@ -1,10 +1,8 @@
-# PMB3: Expanders and GPIO
+# Expanders and GPIO {#pmb3-expanders-and-gpio}
 
-> WARNING
-> Only change GPIO states if you understand the PMB3 powerboard wiring and rail dependencies.
-> Some GPIOs control power enables, charger paths, receiver power, and safety-related signals.
-> Writing the wrong value can disable critical rails, trip faults, or cause unintended actuator/power behavior.
-> If unsure, do not write GPIOs manually.
+::: warning Check the GPIO map before writing
+Some GPIOs feed the charger, receiver, or actuator power rails. Verify the wiring and rail dependencies before changing a pin. A wrong value can cut power, trip a fault, or move an actuator.
+:::
 
 ## Address and Device Ranges
 

@@ -1,47 +1,98 @@
-import { withMermaid } from "vitepress-plugin-mermaid";
+import { defineConfig } from "vitepress";
 
-export default withMermaid({
+const flash = { text: "Flash firmware", link: "/flash" };
+const setup = { text: "Set up the board", link: "/quick-bringup" };
+const troubleshooting = { text: "Troubleshooting", link: "/troubleshooting" };
+const firmware = {
+  text: "Firmware development",
+  collapsed: true,
+  items: [
+    { text: "Build environment", link: "/dev-environment" },
+    { text: "Build and flash", link: "/build-and-flash" },
+    { text: "Firmware inventory", link: "/firmware-inventory" }
+  ]
+};
+const vehicle = {
+  text: "Vehicle operation",
+  collapsed: true,
+  items: [
+    { text: "Drive and arm", link: "/controlling-the-car" },
+    { text: "ROS manual control", link: "/ros-manual-control" },
+    { text: "Tune parameters", link: "/common-adjustments" },
+    { text: "Wheel encoder bridge", link: "/peripheral-mcu-bridge" }
+  ]
+};
+const telemetry = {
+  text: "Telemetry",
+  collapsed: true,
+  items: [
+    { text: "ROS topics and power", link: "/ros-topic-reference" },
+    { text: "Sensor publish rates", link: "/current-sensor-publish-rates" },
+    { text: "Battery state of charge", link: "/battery-state-of-charge" },
+    { text: "MAVLink uORB tunnel", link: "/mavlink-uorb-tunnel" }
+  ]
+};
+
+export default defineConfig({
   title: "SVEA PX4 Docs",
-  description: "SVEA bringup, flashing, and troubleshooting documentation",
+  description: "Clicker4 setup, SVEA firmware, vehicle operation, and PMB3 hardware",
   base: process.env.BRANCH_NAME ? `/${process.env.BRANCH_NAME}/` : "/",
   cleanUrls: true,
   ignoreDeadLinks: false,
-  mermaid: {},
   themeConfig: {
     nav: [
-      { text: "SVEA Docs", link: "/" },
-      { text: "Repository", link: "https://github.com/nilskiefer/SVEA-PX4-Autopilot" }
-    ],
-    sidebar: [
+      flash,
       {
-        text: "SVEA",
+        text: "Guides",
         items: [
-          { text: "Overview", link: "/" },
-          { text: "Dev Environment", link: "/dev-environment" },
-          { text: "Quick Bringup", link: "/quick-bringup" },
-          { text: "Build and Flash", link: "/build-and-flash" },
-          { text: "Flash the Clicker4", link: "/flash" },
-          { text: "Troubleshooting", link: "/troubleshooting" },
-          { text: "Common Adjustments", link: "/common-adjustments" },
-          { text: "Firmware Inventory", link: "/firmware-inventory" },
-          { text: "ROS Topics and Power Measurements", link: "/ros-topic-reference" },
-          { text: "Current Sensor Publish Rates", link: "/current-sensor-publish-rates" },
-          { text: "Battery State of Charge", link: "/battery-state-of-charge" },
-          { text: "Controlling the Car", link: "/controlling-the-car" },
-          { text: "Peripheral MCU Bridge", link: "/peripheral-mcu-bridge" },
-          { text: "MAVLink uORB Tunnel", link: "/mavlink-uorb-tunnel" }
+          { text: "Get started", items: [setup, troubleshooting] },
+          firmware,
+          vehicle
         ]
       },
       {
-        text: "PMB3",
+        text: "Reference",
+        items: [telemetry, { text: "PMB3 hardware", link: "/pmb3/" }],
+        activeMatch: "^/pmb3/"
+      }
+    ],
+    sidebar: [
+      {
+        text: "Get started",
+        collapsed: false,
         items: [
-          { text: "Overview", link: "/pmb3/" },
-          { text: "Powerboard Baseline", link: "/pmb3/powerboard" },
-          { text: "Expanders and GPIO", link: "/pmb3/expanders" },
-          { text: "MPPT Setpoint", link: "/pmb3/mppt" },
-          { text: "Power Gate", link: "/pmb3/power-gate" },
-          { text: "Actuators", link: "/pmb3/actuators" },
-          { text: "LEDs", link: "/pmb3/leds" }
+          { text: "Overview", link: "/" },
+          setup,
+          flash,
+          troubleshooting
+        ]
+      },
+      firmware,
+      vehicle,
+      telemetry,
+      {
+        text: "PMB3 hardware",
+        collapsed: true,
+        items: [
+          { text: "PMB3 overview", link: "/pmb3/" },
+          {
+            text: "Power system",
+            collapsed: true,
+            items: [
+              { text: "Battery and rail monitors", link: "/pmb3/powerboard" },
+              { text: "Power gate", link: "/pmb3/power-gate" },
+              { text: "MPPT setpoint", link: "/pmb3/mppt" }
+            ]
+          },
+          {
+            text: "I/O and actuators",
+            collapsed: true,
+            items: [
+              { text: "Expanders and GPIO", link: "/pmb3/expanders" },
+              { text: "Actuator outputs", link: "/pmb3/actuators" },
+              { text: "LEDs", link: "/pmb3/leds" }
+            ]
+          }
         ]
       }
     ],
@@ -49,8 +100,5 @@ export default withMermaid({
       { icon: "github", link: "https://github.com/nilskiefer/SVEA-PX4-Autopilot" }
     ],
     search: { provider: "local" }
-  },
-  mermaidPlugin: {
-    class: "mermaid"
   }
 });

@@ -1,44 +1,35 @@
-# Quick Bringup
+# Set up the Clicker4 {#quick-bringup}
 
-## 0) Environment First (Required)
+Use **CN2** to flash the firmware through CODEGRIP. Once PX4 is running, use **CN1** for the USB serial connection and the PX4 console.
 
-Complete this before anything else:
+## Flash firmware {#_2-flash-cn2-codegrip}
 
-- [Dev Environment (VS Code + Devcontainer)](dev-environment.md)
+Connect a USB data cable to CN2 and open the [browser flasher](flash.md) in desktop Chrome or Edge. Select **Connect CODEGRIP**, then choose the release, prerelease, or your own `.bin` and select **Flash firmware**.
 
-Especially on Linux: wait for and accept all trust/unsafe-repository prompts in VS Code.
+For a build from source, start with the [build environment](dev-environment.md), then [build and flash the firmware](build-and-flash.md#build).
 
-## 1) Build
+## Find the runtime port {#_3-verify-usb-runtime-link-cn1}
 
-```bash
-make mikroe_clicker4-stm32f7_noboot
-```
+Connect the USB data cable to CN1. On Linux or macOS, look for the serial device.
 
-## 2) Flash (CN2 / CODEGRIP)
+::: code-group
 
-```bash
-openocd \
-  -f interface/cmsis-dap.cfg \
-  -f target/stm32f7x.cfg \
-  -c "init; reset halt; program build/mikroe_clicker4-stm32f7_noboot/mikroe_clicker4-stm32f7_noboot.bin 0x08000000 verify; reset run; shutdown"
-```
-
-## 3) Verify USB runtime link (CN1)
-
-Linux:
-
-```bash
+```bash [Linux]
 ls /dev/serial/by-id/*SVEA*
 ls /dev/ttyACM*
 ```
 
-macOS:
-
-```bash
+```bash [macOS]
 ls /dev/cu.usbmodem*
 ```
 
-## 4) Open NSH over MAVLink shell
+:::
+
+If the port is missing, see [CN1 does not appear](troubleshooting.md#usb-not-detected).
+
+## Open the PX4 console {#_4-open-nsh-over-mavlink-shell}
+
+Run these commands from the firmware repository on your host. Replace `/dev/ttyACM0` with the CN1 port you found above.
 
 ```bash
 python3 -m venv .venv
@@ -47,9 +38,9 @@ pip install mavproxy future
 python3 ./Tools/mavlink_shell.py /dev/ttyACM0
 ```
 
-Replace device path for macOS if needed.
+## Check that PX4 is running {#_5-sanity-checks-in-nsh}
 
-## 5) Sanity checks in NSH
+Once you have the `nsh>` prompt, check the boot log, MAVLink connection, and CPU load.
 
 ```sh
 dmesg
@@ -57,12 +48,4 @@ mavlink status
 listener cpuload -n 1
 ```
 
-## 6) If you run without PMB3 hardware
-
-Missing PMB3 peripherals will produce expected I2C/probe errors. That is normal for bringup without those boards.
-
-## 7) Next
-
-- For stable flashing flow details: [Build and Flash](build-and-flash.md)
-- For failure diagnosis: [Troubleshooting](troubleshooting.md)
-- For PMB3 mapping and commands: [PMB3 Overview](pmb3/index.md)
+If you're testing a bare Clicker4, expect [warnings about missing PMB3 peripherals](troubleshooting.md#common-expected-errors-bringup-without-pmb3).

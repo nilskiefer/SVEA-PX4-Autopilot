@@ -1,15 +1,10 @@
-# Peripheral MCU Bridge
+# Wheel encoder bridge {#peripheral-mcu-bridge}
 
-## Purpose
+The external MCU sends wheel measurements to the Clicker4 over UART. The `svea_peripheral_mcu` module decodes the frames and publishes `wheel_distance` and `wheel_encoders` in PX4.
 
-`svea_peripheral_mcu` reads framed UART data from an external MCU and publishes:
+## PX4 module {#purpose}
 
-- `wheel_distance`
-- `wheel_encoders`
-
-Source path:
-
-- `src/modules/svea_peripheral_mcu/svea_peripheral_mcu.cpp`
+The receiver is implemented in `src/modules/svea_peripheral_mcu/svea_peripheral_mcu.cpp`.
 
 ## Peripheral Firmware and Wiring
 

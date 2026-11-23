@@ -1,8 +1,8 @@
-# PMB3: LEDs
+# LEDs {#pmb3-leds}
 
-Default Clicker4 builds omit the LED commands. For Neopixel bringup, enable
-`CONFIG_DRIVERS_LIGHTS_NEOPIXEL` and `CONFIG_SYSTEMCMDS_LED_CONTROL` in the
-board build configuration, then rebuild and flash.
+To enable Neopixel commands, set `CONFIG_DRIVERS_LIGHTS_NEOPIXEL` and
+`CONFIG_SYSTEMCMDS_LED_CONTROL` in the Clicker4 board config. Then
+[build and flash](../build-and-flash.md) that image.
 
 ## Neopixel Bringup
 

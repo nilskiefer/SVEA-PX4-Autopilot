@@ -1,21 +1,15 @@
-# SVEA Power Gate
+# Power gate {#svea-power-gate}
 
-## Purpose
+The `svea_power_gate` module controls power to the ESC and servo rails using arming and receiver state.
 
-`src/modules/svea_power_gate` controls PMB3 rail enables based on arming state.
-
-Device nodes used:
+## Rail outputs {#purpose}
 
 - ESC rail enable: `/dev/gpio9`
 - Servo rail enable: `/dev/gpio10`
 
 ## Startup
 
-Started from:
-
-- `boards/mikroe/clicker4-stm32f7/init/rc.board_sensors`
-
-On start, module forces safe state (`apply_power(false)`) before scheduling periodic checks.
+The Clicker4 starts the module from `boards/mikroe/clicker4-stm32f7/init/rc.board_sensors`. The module calls `apply_power(false)` before scheduling its first check.
 
 ## Control Inputs
 
@@ -31,26 +25,22 @@ Enable condition (`should_enable`) from code:
 - `!actuator_armed.lockdown`
 - `!actuator_armed.termination`
 
-## Actual Rail Behavior (Current Code)
+## Rail sequence {#actual-rail-behavior-current-code}
 
-### When enabling (`apply_power(true)`)
+### Enable the rails {#when-enabling-apply-power-true}
 
 1. Set servo rail high (`/dev/gpio10=1`)
 2. Wait `500 ms`
 3. Set ESC rail high (`/dev/gpio9=1`)
 
-### When disabling (`apply_power(false)`)
+### Disable the rails {#when-disabling-apply-power-false}
 
-- If RC is disconnected (`rc_channels.signal_lost=true`):
-1. Set ESC rail low (`/dev/gpio9=0`)
-2. Wait `50 ms`
-3. Set servo rail low (`/dev/gpio10=0`)
+For `apply_power(false)`, the sequence depends on the receiver link.
 
-- If RC is still connected:
-1. Keep ESC rail unchanged
-2. Set servo rail low (`/dev/gpio10=0`)
-
-This is implementation-defined in `svea_power_gate.cpp`; docs should follow this behavior exactly.
+| Receiver | Rail sequence |
+| --- | --- |
+| Disconnected (`rc_channels.signal_lost=true`) | Set `/dev/gpio9=0`, wait 50 ms, then set `/dev/gpio10=0`. |
+| Connected | Leave the ESC rail at its current state and set `/dev/gpio10=0`. |
 
 ## Reliability Behavior
 

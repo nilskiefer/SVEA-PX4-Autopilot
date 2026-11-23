@@ -1,11 +1,8 @@
 # MAVLink uORB Tunnel
 
-## Why It Exists in This Fork
+## What the tunnel carries {#why-it-exists-in-this-fork}
 
-SVEA power telemetry is published as multiple `power_monitor` uORB instances (INA226 + INA3221 channels).
-Standard MAVLink streams do not carry this multi-instance topic set in the format needed by the companion stack.
-
-This fork adds `PX4_UORB_TUNNEL` forwarding to move selected uORB topics over MAVLink `TUNNEL` frames.
+SVEA publishes the INA226 and INA3221 channels as separate `power_monitor` instances. The `PX4_UORB_TUNNEL` stream wraps selected uORB instances in MAVLink `TUNNEL` frames so the companion can decode each channel separately.
 
 ## Runtime Configuration on Clicker4
 
@@ -71,9 +68,7 @@ Payload type used: `0xE001`.
 
 ## Commands from ROS
 
-The tunnel is outbound telemetry only. ROS control continues through MAVLink
-`MANUAL_CONTROL` and the existing RC authority switch. Arbitrary inbound uORB
-publication is not enabled.
+The tunnel carries outbound telemetry. Send [ROS manual control](ros-manual-control.md) through MAVLink `MANUAL_CONTROL`. SWB on the RC transmitter selects which source has control.
 
 ## Observability
 
@@ -85,9 +80,9 @@ mavlink status
 
 ## Related
 
-- [Peripheral MCU Bridge](peripheral-mcu-bridge.md)
-- [ROS Topics and Power Measurements](ros-topic-reference.md)
-- [Current Sensor Publish Rates](current-sensor-publish-rates.md)
+- [Wheel encoder bridge](peripheral-mcu-bridge.md)
+- [ROS topics and power measurements](ros-topic-reference.md)
+- [Current sensor publish rates](current-sensor-publish-rates.md)
 
 ## When To Use `-f`
 

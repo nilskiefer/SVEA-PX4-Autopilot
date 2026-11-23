@@ -1,35 +1,27 @@
-# Common Adjustments (NSH)
+# Tune parameters in NSH {#common-adjustments-nsh}
 
-## Workflow
+Open the [PX4 console](quick-bringup.md#_4-open-nsh-over-mavlink-shell) on CN1 to inspect or change rover settings. To copy settings before a reset, use **Back up parameters** in the [browser flasher](flash.md).
 
-1. Check current value:
+## Set and save a parameter {#workflow}
+
+Check the current value before changing it. Run `param save` to keep the change after reboot.
 
 ```sh
 param show <PARAM_NAME>
-```
-
-2. Set new value:
-
-```sh
 param set <PARAM_NAME> <VALUE>
-```
-
-3. Persist:
-
-```sh
 param save
 ```
 
-## Acceleration and Deceleration Limits (Rover)
+## Acceleration and braking limits {#acceleration-and-deceleration-limits-rover}
 
-Use these parameters to tune longitudinal behavior:
+Read the current launch and braking limits.
 
 ```sh
 param show RO_ACCEL_LIM
 param show RO_DECEL_LIM
 ```
 
-Example tuning:
+Lower values soften the response. This example sets both limits to `0.8`.
 
 ```sh
 # softer launch
@@ -41,10 +33,7 @@ param set RO_DECEL_LIM 0.8
 param save
 ```
 
-Higher values -> more aggressive response.
-Lower values -> smoother response.
-
-## Speed Limit (Rover)
+## Rover speed limit {#speed-limit-rover}
 
 ```sh
 param show RO_SPEED_LIM
@@ -52,7 +41,7 @@ param set RO_SPEED_LIM 1.5
 param save
 ```
 
-## Restore a Parameter to Default
+## Restore selected defaults {#restore-a-parameter-to-default}
 
 ```sh
 param reset RO_ACCEL_LIM
@@ -60,7 +49,9 @@ param reset RO_DECEL_LIM
 param save
 ```
 
-## Reset All Parameters (Use Carefully)
+## Reset all parameters {#reset-all-parameters-use-carefully}
+
+This resets saved settings and calibration to defaults. Back up the board first if you need to restore them.
 
 ```sh
 param reset_all
@@ -68,9 +59,7 @@ param save
 reboot
 ```
 
-This resets the full parameter set to defaults.
-
-## Reboot After Tuning Changes
+## Reboot after tuning changes
 
 ```sh
 reboot

@@ -1,5 +1,7 @@
 # Firmware Inventory
 
+Use this page to find the Clicker4 startup scripts, enabled drivers, and I2C addresses for the `noboot` build.
+
 ## Board Target
 
 - Target: `mikroe_clicker4-stm32f7_noboot`
@@ -75,6 +77,6 @@ From `noboot.px4board`:
 
 ## Detailed References
 
-- [Controlling the Car (RC and ROS/MAVLink)](controlling-the-car.md)
-- [Peripheral MCU Bridge](peripheral-mcu-bridge.md)
-- [MAVLink uORB Tunnel](mavlink-uorb-tunnel.md)
+- [Drive and arm the car](controlling-the-car.md)
+- [Wheel encoder bridge](peripheral-mcu-bridge.md)
+- [MAVLink uORB tunnel](mavlink-uorb-tunnel.md)

@@ -1,8 +1,6 @@
 # Current Sensor Publish Rates
 
-A PX4 command changes the rate at which telemetry is **forwarded** to ROS. In this firmware, raising the actual INA226/INA3221 acquisition rate above about 4 Hz also requires a source change, rebuild and flash. There is no runtime sample-rate command or parameter for these SVEA drivers.
-
-Use the [ROS topic lookup](ros-topic-reference.md) to select the physical branch first.
+Use the [ROS topic lookup](ros-topic-reference.md) to find the rail you want to sample. You can change its ROS forwarding rate from the PX4 console. To get fresh INA226 or INA3221 readings faster than about 4 Hz, change the driver, rebuild, and flash the board.
 
 ## The Three Rate Controls
 

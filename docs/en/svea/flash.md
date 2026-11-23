@@ -10,7 +10,7 @@ import FirmwareFlasher from "./.vitepress/components/FirmwareFlasher.vue"
 
 # Flash the Clicker4
 
-Use desktop Chrome or Edge and a USB data cable on **CN2** (CODEGRIP). Close other flashing tools first.
+Connect a USB data cable to **CN2** (CODEGRIP) and open this page in desktop Chrome or Edge. Close OpenOCD or the CODEGRIP utility before connecting.
 
 <FirmwareFlasher />
 
@@ -22,7 +22,7 @@ If CODEGRIP appears in the chooser but the browser cannot open it, the local des
 KERNEL=="hidraw*", ATTRS{idVendor}=="2dbc", ATTRS{idProduct}=="1924", TAG+="uaccess"
 ```
 
-Run `sudo udevadm control --reload-rules`, then unplug and reconnect the USB cable. See the [HIDAPI udev examples](https://github.com/libusb/hidapi/blob/master/udev/69-hid.rules) and [Chrome’s WebHID guide](https://developer.chrome.com/docs/capabilities/hid).
+Run `sudo udevadm control --reload-rules`, then unplug and reconnect the USB cable. See the [HIDAPI udev examples](https://github.com/libusb/hidapi/blob/master/udev/69-hid.rules) and [Chrome's WebHID guide](https://developer.chrome.com/docs/capabilities/hid).
 
 :::
 

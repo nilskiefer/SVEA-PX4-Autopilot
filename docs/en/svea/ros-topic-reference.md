@@ -1,17 +1,17 @@
-# ROS Topic and Power Measurement Reference
+# ROS topics and power measurements {#ros-topic-and-power-measurement-reference}
 
-Use this lookup when choosing signals for a research recording. Names below assume the SVEA MAVROS + `svea_core` uORB tunnel bridge and their default namespaces. Confirm names and message types with `ros2 topic list -t` on the car; remapping and enabled MAVROS plugins can change what is exposed.
+Match the signal you want to record to its ROS topic. This page uses the default namespaces for MAVROS and the `svea_core` uORB tunnel bridge. Run `ros2 topic list -t` on the car to check the names and message types with your remappings and enabled MAVROS plugins.
 
 ## Quick Lookup
 
 | Research signal | ROS topic / firmware source | Meaning |
 | --- | --- | --- |
 | ESC electrical input | `/px4/uorb/power_monitor/instance_0` | Voltage/current/power at the ESC supply shunt. Includes ESC losses; does not measure mechanical motor power. |
-| Servo supply | `/px4/uorb/power_monitor/instance_1` | Combined supply to the servo connector rail, rather than one individual servo. |
+| Servo supply | `/px4/uorb/power_monitor/instance_1` | Combined draw on the servo connector rail. |
 | Total battery current | `/mavros/battery` (`sensor_msgs/msg/BatteryState`); PX4 `battery_status` | BQ769x2 pack measurement through the battery return shunt. This is separate from the eight `power_monitor` instances. |
 | Onboard PC input power | `/px4/uorb/power_monitor/instance_5`, `instance_6` or `instance_7` | The PC uses one of the three 12V connectors: `U501`, `U42` or `U401`, respectively. |
-| Commands sent to ESC and servos | `/mavros/manual_control/send` (`mavros_msgs/msg/ManualControl`) | Control input to PX4. `z` is throttle and `y` is steering in this setup; see [Controlling the Car](controlling-the-car.md) for scaling, mode gating and auxiliary fields. |
-| Tunnel diagnostics | `/px4/uorb_tunnel/frame` (`std_msgs/msg/String`) | JSON frame/debug information from the companion bridge, rather than a physical sensor measurement. |
+| Commands sent to ESC and servos | `/mavros/manual_control/send` (`mavros_msgs/msg/ManualControl`) | Control input to PX4. See [ROS manual control](ros-manual-control.md) for throttle, steering, and auxiliary fields. |
+| Tunnel diagnostics | `/px4/uorb_tunnel/frame` (`std_msgs/msg/String`) | JSON frame and debug data from the companion bridge. |
 
 Throttle commands reach PCA9685 CH0; steering reaches CH1. Telemetry from `instance_0` reports the ESC **power supply**, not its PWM command, RPM, torque or efficiency. See the [actuator channel map](pmb3/actuators.md).
 

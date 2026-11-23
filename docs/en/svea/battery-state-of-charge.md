@@ -1,10 +1,10 @@
 # Battery State of Charge
 
-The PMB3 BQ769x2 driver calculates SOC in PX4 software and publishes it as
-`battery_status.remaining` (a fraction from 0 to 1). With the board's default
-`BAT1_CAPACITY=9000` mAh, it initializes SOC from cell voltage once, then
-integrates signed battery current. The BQ chip supplies the measurements; this
-path does not use the generic PX4 `Battery` library's SOC estimator.
+The BQ769x2 chip measures voltage and current. Its PX4 driver seeds state of
+charge from the first valid cell-voltage estimate, then integrates signed
+current using the configured capacity, 9000 mAh by default. This driver
+calculates SOC directly and publishes it as `battery_status.remaining`,
+a fraction from 0 to 1.
 
 ## Voltage Mapping
 

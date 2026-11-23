@@ -1,69 +1,51 @@
 # Troubleshooting
 
-## USB Not Detected
+Use **CN2** for CODEGRIP and **CN1** for PX4 serial. Each port appears as a different USB device.
 
-Linux:
+## CODEGRIP connection and startup
 
-```bash
-ls /dev/serial/by-id/*SVEA*
-ls /dev/ttyACM*
-```
+If Chrome or Edge can't open the probe, check that the cable carries data and is plugged into CN2. Close OpenOCD or the CODEGRIP utility. On Linux, see **Linux USB permissions** in the [browser flasher](flash.md).
 
-macOS:
+When the flasher says **Startup unconfirmed**, select **Check board** if CODEGRIP stayed connected. If the probe disconnected, reconnect CN2 and select **Connect CODEGRIP**. You can also check startup from the PX4 console on CN1.
 
-```bash
-ls /dev/cu.usbmodem*
-```
+For a CMSIS-DAP command mismatch in OpenOCD, see [Update CODEGRIP](build-and-flash.md#codegrip-firmware-pitfall).
 
-If missing:
+## CN1 does not appear {#usb-not-detected}
+
+Use the [runtime port commands](quick-bringup.md#_3-verify-usb-runtime-link-cn1) to check that your host sees the serial device. If the port is still missing, try the following in order.
 
 1. Press board reset button.
 2. Replug CN1 cable.
 3. Power-cycle board.
 
-## NSH Access Without QGroundControl
+## Open NSH directly {#nsh-access-without-qgroundcontrol}
 
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install mavproxy future
-python3 ./Tools/mavlink_shell.py /dev/ttyACM0
-```
+Use the [MAVLink shell on CN1](quick-bringup.md#_4-open-nsh-over-mavlink-shell) to open NSH from a terminal.
 
-## Connected but No QGC Link
+## QGroundControl sees no telemetry {#connected-but-no-qgc-link}
 
-In boot log, verify both:
+Check the boot log for both messages.
 
 - `sercon: Successfully registered the CDC/ACM serial driver`
 - `INFO [mavlink] ... on /dev/ttyACM0 ...`
 
-If missing, inspect `/etc/init.d/rc.board_mavlink` and startup log around `Board mavlink:`.
+If a message is missing, inspect `/etc/init.d/rc.board_mavlink` and the startup log around `Board mavlink:`.
 
-## Common Expected Errors (Bringup Without PMB3)
+## Probe errors on a bare Clicker4 {#common-expected-errors-bringup-without-pmb3}
 
-These can be expected when hardware is absent:
+Without PMB3 attached, BQ, INA, PCAL, and PCA9685 probes can fail. The power gate can also report that its GPIO devices failed to open.
 
-- BQ/INA/PCAL/PCA9685 probe failures
-- power-gate GPIO open failures
+## Missing CPU and RAM load data {#cpu-ram-preflight-check-notes}
 
-## CPU/RAM Preflight Check Notes
-
-If you still see `No CPU and RAM load information`, verify:
+For `No CPU and RAM load information`, check the monitor and look for fresh `cpuload` samples.
 
 ```sh
 load_mon status
 listener cpuload -n 5
 ```
 
-If cpuload remains stale in this board setup, current operational default is:
+The board defaults are `COM_CPU_MAX=0` and `COM_RAM_MAX=0` while load reporting on this target is unresolved.
 
-- `COM_CPU_MAX=0`
-- `COM_RAM_MAX=0`
+## Change a runtime parameter {#common-runtime-tuning-from-nsh}
 
-Keep this as board-specific policy until cpuload publication path is fully resolved upstream or in-board config.
-
-## Common Runtime Tuning from NSH
-
-For frequent parameter tweaks (including accel/decel limits), use:
-
-- [Common Adjustments (NSH)](common-adjustments.md)
+[Tune parameters in NSH](common-adjustments.md) covers rover speed, acceleration and braking limits, and default values.

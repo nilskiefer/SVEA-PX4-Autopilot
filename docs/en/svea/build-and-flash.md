@@ -1,32 +1,36 @@
-# Build and Flash
+# Build and flash firmware {#build-and-flash}
 
-## Hardware Paths
-
-- `CN2`: CODEGRIP / OpenOCD flash path
-- `CN1`: runtime USB CDC (`/dev/ttyACM*` / `/dev/cu.usbmodem*`)
-
-## Prerequisites
-
-- Repo checked out locally
-- `openocd` installed
-- CODEGRIP visible as CMSIS-DAP
+Build the `noboot` target to flash your own Clicker4 image. For a published release or prerelease, open the [browser flasher](flash.md).
 
 ## Build
+
+### Prerequisites
+
+Set up the [build environment](dev-environment.md), then run this in the devcontainer from the firmware repository.
 
 ```bash
 make mikroe_clicker4-stm32f7_noboot
 ```
 
+The raw image is written to the following path.
+
+```text
+build/mikroe_clicker4-stm32f7_noboot/mikroe_clicker4-stm32f7_noboot.bin
+```
+
 ## Flash
 
-To install the latest SVEA release or prerelease using Chrome or Edge, open [Flash the Clicker4](flash.md).
+### USB ports {#hardware-paths}
 
-To flash your own build in the browser, select **Custom .bin** and choose the raw `mikroe_clicker4-stm32f7_noboot.bin` from the build directory. The browser accepts images up to 768 KiB so the final flash sector stays reserved for parameters.
+Connect **CN2** to your host using a USB data cable. For the runtime connection after flashing, [use CN1](quick-bringup.md#_3-verify-usb-runtime-link-cn1).
 
-For macOS/Windows flashing with OpenOCD:
+### Chrome or Edge
 
-- Run the command on the host (not inside the devcontainer).
-- Run it from the repository root on the host.
+In the [browser flasher](flash.md), select **Custom .bin** and choose the image from the build directory. The application may occupy up to 768 KiB. The final flash sector holds saved parameters.
+
+### OpenOCD
+
+Install OpenOCD on the host and check that CODEGRIP appears as a CMSIS-DAP probe. Run the command from the firmware repository on the host.
 
 ```bash
 openocd \
@@ -35,33 +39,21 @@ openocd \
   -c "init; reset halt; program build/mikroe_clicker4-stm32f7_noboot/mikroe_clicker4-stm32f7_noboot.bin 0x08000000 verify; reset run; shutdown"
 ```
 
-## CODEGRIP Firmware Pitfall
+### CODEGRIP command mismatch {#codegrip-firmware-pitfall}
 
-If OpenOCD fails with a CMSIS-DAP command mismatch or cannot talk to the CODEGRIP probe reliably, update the CODEGRIP firmware first. This has been the most common flashing issue with this board.
+If OpenOCD reports a CMSIS-DAP command mismatch or keeps losing the probe, update CODEGRIP first. The reported `FW Version` can stay at `1` after a successful update. [CODEGRIP utility](https://www.mikroe.com/codegrip) · [Firmware update instructions](https://helpdesk.mikroe.com/en-us/10-codegrip/79-how-to-update-codegrip-device-firmware)
 
-Do not rely on the displayed CODEGRIP `FW Version` string alone to decide whether the update worked; it may continue to report version `1` after the updater has completed.
+## Check the board after flashing {#post-flash-validation}
 
-- Tool: [mikroE CODEGRIP](https://www.mikroe.com/codegrip)
-- Guide: [CODEGRIP firmware update](https://helpdesk.mikroe.com/en-us/10-codegrip/79-how-to-update-codegrip-device-firmware)
-
-## Post-Flash Validation
-
-In the browser flasher, **Check board** reads the installed build ID and startup status using the selected CODEGRIP. Use CN1 for runtime checks in the PX4 console.
-
-1. Check runtime USB device on CN1.
-2. Open NSH using [Quick Bringup](quick-bringup.md).
-3. Run:
-
-```sh
-dmesg
-mavlink status
-```
+On CN2, **Check board** reads the build ID and startup status over CODEGRIP. On CN1, use the [PX4 console checks](quick-bringup.md#_5-sanity-checks-in-nsh) to confirm the runtime connection.
 
 ## Restore a parameter backup
 
-In the [browser flasher](flash.md), connect through CN2 and check the installed firmware. Choose the 256 KiB `.bin` saved from the same board and firmware version, then select **Restore parameters**. The browser validates the PX4 record, verifies the restored sector, and reboots the board.
+In the [browser flasher](flash.md), connect through CN2 and check the installed firmware. Choose a 256 KiB `.bin` saved from the same board and firmware version, then select **Restore parameters**. The flasher checks the PX4 record before writing and reads the restored sector back before rebooting.
 
-For recovery with OpenOCD, use the full sector backup from the same board and firmware version. Rename it to `clicker4-parameters.bin` and run this command from the folder containing the file with CN2 connected.
+::: details Restore with OpenOCD
+
+Use the full sector backup from the same board and firmware version. Rename it to `clicker4-parameters.bin` and run the command from the folder containing the file with CN2 connected.
 
 ```bash
 openocd \
@@ -72,31 +64,27 @@ openocd \
   -c "program clicker4-parameters.bin 0x080c0000 verify reset exit"
 ```
 
+:::
+
 ## Release versions
 
 The migration base is PX4 `v1.18.0-rc1` (`fca3df865af36124a28c9d607e850f111dbaaea9`).
-Use immutable annotated downstream tags such as `v1.18.0-1.1.0-rc1`:
-PX4 1.18.0, SVEA 1.1.0, release candidate 1. Record the exact upstream base
-in the release description; the custom tag does not encode the upstream RC number.
-Keep releases based on an upstream candidate marked as prereleases.
+Tag downstream releases with immutable annotated tags such as `v1.18.0-1.1.0-rc1` for PX4 1.18.0, SVEA 1.1.0, release candidate 1. Record the upstream commit in the release description and mark upstream candidate builds as prereleases.
 
-`v1.18.0-rc1-1.1.0` is not accepted by PX4's version validator.
-The moving `svea-pmb-mikroe-latest` tag is for development builds only.
+The PX4 version validator rejects `v1.18.0-rc1-1.1.0`. Reserve the moving `svea-pmb-mikroe-latest` tag for development builds.
 
-The upstream NuttX pin is used without local USB patches. Clicker4 owns I2C
-startup through `BOARD_I2C_LATEINIT`: bus recovery is retained, while the
-general-call device reset is omitted to preserve power-expander outputs.
+::: details Clicker4 changes in the v1.18 migration
 
-SVEA TRX4 uses airframe ID `51004`. On Clicker4, the former saved SVEA ID
-`51003` is migrated to `51004` at startup. Other saved airframe selections
-are retained. Upstream `51003` remains the Hiwonder profile.
+The build uses the upstream NuttX pin without local USB patches. Clicker4 runs I2C startup through `BOARD_I2C_LATEINIT`. Bus recovery still runs and the power-expander outputs are preserved by skipping the general-call reset.
 
-If you downgrade a SVEA TRX4 from `v1.18.0-1.1.0-rc1` to `v1.17.0-1.0.0`
-with saved airframe ID `51004`, select the stable release's SVEA airframe from
-NSH after the flash.
+SVEA TRX4 uses airframe ID `51004`. Clicker4 migrates a saved SVEA ID `51003` to `51004` at startup and keeps other saved airframes. Upstream uses `51003` for Hiwonder.
+
+When downgrading a TRX4 with saved ID `51004` from `v1.18.0-1.1.0-rc1` to `v1.17.0-1.0.0`, select the stable release's SVEA airframe in NSH after flashing.
 
 ```sh
 param set SYS_AUTOSTART 51003
 param save
 reboot
 ```
+
+:::
