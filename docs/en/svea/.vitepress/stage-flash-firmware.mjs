@@ -4,7 +4,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 const repository = "nilskiefer/SVEA-PX4-Autopilot";
 const releaseApi = `https://api.github.com/repos/${repository}/releases`;
 const prereleaseTag = /^v\d+\.\d+\.\d+-\d+\.\d+\.\d+-(?:rc|beta|alpha)\d+$/;
-const clicker4Image = /^mikroe_clicker4-stm32f7_noboot-[a-f0-9]{12}\.bin$/;
+const clicker4Image = /^mikroe_clicker4-stm32f7_noboot-([a-f0-9]{12})\.bin$/;
 const maxImageSize = 0xc0000; // 768 KiB of application sectors, before the saved parameters.
 const output = new URL("./dist/flash-firmware/", import.meta.url);
 
@@ -59,12 +59,22 @@ async function stageFirmware(release, manifestName) {
     throw new Error(`Downloaded Clicker4 firmware for ${release.tag_name} does not match the GitHub release digest.`);
   }
 
+  // The released binary contains PX4_GIT_VERSION_STR, whose prefix names the asset.
+  const [, prefix] = clicker4Image.exec(image.name);
+  const commitPattern = new RegExp(`(?<![a-f0-9])${prefix}[a-f0-9]{28}(?=\\x00)`, "g");
+  const matches = [...bytes.toString("latin1").matchAll(commitPattern)];
+  if (new Set(matches.map((match) => match[0])).size !== 1) {
+    throw new Error(`Could not locate the embedded PX4 commit in ${release.tag_name}.`);
+  }
+  const [commit] = matches;
+
   await writeFile(new URL(`${sha256}.bin`, output), bytes);
   await writeFile(new URL(manifestName, output), JSON.stringify({
     tag: release.tag_name,
     releaseUrl: release.html_url,
     sha256,
     size: bytes.length,
+    identity: { offset: commit.index, commit: commit[0] },
   }, null, 2) + "\n");
   console.log(`Staged ${release.tag_name} firmware for GitHub Pages.`);
 }

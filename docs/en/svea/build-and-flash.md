@@ -21,6 +21,8 @@ make mikroe_clicker4-stm32f7_noboot
 
 To install the latest SVEA release or prerelease using Chrome or Edge, open [Flash the Clicker4](flash.md).
 
+To flash your own build in the browser, select **Custom .bin** and choose the raw `mikroe_clicker4-stm32f7_noboot.bin` from the build directory. The browser accepts images up to 768 KiB so the final flash sector stays reserved for parameters.
+
 For macOS/Windows flashing with OpenOCD:
 
 - Run the command on the host (not inside the devcontainer).
@@ -44,6 +46,8 @@ Do not rely on the displayed CODEGRIP `FW Version` string alone to decide whethe
 
 ## Post-Flash Validation
 
+In the browser flasher, **Check board** reads the installed build ID and startup status using the selected CODEGRIP. Use CN1 for runtime checks in the PX4 console.
+
 1. Check runtime USB device on CN1.
 2. Open NSH using [Quick Bringup](quick-bringup.md).
 3. Run:
@@ -55,7 +59,9 @@ mavlink status
 
 ## Restore a parameter backup
 
-The [browser flasher](flash.md) downloads a 256 KiB copy of the Clicker4's saved parameter sector. Restore it to the same board running compatible firmware. Rename the downloaded file to `clicker4-parameters.bin` and check that it is exactly 262,144 bytes. Connect the board through CN2 and run OpenOCD from the folder containing the file.
+In the [browser flasher](flash.md), connect through CN2 and check the installed firmware. Choose the 256 KiB `.bin` saved from the same board and firmware version, then select **Restore parameters**. The browser validates the PX4 record, verifies the restored sector, and reboots the board.
+
+For recovery with OpenOCD, use the full sector backup from the same board and firmware version. Rename it to `clicker4-parameters.bin` and run this command from the folder containing the file with CN2 connected.
 
 ```bash
 openocd \

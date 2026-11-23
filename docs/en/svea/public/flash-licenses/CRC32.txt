@@ -1,0 +1,4 @@
+crc-32 1.2.2
+Copyright (C) 2014-present SheetJS
+Source: https://github.com/SheetJS/js-crc32
+Licensed under the Apache License, Version 2.0. See Apache-2.0.txt.
