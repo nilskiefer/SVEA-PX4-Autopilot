@@ -1,0 +1,27 @@
+Keil STM32F7xx Device Family Pack v3.1.1
+STM32F7x_1024.FLM, extracted PrgCode and PrgData without changes.
+
+Upstream algorithm
+https://github.com/Open-CMSIS-Pack/STM32F7xx_DFP/blob/e23bd3cab662bf5e4d072e153d986c271c0ed851/CMSIS/Flash/STM32F7x_1024.FLM
+
+The payload is the first ELF load segment, 360 bytes from file offset 52.
+Payload SHA-256
+06c16e5e99a002303007f73e2ce538f24bb30c359af987c13998f599b3a34d64
+
+Copyright (c) 2015 - 2017 ARM Ltd.
+
+This software is provided 'as-is', without any express or implied warranty.
+In no event will the authors be held liable for any damages arising from
+the use of this software. Permission is granted to anyone to use this
+software for any purpose, including commercial applications, and to alter
+it and redistribute it freely, subject to the following restrictions:
+
+1. The origin of this software must not be misrepresented; you must not
+   claim that you wrote the original software. If you use this software in
+   a product, an acknowledgment in the product documentation would be
+   appreciated but is not required.
+
+2. Altered source versions must be plainly marked as such, and must not be
+   misrepresented as being the original software.
+
+3. This notice may not be removed or altered from any source distribution.

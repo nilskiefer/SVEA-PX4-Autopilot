@@ -20,6 +20,7 @@ export default withMermaid({
           { text: "Dev Environment", link: "/dev-environment" },
           { text: "Quick Bringup", link: "/quick-bringup" },
           { text: "Build and Flash", link: "/build-and-flash" },
+          { text: "Flash the Clicker4", link: "/flash" },
           { text: "Troubleshooting", link: "/troubleshooting" },
           { text: "Common Adjustments", link: "/common-adjustments" },
           { text: "Firmware Inventory", link: "/firmware-inventory" },

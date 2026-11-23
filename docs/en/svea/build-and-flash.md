@@ -19,6 +19,8 @@ make mikroe_clicker4-stm32f7_noboot
 
 ## Flash
 
+To install the latest SVEA prerelease using Chrome or Edge, open [Flash the Clicker4](flash.md).
+
 For macOS/Windows flashing with OpenOCD:
 
 - Run the command on the host (not inside the devcontainer).

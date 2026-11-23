@@ -1,0 +1,11 @@
+// Keil STM32F7xx DFP v3.1.1, STM32F7x_1024.FLM.
+// Original PrgCode and PrgData, ELF file offset 0x34, length 0x168.
+// See public/flash-licenses/STM32F7-loader.txt for source and licensing.
+export const LOADER = Uint8Array.from(atob(
+  "v/NPj3BHwALADUAoAtOACQAdcEcgKALTQAnAHHBHwAhwR0lIR0lBYEhJQWAAIQFgwWjwIhFDwWBAaYAG" +
+  "BtRFSENJAWAGIUFgQ0mBYAAgcEc9SAFpQgURQwFhACBwRxC1OUgBaQQkIUMBYQFpogMRQwFhOkk3SgDg" +
+  "EWDDaNsD+9QBaaFDAWEAIBC9MLX/97v/LUnKaPAjGkPKYAIkDGEKacAGAA4CQwphCGniAxBDCGG/80+P" +
+  "KUgnSgDgEGDNaO0D+9QIaaBDCGHIaAAGAA8D0MhoGEPIYAEgML3wtRpMyRyJCOVoiQDwIx1D5WAAIyNh" +
+  "ASf/BhlNIeAjaRlOM0MjYcYC9gr2GRNoM2C/80+PEU4A4DVg42jbA/vUI2lbCFsAI2HjaBsGGw8F0OBo" +
+  "8CEIQ+BgASDwvQAdCR8SHQAp29EAIPC9IwFnRQA8AkCrie/NVVUAAAAwAED/DwAAqqoAAAECAAAAAAAA"
+), (byte) => byte.charCodeAt(0));
